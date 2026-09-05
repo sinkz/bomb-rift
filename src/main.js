@@ -13,21 +13,23 @@ import { Sound } from './audio.js';
 import { GameHud } from './hud.js';
 import { skillArt, skillPreview } from './skill-art.js';
 import { Atlas } from './atlas.js';
-import { relicById } from './campaign.js';
+import { relicById, CAMPAIGN_LENGTH } from './campaign.js';
+import { normalizeMeta } from './legacy.js';
+import { Refuge, resourceCost } from './refuge.js';
 import { LocalRanking } from './ranking.js';
 import { LaunchScreen } from './launch.js';
 import './style.css';
 import './game-hud.css';
 import './atlas.css';
 import './juice.css';
+import './refuge.css';
 
 const ICONS = { Bomb, Flame, Expand, Heart, Wind, Magnet, Timer, Zap, HeartPulse, Droplets, ArrowUpRight, ArrowRight, ChevronRight, Gem, Skull, Trophy, Swords, Shield, LockKeyhole, Plus, Volume2, VolumeX, Maximize, Minimize, Settings2, Pause, Play, X, RotateCcw, BookOpen, Sparkles, CircleHelp, MoveUp, MoveDown, MoveLeft, MoveRight, Check, Target, Infinity: InfinityIcon, Crosshair, Sprout };
 const icon = (name, cls = '') => `<i data-lucide="${name}" class="${cls}" aria-hidden="true"></i>`;
 const icons = () => createIcons({ icons: ICONS, attrs: { 'stroke-width': 1.7 } });
 const $ = s => document.querySelector(s);
-const defaults = { shards: 0, health: 0, power: 0, bestRound: 0, bestKills: 0, runs: 0, unlockedStage: 1 };
 let meta;
-try { const saved = JSON.parse(localStorage.getItem('bomb-rift-v1') || '{}'); meta = { ...defaults }; for (const key of Object.keys(defaults)) if (Number.isFinite(saved[key])) meta[key] = Math.max(0, Math.floor(saved[key])); } catch { meta = { ...defaults }; }
+try { meta = normalizeMeta(JSON.parse(localStorage.getItem('bomb-rift-v1') || '{}')); } catch { meta = normalizeMeta(); }
 const game = new Game({ meta }); const sound = new Sound(); const keys = new Set();
 let rankingStorage; try { rankingStorage = localStorage; } catch {}
 const ranking = new LocalRanking(rankingStorage); let lastRunScore = null;
@@ -67,6 +69,7 @@ $('#app').innerHTML = `
   </main>
   <div class="modal-root hidden" id="modal-root"></div><div class="toast" id="toast" role="status"></div>
 `;
+const refuge = new Refuge(meta, { avatar, icon });
 const hud = new GameHud(game, { icon, icons, avatar });
 const atlas = new Atlas(game, { icon, icons, bossSources });
 const launch = new LaunchScreen(game, atlas, ranking, { icon, icons, avatar }); launch.show();
@@ -79,9 +82,13 @@ function toast(text) { $('#toast').textContent = text; $('#toast').classList.add
 function announce(text, kind = '') { hud.notice(text, '', kind === 'danger' ? '#ff8e9c' : '#ffd39b'); }
 function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); saveMeta(); } }
 function scoreCard() { return lastRunScore ? `<div class="score-result"><div>${lastRunScore.place ? `${String(lastRunScore.place).padStart(2, '0')}º NO SEU RANKING` : 'RESULTADO DA EXPEDIÇÃO'}<small>${ranking.saved ? 'Salvo neste navegador' : 'Válido nesta sessão'} · abates, coleta e conquista</small></div><strong>${lastRunScore.score.toLocaleString('pt-BR')} <small>PTS</small></strong></div>` : ''; }
+function legacyResultCard() {
+  const result = game.result?.legacy; if (!result) return '';
+  return `<div class="legacy-result"><div class="recipe-cost">${resourceCost(result.materials, '+')}</div><span>+${result.xp} EXP DE EXPLORADOR <b>${result.rankedUp ? 'NOVO RANQUE ' : 'RANQUE '}${result.rank}</b></span><small>Materiais e experiência ficam com você.</small></div>`;
+}
 function closeModal() { $('#modal-root').classList.add('hidden'); $('#modal-root').innerHTML = ''; modalType = null; returnFocus?.focus?.(); }
 function modal(type, content, { wide = false, closable = true } = {}) {
-  if (type === 'dead' || type === 'intermission') content = content.replace('<button class="primary-button', `${scoreCard()}<button class="primary-button`) + `<button class="text-button" data-action="home">${icon('Trophy')} Menu inicial e ranking</button>`;
+  if (type === 'dead' || type === 'intermission') content = content.replace('<button class="primary-button', `${scoreCard()}${legacyResultCard()}<button class="primary-button`) + `<button class="text-button" data-action="home">${icon('Trophy')} Menu inicial e ranking</button>`;
   keys.clear(); if (!modalType) returnFocus = document.activeElement; modalType = type;
   $('#modal-root').innerHTML = `<section class="modal modal-${type} ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${closable ? `<button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('X')}</button>` : ''}${content}</section>`;
   $('#modal-root').classList.remove('hidden'); icons(); $('#modal-root button:not(:disabled)')?.focus();
@@ -90,6 +97,7 @@ function resume() { closeModal(); if (game.phase === 'paused') game.pause(); upd
 function start() {
   if (fatal) return;
   if (!game.start(atlas.selected)) return;
+  clearTimeout(toast.timer); $('#toast').classList.remove('visible');
   closeModal(); sound.init(); launch.hide(); atlas.hide(); keys.clear(); scene.preview?.clear(); lastRunScore = null;
   $('#start-banner').classList.add('hidden'); $('#in-game-bottom').classList.remove('hidden');
   $('#mobile-controls').classList.add('running'); $('#pause-button').disabled = false;
@@ -109,7 +117,7 @@ function showPause() {
 }
 function showGuide() {
   pauseForModal();
-  modal('guide', `<span class="eyebrow orange">MANUAL DO PEQUENO CAOS</span><h2 id="modal-title">Um pavio. Muitas possibilidades.</h2><p>Sobreviva por <b>2 minutos</b>, derrote o chefe e atravesse a próxima fenda. A masmorra muda, a dificuldade aumenta e cada fase começa com uma build nova. Suas melhorias permanentes ficam.</p><div class="guide-grid"><div><span>${icon('Bomb')}</span><h3>Abra o caminho</h3><p>Bombas explodem em cruz. Caixas são destruídas, pedras bloqueiam o fogo e outras bombas explodem em cadeia. <b>Suas explosões também machucam você.</b></p></div><div><span>${icon('Gem')}</span><h3>Transforme o caos</h3><p>Recolha cristais para ganhar XP. Cada nível dá uma habilidade grátis. Use cristais para forjar outras escolhas com <b>E</b>.</p></div><div><span>${icon('Zap')}</span><h3>Tenha uma saída</h3><p>Use <b>Shift</b> para avançar até 3 casas na direção em que está olhando, com invulnerabilidade breve. Paredes bloqueiam a esquiva.</p></div><div><span>${icon('Skull')}</span><h3>Encare o guardião</h3><p>Quando o tempo terminar, o chefe aparece. Fuja das casas vermelhas e use bombas. A vitória desbloqueia a próxima fase e salva essências. Volte ao atlas para investir no seu legado.</p></div></div><div class="guide-controls"><span><kbd>W A S D</kbd> ou <kbd>↑ ← ↓ →</kbd> mover pela grade</span><span><kbd>ESPAÇO</kbd> colocar bomba</span><span><kbd>ESC / P</kbd> pausar</span></div><p class="small-note">Cada 5 abates rendem 1 essência. Minichefes rendem 3 e uma relíquia. Cada fase mostra a recompensa do seu guardião no atlas. Compre melhorias permanentes na aba Evolução. O progresso é salvo neste navegador.</p><button class="primary-button full-width" data-action="close-modal">Entendi. Vamos nessa. ${icon('ArrowRight')}</button>`, { wide: true });
+  modal('guide', `<span class="eyebrow orange">MANUAL DO PEQUENO CAOS</span><h2 id="modal-title">Um pavio. Muitas possibilidades.</h2><p>Sobreviva por <b>2 minutos</b>, derrote o chefe e atravesse a próxima fenda. A masmorra muda, a dificuldade aumenta e cada fase começa com uma build nova. Suas melhorias permanentes ficam.</p><div class="guide-grid"><div><span>${icon('Bomb')}</span><h3>Abra o caminho</h3><p>Bombas explodem em cruz. Caixas são destruídas, pedras bloqueiam o fogo e outras bombas explodem em cadeia. <b>Suas explosões também machucam você.</b></p></div><div><span>${icon('Gem')}</span><h3>Transforme o caos</h3><p>Recolha cristais para ganhar XP. Cada nível dá uma habilidade grátis. Use cristais para forjar outras escolhas com <b>E</b>.</p></div><div><span>${icon('Zap')}</span><h3>Tenha uma saída</h3><p>Use <b>Shift</b> para avançar até 3 casas na direção em que está olhando, com invulnerabilidade breve. Paredes bloqueiam a esquiva.</p></div><div><span>${icon('Skull')}</span><h3>Encare o guardião</h3><p>Quando o tempo terminar, o chefe aparece. Fuja das casas vermelhas e use bombas. A vitória desbloqueia a próxima fase e salva essências. Volte ao atlas para investir no seu legado.</p></div></div><div class="guide-controls"><span><kbd>W A S D</kbd> ou <kbd>↑ ← ↓ →</kbd> mover pela grade</span><span><kbd>ESPAÇO</kbd> colocar bomba</span><span><kbd>ESC / P</kbd> pausar</span></div><p class="small-note">Cada 5 abates rendem 1 essência. Minichefes rendem 3, uma relíquia e um núcleo para coletar. Cada fase mostra a recompensa do seu guardião no atlas. A cada duas caixas ou três abates, colete sucata. Use essências, sucata e núcleos no Refúgio: talentos, equipamentos e tinturas ficam para as próximas fases. Complete contratos para ganhar recursos extras. O progresso é salvo neste navegador.</p><button class="primary-button full-width" data-action="close-modal">Entendi. Vamos nessa. ${icon('ArrowRight')}</button>`, { wide: true });
 }
 function showUpgrade() {
   modal('upgrade', `<div class="upgrade-sigil">${icon('Sparkles')}</div><span class="eyebrow orange">${game.upgradeCost ? 'A FORJA RESPONDEU AO SEU CHAMADO' : `NÍVEL ${game.level} · PODER DESPERTADO`}</span><h2 id="modal-title">Escolha sua evolução.</h2><p>Três caminhos. Uma escolha. Faça a fenda lembrar de você.</p><div class="skill-options">${game.offers.map((skill, i) => `<button class="skill-option" data-skill="${skill.id}" style="--skill-color:${skill.color}"><span class="skill-option-top"><span>${icon(skill.icon)} ${skill.branch}</span><kbd>${i + 1}</kbd></span><span class="skill-option-icon">${skillArt(skill.id)}</span><h3>${skill.name}</h3><p>${skill.desc}</p>${skillPreview(game, skill.id)}<span class="skill-option-bottom"><span>◆ NÍVEL ${(game.skillLevels[skill.id] || 0) + 1}</span> ${icon('ArrowUpRight')}</span></button>`).join('')}</div><div class="upgrade-footer"><span>${icon('Gem')} ${game.crystals} cristais</span><button class="secondary-button" data-action="reroll" ${game.crystals < 6 ? 'disabled' : ''}>${icon('RotateCcw')} Sortear novamente <b>6 ${icon('Gem')}</b></button></div><span class="upgrade-pause-note">TEMPO SUSPENSO · ESCOLHA COM CALMA</span>`, { wide: true, closable: false });
@@ -120,17 +128,21 @@ function showBuild() {
   modal('build', `<span class="eyebrow orange">ARSENAL DA FASE ${game.round} · NÍVEL ${game.level}</span><h2 id="modal-title">Seu tipo de caos.</h2><div class="build-summary"><span>${icon('Flame')} ${game.player.damage} DANO</span><span>${icon('Expand')} ${game.player.range} ALCANCE</span><span>${icon('Bomb')} ${game.player.capacity} BOMBAS</span></div><div class="relic-codex">${game.relics.map(id => { const r = relicById(id); return `<div class="relic-entry" style="--skill-color:${r.color}">${skillArt(r.art)}<div><h3>${r.name}${id === 'phoenix' && !game.player.revive ? ' · consumida' : ''}</h3><p>${r.desc}</p></div></div>`; }).join('')}</div><div class="equipped-skills">${entries.length ? entries.map(s => `<div class="equipped-skill" style="--skill-color:${s.color}">${skillArt(s.id)}<div><small>${s.branch} · NV. ${game.skillLevels[s.id]}</small><h3>${s.name}</h3><p>${s.desc}</p></div></div>`).join('') : '<p>Suba de nível ou colete cristais para forjar habilidades. Destrua o baú dourado e vença minichefes para encontrar relíquias.</p>'}</div><p class="small-note">Esta build dura só esta fase. Suas melhorias permanentes continuam na próxima.</p><button class="primary-button full-width" data-action="close-modal">Voltar ao combate ${icon('Swords')}</button>`, { wide: true });
 }
 function showIntermission() {
-  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU. SEU LEGADO CRESCE.</span><h2 id="modal-title">${game.round % 9 === 0 ? 'O infinito se abre.' : game.stage.local === 3 ? 'Um mundo conquistado.' : 'Uma fenda a menos.'}</h2><p>${game.stage.name} concluída. ${game.round % 9 === 0 ? 'Uma nova ascensão foi desbloqueada. Os três mundos retornam com inimigos mais fortes.' : `A fase ${game.round + 1} está disponível no atlas.`}</p><div class="results-row"><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>${game.relics.length}</strong><span>RELÍQUIAS ENCONTRADAS</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS SALVAS</span></div></div><p class="victory-map-note">Sua build cumpriu seu destino. <b>Skills, relíquias e cristais reiniciam na próxima fase.</b> Suas essências e evoluções permanentes continuam com você.</p><button class="primary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowUpRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
+  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU. SEU LEGADO CRESCE.</span><h2 id="modal-title">${game.round % CAMPAIGN_LENGTH === 0 ? 'O infinito se abre.' : game.stage.local === 3 ? 'Um mundo conquistado.' : 'Uma fenda a menos.'}</h2><p>${game.stage.name} concluída. ${game.round % CAMPAIGN_LENGTH === 0 ? 'Uma nova ascensão foi desbloqueada. Os seis mundos retornam com inimigos mais fortes.' : `A fase ${game.round + 1} está disponível no atlas.`}</p><div class="results-row"><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>${game.relics.length}</strong><span>RELÍQUIAS ENCONTRADAS</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS SALVAS</span></div></div><p class="victory-map-note">Sua build cumpriu seu destino. <b>Skills, relíquias e cristais reiniciam na próxima fase.</b> Suas essências e evoluções permanentes continuam com você.</p><button class="primary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowUpRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
 }
 function showDead() {
   modal('dead', `<div class="modal-emblem">${icon('Skull')}</div><span class="eyebrow orange">TODA LENDA COMEÇA COM ALGUMAS EXPLOSÕES.</span><h2 id="modal-title">O pavio apagou.<br><span>A faísca continua.</span></h2><p>Sua build ficou na fenda. As essências e as evoluções permanentes vieram com você.</p><div class="results-row"><div><strong>${String(game.round).padStart(2, '0')}</strong><span>RODADA</span></div><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS</span></div></div><button class="primary-button full-width" data-action="start">Mais uma expedição ${icon('RotateCcw')}</button><button class="secondary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
 }
 function showMeta() {
   pauseForModal();
-  modal('meta', `<span class="eyebrow orange">ALGO SEMPRE VOLTA COM VOCÊ</span><h2 id="modal-title">Cultive a sua faísca.</h2><p>Essências sobrevivem ao fim da expedição. Melhorias permanentes entram em ação na sua <b>próxima fase</b>.</p><div class="essence-wallet">${icon('Sprout')}<strong>${meta.shards}</strong><span>ESSÊNCIAS</span></div><div class="meta-upgrades">${[
-    { id: 'health', name: 'Raízes da vida', icon: 'Heart', desc: '+10 de vida inicial por nível.', cost: 5 + meta.health * 5, max: 10 },
-    { id: 'power', name: 'Chama ancestral', icon: 'Flame', desc: '+1 de dano inicial por nível.', cost: 12 + meta.power * 12, max: 5 },
-  ].map(u => `<div class="meta-upgrade"><span class="meta-upgrade-icon">${icon(u.icon)}</span><div><h3>${u.name} <small>${meta[u.id]}/${u.max}</small></h3><p>${u.desc}</p></div><button class="secondary-button" data-meta="${u.id}" ${meta[u.id] >= u.max || meta.shards < u.cost ? 'disabled' : ''}>${meta[u.id] >= u.max ? 'MÁX.' : `${u.cost} ${icon('Sprout')}`}</button></div>`).join('')}</div><p class="small-note">Ganhe essências vencendo guardiões, minichefes e a cada 5 abates. Elas são creditadas ao vencer ou morrer. ${saveWarning ? 'Salvamento indisponível: progresso válido nesta sessão.' : 'Seu progresso fica salvo automaticamente neste navegador.'}</p><button class="primary-button full-width" data-action="close-modal">${game.phase === 'dead' ? 'Voltar aos resultados' : 'Voltar à expedição'} ${icon('ArrowRight')}</button>`);
+  const previous = document.querySelector('.refuge-content'), sameTab = previous?.dataset.view === refuge.tab;
+  const scroll = sameTab ? previous.scrollTop : 0, modalScroll = sameTab ? document.querySelector('.modal-meta')?.scrollTop || 0 : 0;
+  const focused = document.activeElement, key = ['talent','gear','outfit','contract','refugeTab','refugeSlot'].find(k => focused?.dataset?.[k]);
+  const selector = key ? `[data-${key.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${focused.dataset[key]}"]` : null;
+  modal('meta', refuge.html(), { wide: true });
+  if (previous) { document.querySelector('.modal-meta').style.animation = 'none'; document.querySelector('.refuge-content').scrollTop = scroll; document.querySelector('.modal-meta').scrollTop = modalScroll; }
+  const nextFocus = selector && document.querySelector(`#modal-root ${selector}`);
+  if (nextFocus && !nextFocus.disabled) nextFocus.focus({ preventScroll: true });
 }
 function showSettings() {
   pauseForModal();
@@ -221,10 +233,8 @@ document.addEventListener('click', event => {
   if (button.dataset.action !== 'music') sound.init();
   if (button.dataset.action) actions[button.dataset.action]?.();
   if (button.dataset.skill) game.chooseSkill(button.dataset.skill);
-  if (button.dataset.meta) {
-    const id = button.dataset.meta, max = id === 'health' ? 10 : 5, cost = id === 'health' ? 5 + meta.health * 5 : 12 + meta.power * 12;
-    if (meta.shards >= cost && meta[id] < max) { meta.shards -= cost; meta[id]++; saveMeta(); showMeta(); toast('Evolução permanente adquirida. Ativa na próxima expedição.'); }
-  }
+  const refugeAction = refuge.act(button);
+  if (refugeAction) { if (refugeAction.changed) { saveMeta(); if (refugeAction.message) toast(refugeAction.message); } showMeta(); }
   if (button.dataset.setting) {
     if (button.dataset.setting === 'sound') { sound.enabled = !sound.enabled; sound.save(); }
     if (button.dataset.setting === 'music') { sound.musicEnabled = !sound.musicEnabled; sound.save(); }
@@ -294,4 +304,4 @@ requestAnimationFrame(frame);
 // Read-only diagnostics for browser verification; no gameplay shortcuts are shipped.
 window.bombRiftBosses = () => ({ status: scene?.bossStatus, preview: atlas.bossPreview?.inspect(), playerOriginal: !scene?.playerMesh.userData.actor, active: scene ? [...scene.objects.values()].filter(o => o.userData.actor).map(o => o.userData.actor.key) : [] });
 window.bombRiftAudio = () => sound.inspect();
-window.bombRift = { snapshot: () => ({ phase: game.phase, round: game.round, stage: game.stage, selectedStage: atlas.selected, intelligence: game.intelligence, relics: [...game.relics], elapsed: game.elapsed, totalTime: game.totalTime, player: { ...game.player }, kills: game.kills, crystals: game.crystals, level: game.level, bombs: game.bombs.map(b => ({ ...b })), enemyCount: game.enemies.length, enemyIntents: game.enemies.map(e => ({ id: e.id, type: e.type, intent: e.intent, x: e.x, z: e.z })), boss: game.boss ? { ...game.boss } : null, skillLevels: { ...game.skillLevels }, meta: { ...meta }, camera: scene ? { span: scene.cameraSpan, zoom: scene.zoom, targetSpan: scene.targetSpan } : null, renderer: scene ? { calls: scene.renderer.info.render.calls, triangles: scene.renderer.info.render.triangles } : null, fatal }) };
+window.bombRift = { snapshot: () => ({ phase: game.phase, round: game.round, stage: game.stage, selectedStage: atlas.selected, intelligence: game.intelligence, relics: [...game.relics], materials: { ...game.materials }, cratesBroken: game.cratesBroken, elapsed: game.elapsed, totalTime: game.totalTime, player: { ...game.player }, kills: game.kills, crystals: game.crystals, level: game.level, bombs: game.bombs.map(b => ({ ...b })), enemyCount: game.enemies.length, enemyIntents: game.enemies.map(e => ({ id: e.id, type: e.type, intent: e.intent, x: e.x, z: e.z })), boss: game.boss ? { ...game.boss } : null, skillLevels: { ...game.skillLevels }, meta: { ...meta }, camera: scene ? { span: scene.cameraSpan, zoom: scene.zoom, targetSpan: scene.targetSpan } : null, renderer: scene ? { calls: scene.renderer.info.render.calls, triangles: scene.renderer.info.render.triangles } : null, fatal }) };

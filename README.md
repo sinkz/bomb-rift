@@ -1,6 +1,18 @@
-# BOMB RIFT 2.1 — Crônicas da Fenda
+# BOMB RIFT 2.2 — Crônicas da Fenda
 
 Um protótipo jogável de sobrevivência e exploração em Three.js, inspirado na estratégia de bombas em grade e na evolução imprevisível dos roguelikes. Interface em português, personagens e cenário originais construídos em 3D.
+
+## Atualização 2.2 — Refúgio da Faísca
+
+A campanha agora tem **18 fases em seis regiões**, com ascensões ilimitadas depois da fase 18. As primeiras nove fases preservam sua ordem. Jardim Voraz, Cidadela do Trovão e Coroa Glacial acrescentam jardins, pontes e arenas de até 21 × 19. Os três modelos de guardião reaparecem como formas ancestral, fulgurante e glacial, com novos padrões anunciados de ataque e identidade de região.
+
+O **Refúgio** reúne nove talentos em três ramos, nove equipamentos em três slots (seis receitas e três peças iniciais), cinco tinturas para traje 3D e retrato, quatro contratos e um bestiário com táticas. Essências, sucata e núcleos financiam as escolhas; experiência permanente aumenta o ranque do explorador e libera receitas. A tela compara vida, dano, alcance, bombas, proteção, esquiva, atração e cura por abate para a próxima fase. Talentos podem ser reorganizados com devolução integral dos recursos; equipamentos criados podem ser trocados gratuitamente.
+
+Esporeiros bombardeiam uma cruz anunciada; tecelãs aplicam lentidão rompida pela esquiva; oráculos canalizam cura para a horda e podem ser eliminados antes de concluí-la; mímicos esperam disfarçados e deixam sucata extra. Três relíquias novas atravessam uma caixa, fortalecem a bomba do último slot ou oferecem um escudo recarregável por coração. Avisos de controle têm cor própria e as explosões continuam causando dano apenas no impacto.
+
+Materiais coletados e experiência são creditados uma vez ao vencer ou morrer. Somente os equipamentos preparados antes da entrada afetam aquela fase. O refúgio e o combate mostram recursos e peças com ilustrações vetoriais próprias. Três novas composições instrumentais, com variações para os guardiões, completam as seis regiões.
+
+Veja [EXPANSAO-RPG.md](EXPANSAO-RPG.md) para a economia e estratégias, e [TRILHA-SONORA.md](TRILHA-SONORA.md) para os prompts das novas fases. O progresso da versão 2.1 é preservado na mesma chave local.
 
 ## Atualização 2.1 — uma faísca contra o infinito
 
@@ -40,7 +52,7 @@ Foram adicionados números de dano e coleta, indicador de sequência de abates, 
 
 Abra `standalone/BOMB-RIFT.html` no Chrome ou Edge. O arquivo inclui código, Three.js, ícones e fontes, e funciona offline. O navegador precisa ter WebGL 2 e aceleração de hardware disponíveis.
 
-O progresso permanente fica no armazenamento local do navegador, conservando a chave da versão anterior e suas melhorias. Saves antigos começam o novo atlas na fase 1. A versão em arquivo e a versão servida por HTTP podem usar salvamentos diferentes. A fase em andamento não é recuperada depois de recarregar, mas o legado e as fases desbloqueadas são mantidos.
+O progresso permanente fica no armazenamento local do navegador, conservando a chave da versão anterior e suas melhorias. Saves da versão 2.1 mantêm as fases desbloqueadas, essências e talentos já comprados; saves anteriores ao atlas começam na fase 1. A versão em arquivo e a versão servida por HTTP podem usar salvamentos diferentes. A fase em andamento não é recuperada depois de recarregar, mas o legado e as fases desbloqueadas são mantidos.
 
 ## Desenvolvimento
 
@@ -103,13 +115,15 @@ Destrua o caixote com um cristal dourado perto do início para encontrar uma rel
 
 ## Verificação
 
-52 testes automatizados cobrem reações em cadeia, bloqueios, dano instantâneo e resíduos inofensivos, esquiva, chefes, habilidades, IA, pausa, morte, créditos únicos, desbloqueios, reset da build, manutenção do legado, relíquias combinadas, ressurreição, minichefes, ranking e perigos do cenário. Todas as nove arenas são verificadas com 20 sementes cada, incluindo limites, caminhos e spawn seguro. Há verificações de geometria, clones independentes dos GLBs e sincronização das animações com os tempos de preparação dos ataques.
+66 testes automatizados cobrem reações em cadeia, bloqueios, dano instantâneo e resíduos inofensivos, esquiva, chefes, habilidades, IA, pausa, morte, créditos únicos, desbloqueios, reset da build, manutenção do legado, relíquias combinadas, ressurreição, minichefes, ranking e perigos do cenário. Todas as 18 arenas são verificadas com 20 sementes cada, incluindo limites, caminhos e spawn seguro. Há verificações de geometria, clones independentes dos GLBs e sincronização das animações com os tempos de preparação dos ataques.
 
-Os sete arranjos de música (menu, três mundos e três variações de chefe) foram renderizados por OfflineAudioContext: todos produziram áudio finito, sem clipping, liberando suas vozes ao terminar. Abertura, atlas, ganho de skill, três chefes, fúria, vitória, ranking após recarga e configurações de música foram exercitados no Chromium, incluindo 390×844. A instrumentação que acelera esses cenários existe apenas nos testes do navegador.
+Os 13 arranjos de música (menu, seis mundos e seis variações de chefe) foram renderizados por OfflineAudioContext: todos produziram áudio finito, sem clipping, liberando suas vozes ao terminar. Abertura, atlas, ganho de skill, três chefes, fúria, vitória, ranking após recarga e configurações de música foram exercitados no Chromium, incluindo 390×844. A instrumentação que acelera esses cenários existe apenas nos testes do navegador.
 
 Fluxos verificados no Chromium: início, movimento por teclado e toque, colocação de bombas, dano, pausa, escolha gratuita, forja e novo sorteio, chefe, vitória, rodada seguinte, morte, compra permanente, reinício com melhoria aplicada, persistência após recarregar e ajuste de qualidade. Os cenários de chefe e de salvamento foram alcançados usando instrumentação de teste, ausente da distribuição. Layout inspecionado em 1440×900, 1440×1000 e 390×844.
 
 O ciclo de vitória, compra permanente, entrada na fase seguinte e recarga foi verificado no Chromium com armazenamento isolado. O jogo é single-player local; não inclui multiplayer, sincronização em nuvem ou gamepad. O balanceamento pode ser refinado após sessões mais longas de jogo.
+
+A expansão acrescenta testes de migração de saves, custos atômicos, pré-requisitos, respec, crafting cobrado uma vez, contratos, ranque, novas relíquias, novos inimigos e novas regiões. Compras por teclado e toque, persistência após recarga, cinco abas do refúgio, seis mundos e os três novos confrontos foram exercitados em sessões isoladas do navegador.
 
 ## Dependências e créditos
 
@@ -117,4 +131,4 @@ Three.js (MIT), Vite (MIT), Lucide (ISC), Oxanium e DM Sans (SIL Open Font Licen
 
 Documentação técnica: [Three.js](https://threejs.org/docs/) e [Vite](https://vite.dev/guide/).
 
-A distribuição em arquivo único foi verificada no Chromium: nenhuma requisição externa de recursos e controles funcionais com a conexão do navegador desativada após carregar o HTML. O acesso direto por protocolo file não estava disponível na ferramenta de testes; o teste usou o mesmo HTML servido localmente.
+A distribuição em arquivo único foi verificada no Chromium: nenhuma requisição externa de recursos e controles funcionais com a conexão do navegador desativada após carregar o HTML. A versão 2.2 também foi exercitada diretamente pelo protocolo file com a conexão desativada.

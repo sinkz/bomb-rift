@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { relicById } from './campaign.js';
+import { OUTFITS } from './legacy.js';
 import { loadBossLibrary } from './boss-models.js';
 
 const G = {
@@ -162,6 +163,23 @@ export class ArenaScene {
         const coral = new THREE.Group(); coral.position.set(wx, 1.15, wz); this.addCrystal(coral, biome.crystal, .55, 0); this.blocks.get(x+','+z)?.add(coral); coral.position.set(0,1.15,0);
       }
     }
+    // New regions decorate solid pillars, keeping the original walkable grid readable.
+    for (const [cell, group] of this.blocks) {
+      const [x, z] = cell.split(',').map(Number);
+      if (this.game.tile(x, z) !== 1 || x === 0 || z === 0 || x === WIDTH - 1 || z === HEIGHT - 1 || (x + z) % 4 !== 0) continue;
+      if (biome.id === 'garden') {
+        mesh(group, 'sphere', mat(0x748f56), .22, 1.18, -.1, .65, .13, .36);
+        mesh(group, 'sphere', mat(0xa6cb79, 0x80aa37, .2), -.18, 1.27, .1, .4, .18, .3);
+        mesh(group, 'sphere', mat(0xe2ba88), .05, 1.42, .08, .15, .22, .15);
+      } else if (biome.id === 'storm') {
+        mesh(group, 'cylinder', mat(0x977958), 0, 1.35, 0, .12, .6, .12);
+        const coil = mesh(group, 'ring', mat(0xdbc089, 0xf4c463, 1), 0, 1.47, 0, .27, .27, .27); coil.rotation.x = Math.PI / 2;
+        mesh(group, 'sphere', mat(0xffe2a1, 0xf9bd53, 1.4), 0, 1.7, 0, .16, .16, .16);
+      } else if (biome.id === 'frost') {
+        mesh(group, 'round', mat(0xc3dbe2), 0, 1.14, 0, .92, .13, .88);
+        this.addCrystal(group, 0x9ae4ff, .38, 1.22);
+      }
+    }
     // Small pieces under the platform make the dungeon read as a floating island.
     for (let i = 0; i < 24; i++) {
       const a = i / 24 * Math.PI * 2;
@@ -273,7 +291,8 @@ export class ArenaScene {
     const parts = [...group.children], body = new THREE.Group();
     for (const part of parts.slice(1)) body.add(part);
     group.add(body); ring.material = ring.material.clone();
-    group.userData.pose = { body, boots: [parts[3], parts[4]], hands: [parts[11], parts[12]] };
+    const suit = orange.clone(); for (const i of [1, 3, 4, 10]) parts[i].material = suit;
+    group.userData.pose = { body, suit, boots: [parts[3], parts[4]], hands: [parts[11], parts[12]] };
     return group;
   }
   makeEnemy(type, variant = 'ruins') {
@@ -310,6 +329,33 @@ export class ArenaScene {
       mesh(group,'sphere',mat(0xb0ffff,0x34dfdd,2),0,.65,.23,.18,.12,.09);
       const halo = mesh(group,'ring',mat(0x89eede,0x3cddca,1.3),0,.7,0,.43,.43,.43); halo.rotation.x=Math.PI/2;
       for (const sign of [-1,1]) mesh(group,'cone',mat(0x4b99a6,0x259fbb,.5),sign*.24,.22,0,.14,.45,.12).rotation.z=sign*.4;
+    } else if (type === 'spore') {
+      const moss = mat(0x7dba71, 0x344e28, .25), cap = mat(0xc2c974), stem = mat(0xe1ccac);
+      mesh(group,'round',stem,0,.37,0,.37,.64,.34);
+      mesh(group,'sphere',moss,0,.79,0,.55,.25,.49);
+      for (let i=0;i<5;i++) { const a=i*Math.PI*2/5;mesh(group,'sphere',cap,Math.cos(a)*.34,.92,Math.sin(a)*.27,.075,.05,.075); }
+      for (const sign of [-1,1]) { mesh(group,'sphere',mat(0x172d29),sign*.11,.49,.18,.05,.09,.03);mesh(group,'sphere',moss,sign*.29,.18,0,.19,.13,.22); }
+    } else if (type === 'weaver') {
+      const shell=mat(0x57506c), glow=mat(0xffd97c,0xf7ae32,1.2);
+      mesh(group,'sphere',shell,0,.39,-.17,.36,.26,.39);mesh(group,'sphere',mat(0x393247),0,.3,.21,.25,.21,.25);
+      for (const sign of [-1,1]) for(let i=0;i<4;i++) {const z=-.4+i*.22;mesh(group,'round',shell,sign*.38,.23,z,.42,.075,.09).rotation.z=sign*.45;mesh(group,'round',shell,sign*.56,.12,z+.035,.08,.28,.09).rotation.z=-sign*.25;}
+      for (const x of [-.13,0,.13]) mesh(group,'sphere',glow,x,.36,.422,.04,.055,.032);
+      mesh(group,'crystal',glow,0,.64,-.16,.14,.09,.2);
+    } else if (type === 'oracle') {
+      const stone=mat(0x626d89), glow=mat(0x9debff,0x54c8e8,1.3);
+      mesh(group,'cylinder',stone,0,.15,0,.35,.23,.35);mesh(group,'crystal',stone,0,.51,0,.35,.5,.3);
+      mesh(group,'crystal',glow,0,.78,0,.22,.39,.2);
+      const halo=mesh(group,'ring',glow,0,.71,0,.4,.4,.4,false);halo.rotation.x=Math.PI/2;
+      for(const sign of [-1,1])mesh(group,'crystal',glow,sign*.42,.52,0,.085,.16,.085);
+      mesh(group,'box',mat(0x102831),0,.72,.19,.19,.06,.03);
+    } else if (type === 'mimic') {
+      const wood=mat(0x876045),gold=mat(0xd1a568),eye=mat(0xffad89,0xef7546,1.4);
+      mesh(group,'round',wood,0,.39,0,.75,.64,.62);
+      for(const sign of [-1,1])mesh(group,'box',gold,sign*.24,.42,0,.065,.63,.65);
+      mesh(group,'box',mat(0x2a1722),0,.43,.321,.67,.15,.025);
+      for(const x of [-.23,-.08,.08,.23])mesh(group,'cone',mat(0xe9d9ae),x,.46,.35,.05,.15,.04).rotation.z=Math.PI;
+      for(const sign of [-1,1])mesh(group,'box',eye,sign*.16,.66,.32,.10,.055,.025);
+      mesh(group,'box',gold,0,.4,.358,.13,.18,.03);
     } else if (type === 'ember') {
       mesh(group, 'round', mat(0xd16b46), 0, .45, 0, .58, .62, .52);
       for (const s of [-1, 1]) mesh(group, 'cone', mat(0xffd4a0), s * .22, .87, -.05, .10, .33, .10).rotation.z = -.35 * s;
@@ -339,7 +385,16 @@ export class ArenaScene {
   }
   makePickup(type, value) {
     const group = new THREE.Group();
-    if (type === 'relic') {
+    if (type === 'scrap') {
+      const metal=mat(0xd9a679,0xb77b3e,.25,.5);
+      mesh(group,'cylinder',metal,0,.35,0,.2,.17,.2);
+      for(let i=0;i<6;i++){const a=i*Math.PI/3;mesh(group,'box',metal,Math.cos(a)*.22,.35,Math.sin(a)*.22,.12,.14,.12);}
+      mesh(group,'crystal',mat(0xffe0ac,0xdb9f5b,.7),0,.47,0,.075,.1,.075);
+    } else if (type === 'cores') {
+      const glow=mat(0xb0e3ff,0x68bdff,1.6);mesh(group,'crystal',glow,0,.5,0,.19,.32,.19);
+      for(const angle of [.65,-.65])mesh(group,'ring',mat(0xdeb582),0,.5,0,.3,.3,.3,false).rotation.x=angle;
+      mesh(group,'ring',glow,0,.06,0,.28,.28,.28,false).rotation.x=Math.PI/2;
+    } else if (type === 'relic') {
       const color = new THREE.Color(relicById(value)?.color || '#ffdc89'); const material = mat(color.getHex(), color.getHex(), 1.6);
       mesh(group,'crystal',material,0,.6,0,.26,.36,.26);
       const ring = mesh(group,'ring',material,0,.07,0,.4,.4,.4,false); ring.rotation.x=Math.PI/2;
@@ -394,9 +449,13 @@ export class ArenaScene {
       const center = event.x !== undefined ? event : event.cells[0];
       if (center) { this.pulse(center.x, center.z, color, 2.4); const [x, z] = this.at(center.x, center.z); this.flashLight.position.set(x, 1.2, z); this.flashLight.color.set(color); this.flashLight.intensity = this.reducedMotion ? 8 : 35; }
     }
-    if (event.type === 'pickup') this.burst(event.x, event.z, event.entityType === 'heart' ? 0xff719a : 0x71ffc6, 5, 1.2);
+    if (event.type === 'pickup') this.burst(event.x, event.z, ({ heart: 0xff719a, scrap: 0xe6b17f, cores: 0xa6cfff })[event.entityType] || 0x71ffc6, 5, 1.2);
     if (event.type === 'kill') { this.burst(event.x, event.z, event.entityType === 'ember' ? 0xff9756 : 0xb39aff, 17, 4); this.pulse(event.x, event.z, 0xc49aff, .8, .4); }
     if (event.type === 'enemyHit') this.burst(event.x, event.z, 0xffedd0, 4, 1.3);
+    if (event.type === 'enemyHeal' || event.type === 'enemyMend') { this.pulse(event.x,event.z,0xabe8c9,.7,.6); this.burst(event.x,event.z,0x9feabf,7,1); }
+    if (event.type === 'mimicAwake') { this.burst(event.x,event.z,0xe1ad7c,9,2); this.pulse(event.x,event.z,0xffb274,.8,.7); }
+    if (event.type === 'blocked') { this.pulse(event.x,event.z,0xb4eafa,1.2,.6); this.burst(event.x,event.z,0xc7f2ff,10,2); }
+    if (event.type === 'webBurst') for (const cell of event.cells) { this.pulse(cell.x,cell.z,0x90dfee,.65,.7); this.burst(cell.x,cell.z,0xb8e9f7,4,1); }
     if (event.type === 'hurt') this.shake = this.reducedMotion ? 0 : .25;
     if (event.type === 'dash') {
       const steps = Math.abs(event.x - event.fromX) + Math.abs(event.z - event.fromZ);
@@ -424,6 +483,7 @@ export class ArenaScene {
     this.playerMesh.visible = true;
     this.playerMesh.children[0].scale.setScalar(.44 + (p.invincible > 0 ? Math.sin(t * 8) * .05 : 0));
     const pose = this.playerMesh.userData.pose, walking = game.active && p.moveCooldown > .025 && !this.reducedMotion;
+    if (this.playerMesh.userData.outfit !== p.outfit) { pose.suit.color.set(OUTFITS.find(o=>o.id===p.outfit)?.color || '#f68b3d'); this.playerMesh.userData.outfit=p.outfit; }
     const stride = walking ? Math.sin(t * 23) : 0;
     if (this.heroAction) this.heroAction.age += dt;
     const action = this.heroAction, kick = action && action.age < action.duration && !this.reducedMotion ? Math.sin(action.age / action.duration * Math.PI) : 0;
@@ -438,7 +498,7 @@ export class ArenaScene {
     this.playerMesh.children[0].material.emissive.set(this.skillAura?.life > 0 ? this.skillAura.color : p.fire === 'azure' ? 0x189de8 : 0xff9441);
     const live = new Set();
     for (const entity of [...game.enemies, ...(game.boss ? [game.boss] : [])]) {
-      live.add(entity.id); const obj = this.ensureObject(entity.id, () => this.makeEnemy(entity.type, entity.variant || game.biome.id), entity); const [x, z] = this.at(entity.x, entity.z);
+      live.add(entity.id); const obj = this.ensureObject(entity.id, () => this.makeEnemy(entity.type, entity.variant || game.biome.guardian || game.biome.id), entity); const [x, z] = this.at(entity.x, entity.z);
       const moving = Math.abs(obj.position.x - x) + Math.abs(obj.position.z - z) > .02;
       const damping = entity.chargeSteps > 0 ? 35 : 13;
       obj.position.x = THREE.MathUtils.damp(obj.position.x, x, damping, dt); obj.position.z = THREE.MathUtils.damp(obj.position.z, z, damping, dt);
@@ -447,6 +507,10 @@ export class ArenaScene {
       actor?.update(['paused', 'upgrade', 'menu'].includes(game.phase) ? 0 : dt, { moving: game.active && moving, slow: entity.slow > 0 });
       obj.scale.setScalar((entity.hitFlash > 0 ? 1.15 : 1) * (entity.type === 'sentinel' ? .8 : 1));
       if (entity.type === 'slime' && !this.reducedMotion) { const squash = Math.sin(t * (moving ? 10 : 4) + entity.id) * (moving ? .12 : .045); const hit = entity.hitFlash > 0 ? .16 : 0; obj.scale.set(1 + squash + hit, 1 - squash - hit * .5, 1 + squash + hit); }
+      if (entity.type === 'spore' && !this.reducedMotion) { obj.scale.y=1+Math.sin(t*4+entity.id)*.035;obj.rotation.z=moving?Math.sin(t*11+entity.id)*.07:0; }
+      if (entity.type === 'weaver' && moving && !this.reducedMotion) { obj.position.y+=Math.sin(t*23)*.025;obj.rotation.z=Math.sin(t*23)*.045; }
+      if (entity.type === 'oracle') obj.position.y+=.045+Math.sin(t*3)*.035+(entity.mending>0?.1:0);
+      if (entity.type === 'mimic') { obj.position.y=entity.awake&&moving?Math.abs(Math.sin(t*13))*.1:0;obj.rotation.z=entity.awake?Math.sin(t*7)*.025:0; }
       if (entity.type === 'beetle' && moving && !this.reducedMotion) obj.rotation.z = Math.sin(t * 22) * .065;
       if (entity.type === 'wisp') obj.position.y += .17 + Math.sin(t*3+entity.id)*.1;
       if (entity.slow > 0 && Math.sin(t*15+entity.id) > .94) this.burst(entity.x,entity.z,0x86f5ff,1,.3);
@@ -489,6 +553,7 @@ export class ArenaScene {
       this.ensureObject(id, () => this.dangerTiles(echo.cells, this.echoWarningMaterial, .55), { x: (game.width - 1) / 2, z: (game.height - 1) / 2 });
     }
     for (const flame of game.flames) {
+      if (flame.effect === 'snare') continue;
       live.add(flame.id);
       const obj = this.ensureObject(flame.id, () => {
         const group = new THREE.Group(); group.userData.maxLife = flame.life;
@@ -507,7 +572,7 @@ export class ArenaScene {
     for (const warning of game.warnings) {
       live.add(warning.id);
       const obj = this.ensureObject(warning.id, () => {
-        const group = new THREE.Group(); for (const c of warning.cells) { const [x, z] = this.at(c.x, c.z); mesh(group, 'box', mat(0xf65a69, 0xff243b, 1), x, .035, z, .89, .025, .89, false); } return group;
+        const group = new THREE.Group(); for (const c of warning.cells) { const [x, z] = this.at(c.x, c.z); mesh(group, 'box', mat(warning.effect === 'snare' ? 0x9cddff : 0xf65a69, warning.effect === 'snare' ? 0x338ad3 : 0xff243b, 1), x, .035, z, .89, .025, .89, false); } return group;
       }, { x: (game.width - 1) / 2, z: (game.height - 1) / 2 });
       obj.visible = true;
       obj.scale.y = 1 + (this.reducedMotion ? 0 : Math.sin(t * 8) * .2);

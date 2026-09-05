@@ -1,4 +1,5 @@
 import { WORLDS, stageFor, RELICS, relicById } from './campaign.js';
+import { normalizeMeta, startingStats, settleLegacy } from './legacy.js';
 export const WIDTH = 15;
 export const HEIGHT = 13;
 export const ROUND_SECONDS = 120;
@@ -24,7 +25,7 @@ export function seededRandom(seed) {
 export class Game {
   constructor({ random = Math.random, meta = {} } = {}) {
     this.random = random;
-    this.meta = meta;
+    this.meta = Object.assign(meta, normalizeMeta(meta));
     this.events = [];
     this.nextId = 1;
     this.phase = 'menu';
@@ -39,9 +40,11 @@ export class Game {
     this.forgeCount = 0; this.skillLevels = {}; this.pendingLevels = 0; this.earnedShards = 0;
     this.combo = 0; this.comboTimer = 0; this.relics = []; this.echoes = []; this.miniSpawned = false;
     this.hazardClock = 10; this.resultClaimed = false; this.result = null; this.relicDropCount = 0;
+    this.materials = { scrap: 0, cores: 0 }; this.cratesBroken = 0;
     this.player = { x: 1, z: 1, hp: 100 + (this.meta.health || 0) * 10, maxHp: 100 + (this.meta.health || 0) * 10,
       damage: 2 + (this.meta.power || 0), range: 2, capacity: 2, step: .19, fuse: 2.1,
       magnet: 1.25, dashMax: 3.5, dashCooldown: 0, invincible: 0, moveCooldown: 0, vampire: 0, facing: [0, 1], fire: 'normal', armor: 0, revive: false };
+    Object.assign(this.player, startingStats(this.meta), { slow: 0 });
     this.generateArena();
   }
   get stage() { return stageFor(this.round); }
@@ -56,7 +59,7 @@ export class Game {
     this.grid = Array.from({ length: height }, (_, z) => Array.from({ length: width }, (_, x) => {
       if (x === 0 || z === 0 || x === width - 1 || z === height - 1) return 1;
       const centerX = Math.floor(width / 2), centerZ = Math.floor(height / 2);
-      const open = layout === 'courtyard' && Math.abs(x - centerX) <= 2 && Math.abs(z - centerZ) <= 2 || layout === 'crossroads' && (x === centerX || z === centerZ) || layout === 'lanes' && z % 4 === 2;
+      const open = layout === 'courtyard' && Math.abs(x - centerX) <= 2 && Math.abs(z - centerZ) <= 2 || layout === 'crossroads' && (x === centerX || z === centerZ) || layout === 'lanes' && z % 4 === 2 || layout === 'gardens' && (Math.abs(x - centerX) <= 1 || z % 6 === 3) || layout === 'bridges' && (z % 4 === 2 || x === centerX);
       if (x % 2 === 0 && z % 2 === 0 && !open) return 1;
       if (x + z <= 5 || (x === 1 && z <= 5) || (z === 1 && x <= 5)) return 0;
       return !open && this.random() < .30 + worldIndex * .025 ? 2 : 0;
@@ -86,6 +89,7 @@ export class Game {
     this.meta.bestRound = Math.max(this.meta.bestRound || 0, this.round);
     this.meta.bestKills = Math.max(this.meta.bestKills || 0, this.kills);
     if (this.result.victory) this.meta.unlockedStage = Math.max(this.meta.unlockedStage || 1, this.round + 1);
+    settleLegacy(this);
     return true;
   }
   tile(x, z) { return this.grid[z]?.[x] ?? 1; }
@@ -98,7 +102,7 @@ export class Game {
     const p = this.player;
     p.facing = [dx, dz];
     if (!this.walkable(p.x + dx, p.z + dz, p)) return false;
-    p.x += dx; p.z += dz; p.moveCooldown = p.step;
+    p.x += dx; p.z += dz; p.moveCooldown = p.step * (p.slow > 0 ? 1.6 : 1);
     this.collect(); return true;
   }
   dash() {
@@ -111,24 +115,25 @@ export class Game {
       p.x += p.facing[0]; p.z += p.facing[1]; moved++;
     }
     if (!moved) return false;
-    p.dashCooldown = p.dashMax; p.invincible = Math.max(p.invincible, .5);
+    p.dashCooldown = p.dashMax; p.invincible = Math.max(p.invincible, .5); p.slow = 0; p.moveCooldown = 0;
     this.emit('dash', { x: p.x, z: p.z, fromX, fromZ }); this.collect(); return true;
   }
   plantBomb() {
     if (!this.active || this.bombs.length >= this.player.capacity) return false;
     const p = this.player;
     if (this.bombs.some(b => b.x === p.x && b.z === p.z)) return false;
-    this.bombs.push({ id: this.nextId++, x: p.x, z: p.z, fuse: p.fuse, maxFuse: p.fuse, range: p.range, damage: p.damage });
+    this.bombs.push({ id: this.nextId++, x: p.x, z: p.z, fuse: p.fuse, maxFuse: p.fuse, range: p.range, damage: p.damage + (this.relics.includes('overdrive') && this.bombs.length === p.capacity - 1 ? 2 : 0) });
     this.emit('bomb', { x: p.x, z: p.z }); return true;
   }
   blastCells(bomb) {
     const cells = [{ x: bomb.x, z: bomb.z }];
     for (const [dx, dz] of DIRS) {
+      let pierced = 0;
       for (let i = 1; i <= bomb.range; i++) {
         const x = bomb.x + dx * i, z = bomb.z + dz * i;
         if (this.tile(x, z) === 1) break;
         cells.push({ x, z });
-        if (this.tile(x, z) === 2) break;
+        if (this.tile(x, z) === 2 && pierced++ >= (this.player.pierce || 0)) break;
       }
     }
     return cells;
@@ -142,6 +147,8 @@ export class Game {
     for (const c of cells) {
       if (this.tile(c.x, c.z) === 2) {
         this.grid[c.z][c.x] = 0;
+        this.cratesBroken++;
+        if (this.cratesBroken % 2 === 0) this.addPickup(c.x, c.z, 'scrap', 1);
         this.emit('crate', c);
         if (c.x === this.cacheCell?.x && c.z === this.cacheCell?.z || this.random() < .045) this.dropRelic(c.x, c.z);
         else this.addPickup(c.x, c.z, this.random() < .10 ? 'heart' : 'crystal', 2 + Math.floor(this.random() * 3));
@@ -168,9 +175,11 @@ export class Game {
     this.relics.push(id); const p = this.player;
     if (id === 'azure') { p.fire = 'azure'; p.damage++; }
     if (id === 'clock') { p.fuse += 1; p.damage += 2; p.range++; }
-    if (id === 'shell') { p.maxHp += 20; p.hp += 20; p.armor = .2; }
+    if (id === 'shell') { p.maxHp += 20; p.hp += 20; p.armor = Math.min(.6, p.armor + .2); }
     if (id === 'magnet') { p.magnet += 2; p.capacity++; }
     if (id === 'phoenix') p.revive = true;
+    if (id === 'pierce') p.pierce = 1;
+    if (id === 'mercy') p.ward = 1;
     this.emit('relic', { id, x: p.x, z: p.z }); return true;
   }
   collect() {
@@ -180,7 +189,8 @@ export class Game {
       if (!this.reachableWithin(this.player, pickup, Math.floor(this.player.magnet))) continue;
       this.pickups = this.pickups.filter(p => p !== pickup);
       if (pickup.type === 'relic') this.equipRelic(pickup.value);
-      else if (pickup.type === 'heart') this.player.hp = Math.min(this.player.maxHp, this.player.hp + 20);
+      else if (pickup.type === 'heart') { this.player.hp = Math.min(this.player.maxHp, this.player.hp + 20); if (this.relics.includes('mercy')) this.player.ward = 1; }
+      else if (pickup.type === 'scrap' || pickup.type === 'cores') this.materials[pickup.type] += pickup.value;
       else { this.crystals += pickup.value; this.collected += pickup.value; this.xp += pickup.value * 3; }
       this.emit('pickup', pickup);
     }
@@ -210,8 +220,9 @@ export class Game {
     const cell = candidates[Math.floor(this.random() * candidates.length)];
     const pool = this.round === 1 && this.elapsed < 65 ? ['slime'] : this.biome.enemies;
     const type = forcedType || pool[Math.floor(this.random() * pool.length)];
-    const hp = ({ slime: 2, ember: 3, beetle: 5, wisp: 3, sentinel: 12 }[type] || 2) + Math.floor((this.round - 1) * .35);
+    const hp = ({ slime: 2, ember: 3, beetle: 5, wisp: 3, sentinel: 12, spore: 3, weaver: 3, oracle: 4, mimic: 4 }[type] || 2) + Math.floor((this.round - 1) * .35);
     const enemy = { id: this.nextId++, ...cell, type, hp, maxHp: hp, cooldown: 1 + this.random(), hitFlash: 0, intent: 'hunt', awareness: this.random(), chargeCooldown: 3, castCooldown: 4, slow: 0, windup: 0, chargeSteps: 0 };
+    if (type === 'mimic') { enemy.awake = false; enemy.intent = 'disguise'; }
     this.enemies.push(enemy); return enemy;
   }
   dangerMap() {
@@ -261,7 +272,7 @@ export class Game {
       return this.pathStep(enemy, this.player, hazards, true);
     }
     enemy.intent = 'hunt';
-    if (enemy.type === 'wisp' && !planningHazards.has(`${enemy.x},${enemy.z}`)) {
+    if (['wisp', 'spore', 'weaver', 'oracle'].includes(enemy.type) && !planningHazards.has(`${enemy.x},${enemy.z}`)) {
       const dist = distance(enemy, this.player);
       if (dist >= 3 && dist <= 6) { enemy.intent = 'aim'; return null; }
       if (dist < 3) {
@@ -290,6 +301,7 @@ export class Game {
   }
   hurt(amount) {
     if (!this.active || this.player.invincible > 0) return;
+    if (this.player.ward > 0) { this.player.ward--; this.player.invincible = .9; this.emit('blocked', { x: this.player.x, z: this.player.z }); return; }
     amount = Math.ceil(amount * (1 - (this.player.armor || 0)));
     this.player.hp = Math.max(0, this.player.hp - amount); this.player.invincible = 1.4;
     this.emit('hurt', { x: this.player.x, z: this.player.z, amount });
@@ -302,12 +314,16 @@ export class Game {
     // A blast is an instant, not a damage zone. Its remaining life is visual only.
     if (flame.resolved) return;
     flame.resolved = true;
-    if (flame.cells.some(c => c.x === this.player.x && c.z === this.player.z)) this.hurt(flame.enemy ? 25 : 20);
+    if (flame.cells.some(c => c.x === this.player.x && c.z === this.player.z)) {
+      if (flame.effect === 'snare') { if (this.player.invincible <= 0) { this.player.slow = 2; this.emit('snared', { x: this.player.x, z: this.player.z }); } }
+      else this.hurt(flame.enemy ? flame.damage ?? 25 : 20);
+    }
     if (this.phase === 'dead') return;
     if (flame.enemy) return;
     for (const enemy of [...this.enemies, ...(this.boss ? [this.boss] : [])]) {
       if (flame.hit.has(enemy.id) || !flame.cells.some(c => c.x === enemy.x && c.z === enemy.z)) continue;
       flame.hit.add(enemy.id); enemy.hp -= flame.damage; enemy.hitFlash = .18;
+      if (enemy.type === 'mimic') { enemy.awake = true; enemy.intent = 'hunt'; }
       if (this.relics.includes('frost')) enemy.slow = enemy.type === 'boss' ? 1.2 : 2.5;
       this.emit('enemyHit', { ...enemy, damage: flame.damage });
       if (enemy.hp <= 0) {
@@ -317,7 +333,9 @@ export class Game {
           this.combo = this.comboTimer > 0 ? this.combo + 1 : 1; this.comboTimer = 4;
           this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.vampire);
           this.addPickup(enemy.x, enemy.z, 'crystal', enemy.type === 'ember' ? 5 : 3);
-          if (enemy.type === 'sentinel') { this.dropRelic(enemy.x, enemy.z); this.earnedShards += 3; this.emit('miniDefeated', enemy); }
+          if (this.kills % 3 === 0) this.addPickup(enemy.x, enemy.z, 'scrap', 1);
+          if (enemy.type === 'mimic') this.addPickup(enemy.x, enemy.z, 'scrap', 2);
+          if (enemy.type === 'sentinel') { this.dropRelic(enemy.x, enemy.z); this.addPickup(enemy.x, enemy.z, 'cores', 1); this.earnedShards += 3; this.emit('miniDefeated', enemy); }
           else if (this.random() < .055) this.dropRelic(enemy.x, enemy.z);
           this.emit('kill', enemy);
         }
@@ -331,14 +349,20 @@ export class Game {
       this.grid[zz][xx] = 0; this.emit('clear', { x: xx, z: zz });
     }
     const hp = 14 + this.round * 4;
-    this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 3.2, attackCooldown: 4, hitFlash: 0, attackIndex: 0, enraged: false };
+    this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.guardian || this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 3.2, attackCooldown: 4, hitFlash: 0, attackIndex: 0, enraged: false };
     this.spawnClock = this.spawnInterval;
     this.emit('boss');
   }
   bossAttack() {
     if (!this.boss) return;
     const p = this.player, b = this.boss, cells = [], attack = b.attackIndex++;
-    if (this.stage.worldIndex === 1 && attack % 2 === 0) {
+    if (this.biome.id === 'garden' && attack % 2 === 0) {
+      for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) if (Math.max(Math.abs(dx), Math.abs(dz)) === 2 && this.tile(p.x + dx, p.z + dz) === 0) cells.push({ x: p.x + dx, z: p.z + dz });
+    } else if (this.biome.id === 'storm' && attack % 2 === 0) {
+      for (const x of [p.x - 1, p.x + 1]) for (let z = 1; z < this.height - 1; z++) if (this.tile(x, z) === 0) cells.push({ x, z });
+    } else if (this.biome.id === 'frost' && attack % 2 === 0) {
+      for (let d = -3; d <= 3; d++) for (const sign of [-1, 1]) if (this.tile(p.x + d, p.z + d * sign) === 0) cells.push({ x: p.x + d, z: p.z + d * sign });
+    } else if (this.stage.worldIndex === 1 && attack % 2 === 0) {
       for (let x = 1; x < this.width - 1; x++) if (this.tile(x, p.z) === 0) cells.push({ x, z: p.z });
       if (b.enraged) for (let z = 1; z < this.height - 1; z++) if (this.tile(p.x, z) === 0) cells.push({ x: p.x, z });
     } else if (this.stage.worldIndex === 2 && attack % 2 === 0) {
@@ -356,7 +380,7 @@ export class Game {
       }
     }
     const duration = (b.enraged ? 1 : 1.2) + (this.round <= 3 ? .5 : .15);
-    const names = { ruins: ['DOBRAR DOS SINOS', 'CRUZ DO SILÊNCIO'], forge: ['FORNALHA VIVA', 'RUPTURA ÍGNEA'], abyss: ['MARÉ DAS ALMAS', 'FENDA ESPECTRAL'] };
+    const names = { ruins: ['DOBRAR DOS SINOS', 'CRUZ DO SILÊNCIO'], forge: ['FORNALHA VIVA', 'RUPTURA ÍGNEA'], abyss: ['MARÉ DAS ALMAS', 'FENDA ESPECTRAL'], garden: ['COROA DE SEMENTES', 'RAÍZES DO SILÊNCIO'], storm: ['COLUNAS DO TROVÃO', 'CIRCUITO PARTIDO'], frost: ['LANÇAS DA AURORA', 'COROA DO INVERNO'] };
     this.warnings.push({ id: this.nextId++, cells, timer: duration, duration });
     this.emit('warning', { cells, duration, name: names[this.biome.id][attack % 2] });
   }
@@ -364,6 +388,7 @@ export class Game {
     if (!this.boss || !this.active) return;
     const boss = this.boss; this.boss = null; this.bosses++;
     this.earnedShards += this.stage.reward + Math.floor(this.kills / 5);
+    this.materials.cores++;
     this.result = { victory: true, stage: this.round, shards: this.earnedShards };
     this.phase = 'intermission'; this.warnings = []; this.flames = []; this.bombs = []; this.echoes = [];
     this.emit('bossDefeated', boss);
@@ -420,7 +445,15 @@ export class Game {
   environmentAttack() {
     if (!this.stage.worldIndex) return;
     const cells = [];
-    if (this.stage.worldIndex === 1) {
+    if (this.biome.id === 'garden') {
+      const p = this.player;
+      for (const [dx, dz] of [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]]) if (this.tile(p.x + dx, p.z + dz) === 0) cells.push({ x: p.x + dx, z: p.z + dz });
+    } else if (this.biome.id === 'storm') {
+      const x = this.player.x;
+      for (let z = 1; z < this.height - 1; z++) if (this.tile(x, z) === 0) cells.push({ x, z });
+    } else if (this.biome.id === 'frost') {
+      for (const [dx, dz] of [[0, 0], ...DIRS]) if (this.tile(this.player.x + dx, this.player.z + dz) === 0) cells.push({ x: this.player.x + dx, z: this.player.z + dz });
+    } else if (this.stage.worldIndex === 1) {
       for (let i = 0; i < 3 + this.stage.local; i++) {
         const x = 1 + Math.floor(this.random() * (this.width - 2)), z = 1 + Math.floor(this.random() * (this.height - 2));
         if (this.tile(x, z) === 0) cells.push({ x, z });
@@ -429,13 +462,42 @@ export class Game {
       const z = 1 + Math.floor(this.random() * (this.height - 2));
       for (let x = 1; x < this.width - 1; x++) if (this.tile(x, z) === 0) cells.push({ x, z });
     }
-    if (cells.length) { this.warnings.push({ id: this.nextId++, cells, timer: 1.65, environment: true }); this.emit('hazard', { cells }); }
+    if (cells.length) { this.warnings.push({ id: this.nextId++, cells, timer: this.stage.worldIndex >= 3 ? 2 : 1.65, environment: true, effect: this.biome.id === 'frost' ? 'snare' : null }); this.emit('hazard', { cells }); }
+  }
+  specialEnemy(enemy, dt) {
+    if (enemy.type === 'mimic' && !enemy.awake) {
+      enemy.intent = 'disguise';
+      if (distance(enemy, this.player) <= 3) { enemy.awake = true; enemy.cooldown = 1.1; enemy.intent = 'ambush'; this.emit('mimicAwake', enemy); }
+      return true;
+    }
+    if (enemy.type === 'oracle') {
+      if (enemy.mending > 0) {
+        enemy.mending = Math.max(0, enemy.mending - dt); enemy.intent = 'mend';
+        if (!enemy.mending) {
+          const targets = this.enemies.filter(e => e !== enemy && e.type !== 'oracle' && e.hp > 0 && e.hp < e.maxHp && distance(e, enemy) <= 4).slice(0, 3);
+          for (const target of targets) { const amount = Math.min(2, target.maxHp - target.hp); target.hp += amount; this.emit('enemyHeal', { ...target, amount }); }
+          enemy.intent = 'hunt';
+        }
+        return true;
+      }
+      if (enemy.castCooldown <= 0 && this.enemies.some(e => e !== enemy && e.type !== 'oracle' && e.hp < e.maxHp && distance(e, enemy) <= 4)) {
+        enemy.mending = 1.1; enemy.castCooldown = 6; enemy.intent = 'mend'; this.emit('enemyMend', enemy); return true;
+      }
+    }
+    if (['spore', 'weaver'].includes(enemy.type) && enemy.castCooldown <= 0 && distance(enemy, this.player) < 9) {
+      const cells = [{ x: this.player.x, z: this.player.z }];
+      if (enemy.type === 'spore') for (const [dx, dz] of DIRS) if (this.tile(this.player.x + dx, this.player.z + dz) === 0) cells.push({ x: this.player.x + dx, z: this.player.z + dz });
+      this.warnings.push({ id: this.nextId++, cells, timer: 1.8, effect: enemy.type === 'weaver' ? 'snare' : null, damage: 16 });
+      enemy.castCooldown = 6; enemy.cooldown = 1.3; enemy.intent = 'cast'; this.emit('enemyCast', enemy);
+    }
+    return false;
   }
   tick(dt) {
     if (!this.active) return;
     this.totalTime += dt;
     this.comboTimer = Math.max(0, this.comboTimer - dt); if (!this.comboTimer) this.combo = 0;
     const p = this.player;
+    p.slow = Math.max(0, (p.slow || 0) - dt);
     p.invincible = Math.max(0, p.invincible - dt); p.moveCooldown = Math.max(0, p.moveCooldown - dt); p.dashCooldown = Math.max(0, p.dashCooldown - dt);
     if (this.phase === 'playing') {
       this.elapsed = Math.min(ROUND_SECONDS, this.elapsed + dt);
@@ -472,6 +534,7 @@ export class Game {
       enemy.cooldown -= dt; enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
       enemy.slow = Math.max(0, (enemy.slow || 0) - dt);
       enemy.castCooldown = Math.max(0, (enemy.castCooldown ?? 4) - dt);
+      if (this.specialEnemy(enemy, dt)) continue;
       if ((enemy.type === 'wisp' || enemy.type === 'sentinel') && enemy.castCooldown <= 0 && distance(enemy, p) < 9) {
         const cells = [{ x: p.x, z: p.z }];
         if (enemy.type === 'sentinel') for (const [dx, dz] of DIRS) if (this.tile(p.x + dx, p.z + dz) === 0) cells.push({ x: p.x + dx, z: p.z + dz });
@@ -516,9 +579,9 @@ export class Game {
     for (const w of [...this.warnings]) {
       w.timer -= dt;
       if (w.timer <= 0) {
-        const flame = { id: this.nextId++, cells: w.cells, life: .65, damage: 25, hit: new Set(), enemy: true, fire: this.stage.worldIndex === 2 ? 'spectral' : 'normal' };
+        const flame = { id: this.nextId++, cells: w.cells, life: .65, damage: w.damage ?? 25, effect: w.effect, hit: new Set(), enemy: true, fire: this.stage.worldIndex >= 2 ? 'spectral' : 'normal' };
         this.flames.push(flame); this.applyFlame(flame);
-        this.emit('enemyExplosion', { cells: w.cells });
+        this.emit(w.effect === 'snare' ? 'webBurst' : 'enemyExplosion', { cells: w.cells });
       }
     }
     this.warnings = this.warnings.filter(w => w.timer > 0);

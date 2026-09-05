@@ -130,7 +130,67 @@ Arquivo: **atlas.wav** · 82 BPM
 Original instrumental world-map theme for BOMB RIFT, a handcrafted dark-fantasy adventure about a tiny persistent flame. 82 BPM, D minor with moments of warm modal brightness. A gentle four-note ascending celesta motif, felt piano, soft plucked strings, distant bowed glass and a very restrained warm bass pulse. Wonder, fragile hope and a vast dangerous world waiting beyond the next portal. Intimate rather than epic, spacious enough to think and choose upgrades. Subtle hints of metallic percussion and turquoise glass harmonics connect three different worlds. About two minutes, seamless calm loop, no dramatic climax. No vocals, no choir, no lyrics, no interface sound effects, no long fade-out.
 ```
 
-## Entrega e integração depois
+## Expansão 2.2 — nove novas fases
+
+O jogo já toca temas instrumentais procedurais nestas regiões. Estes prompts servem para gerar gravações que poderão substituí-los. Para todos: instrumental original, cerca de 2 minutos, loop contínuo, sem vozes, letras, efeitos do jogo, silêncio inicial ou fade-out longo. As faixas ainda precisam ser geradas e enviadas para integração.
+
+**10 · Estufa dos sussurros — jardim-1.wav · 104 BPM**
+
+```text
+Original instrumental action roguelike score, 104 BPM, C minor with Dorian color. A hungry magical greenhouse at dusk: woody marimba ostinato, breathy flute fragments, plucked strings, dry hand drums, rounded synth bass and tiny glass pollen bells. A curious four-note descending motif becomes a playful predator. Clear rhythmic space for bomb explosions, warm organic timbres, subtle menace. Two-minute seamless exploration loop, no vocals, no sound effects, no long intro or fade-out.
+```
+
+**11 · Pomar de ossos — jardim-2.wav · 108 BPM**
+
+```text
+Original instrumental dark-fantasy roguelike loop, 108 BPM, C Dorian. A luminous orchard with roots wrapped around old bones. Wooden percussion and pizzicato cello, dancing marimba, sparse bass clarinet and bowed-glass harmonics. Reprise a short descending flute motif with uneasy call and response, add low toms for a stalking miniboss. Tense but adventurous and readable during combat. Two minutes, seamless loop, no voices, no environmental effects, no dramatic ending.
+```
+
+**12 · Árvore do primeiro sino — jardim-3.wav · 112 BPM**
+
+```text
+Original instrumental boss-approach roguelike music, 112 BPM, C minor. Beneath a colossal ancestral tree, an ancient bell awakens inside living roots. Layer pulsing low strings, hollow tuned wood drums, distant bronze bell notes, a four-note flute theme and a determined warm bass rhythm. Organic, solemn, growing courage; a restrained lift halfway through without drowning gameplay. Two-minute seamless loop, no choir or vocals, no sound effects, no long fade.
+```
+
+**13 · Pontes de cobre — trovao-1.wav · 122 BPM**
+
+```text
+Original instrumental clockwork fantasy action theme, 122 BPM, F-sharp minor. Narrow copper bridges above a storm. Syncopated analog bass, crisp brushed metal percussion, plucked synth arpeggios, muted brass stabs and a bright three-note celesta hook. Mechanical precision mixed with cheerful danger, forward motion with space between phrases. Two-minute seamless roguelike gameplay loop, no vocals, no thunder or explosions, no long opening or ending.
+```
+
+**14 · Relógio da tempestade — trovao-2.wav · 126 BPM**
+
+```text
+Original instrumental action roguelike score, 126 BPM, F-sharp minor. Inside an impossible clock tower that conducts lightning. Interlocking sixteenth-note plucked synths, sharp metallic snare, low tom accents, rubbery bass and tense brass pulses. A three-note celesta motif jumps between left and right channels; use brief rhythmic gaps to build anticipation. Playful engineering and a lurking mechanical guardian. Two-minute seamless loop, no voices, no literal ticking or game sound effects.
+```
+
+**15 · Trono do céu partido — trovao-3.wav · 128 BPM**
+
+```text
+Original instrumental dark-fantasy boss-approach music, 128 BPM, F-sharp minor. A bronze throne suspended in a fractured sky. Firm electronic bass and acoustic war drums, restrained low brass, radiant bell arpeggios and an urgent three-note hook. Feel gigantic and defiant without constant wall-of-sound orchestration; leave openings for combat feedback. Two-minute seamless loop, no vocals or choir, no thunder effects, no long fade-out.
+```
+
+**16 · Lago das memórias — aurora-1.wav · 88 BPM**
+
+```text
+Original instrumental frozen-fantasy roguelike score, 88 BPM, B minor. Walking over a lake that remembers every fallen adventurer. Delicate celesta, glass mallets, soft bowed strings, deep restrained bass and a gentle broken drum pulse. A sparse rising four-note theme feels fragile, mysterious and brave. Airy high register with a steady gameplay rhythm, not ambient drift. Two-minute seamless loop, no vocals, no wind or cracking ice effects, no long intro or fade-out.
+```
+
+**17 · Biblioteca congelada — aurora-2.wav · 94 BPM**
+
+```text
+Original instrumental dark-fantasy exploration and combat loop, 94 BPM, B minor. A frozen library where crystal oracles mend ancient monsters. Glass harmonica-like synth, pizzicato strings, intimate piano, icy celesta and muted frame drums. Reprise a rising four-note motif as a question answered by low strings; add an understated rhythmic tension for a miniboss. Two-minute seamless loop, no choir or voices, no environmental sounds, no large cinematic ending.
+```
+
+**18 · A última aurora — aurora-3.wav · 102 BPM**
+
+```text
+Original instrumental final-region roguelike score, 102 BPM, B minor with a luminous D major bridge. A tiny persistent flame faces an immortal ice queen beneath the last aurora. Shimmering celesta theme, expressive strings, deliberate deep drums, warm pulse bass and thin crystalline synth harmonics. Noble, intimate courage opening into a vast cold sky; memorable melody and room for bomb impacts. Two-minute seamless action loop, no vocals or choir, no game sound effects, no long fade-out.
+```
+
+Para as novas formas dos chefes, gere uma segunda versão do tema da fase 12, 15 ou 18, mantendo a melodia, com percussão mais firme e andamento cerca de 15–20 BPM acima. Nomes sugeridos: **morthos-ancestral.wav**, **vulkar-fulgurante.wav**, **nyxara-glacial.wav**. Peça um loop sem final cinematográfico: a luta pode durar mais que a faixa.
+
+## Entrega e integração das gravações
 
 Envie os arquivos com esses nomes. A integração poderá trocar o tema de exploração pelo tema do guardião aos 120s, reduzir o volume em pausa e fazer transições suaves ao retornar ao atlas. Para a ascensão seguinte, as mesmas faixas podem ser reutilizadas. Se sua IA gerar stems, envie **percussão, baixo, melodia e atmosfera separados**; isso permite acrescentar intensidade sem acelerar ou deformar o áudio.
 

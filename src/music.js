@@ -3,6 +3,9 @@ export const THEMES = {
   menu: { name: 'Uma faísca no escuro', bpm: 82, roots: [50, 58, 53, 48], melody: [74,null,77,81,null,77,74,null,72,null,69,72,74,null,69,null], wave: 'sine' },
   ruins: { name: 'Ecos sob a pedra', bpm: 98, roots: [50, 53, 48, 55], melody: [74,null,77,76,74,null,69,72,74,77,null,81,79,null,77,72], wave: 'triangle' },
   forge: { name: 'Coração de brasa', bpm: 116, roots: [40, 43, 48, 47], melody: [76,76,null,79,83,null,81,79,76,null,74,76,79,78,74,null], wave: 'square' },
+  garden: { name: 'Raízes que sussurram', bpm: 104, roots: [48, 55, 51, 46], melody: [79,null,75,72,79,82,null,79,75,74,72,null,70,75,74,null], wave: 'triangle' },
+  storm: { name: 'O relógio do trovão', bpm: 122, roots: [42, 45, 40, 49], melody: [78,81,null,78,85,null,83,81,78,null,76,73,78,81,80,null], wave: 'square' },
+  frost: { name: 'A memória da aurora', bpm: 88, roots: [47, 43, 50, 45], melody: [83,null,86,null,90,86,83,null,81,null,78,81,83,null,78,null], wave: 'sine' },
   abyss: { name: 'Maré das estrelas mortas', bpm: 90, roots: [45, 41, 48, 43], melody: [81,null,null,84,83,null,79,null,76,null,79,83,81,null,76,null], wave: 'sine' },
 };
 const hz = midi => 440 * 2 ** ((midi - 69) / 12);

@@ -39,7 +39,7 @@ export class BossPreview {
     if (this.actor) { this.actor.dispose(); this.actor = null; }
     this.library.then(library => {
       if (ticket !== this.ticket) return;
-      this.actor = library.create(world.id); this.scene.add(this.actor.root); this.rim.color.set(world.color);
+      this.actor = library.create(world.guardian || world.id); this.scene.add(this.actor.root); this.rim.color.set(world.color);
       this.camera.position.set(3.1, 2.5, 6); this.controls.target.set(0, 1.2, 0); this.controls.update();
       this.actor.play('Taunt'); this.mount.dataset.state = 'ready'; this.resize();
     }).catch(() => { if (ticket === this.ticket) this.mount.dataset.state = 'unavailable'; });

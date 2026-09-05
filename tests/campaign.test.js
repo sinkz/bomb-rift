@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, seededRandom } from '../src/game.js';
-import { stageFor, RELICS } from '../src/campaign.js';
+import { stageFor, RELICS, CAMPAIGN_LENGTH } from '../src/campaign.js';
 
 const game = (stage = 1, seed = 42) => {
   const g = new Game({ random: seededRandom(seed), meta: { unlockedStage: stage, health: 2, power: 1, shards: 7 } });
@@ -10,9 +10,9 @@ const game = (stage = 1, seed = 42) => {
 };
 const tick = (g, seconds) => { for(let i = 0; i < seconds * 60; i++) { g.tick(1/60); if(g.phase === 'upgrade') g.chooseSkill(g.offers[0].id); } };
 
-test('nine authored stages lead to unlimited ascensions with matching worlds', () => {
-  for(let n=1;n<=90;n++) { const s=stageFor(n); assert.equal(s.cycle,Math.floor((n-1)/9)); assert.equal(s.worldIndex,Math.floor((n-1)%9/3)); }
-  assert.equal(stageFor(10).name,stageFor(1).name); assert(stageFor(10).reward>stageFor(1).reward);
+test('eighteen authored stages lead to unlimited ascensions with matching worlds', () => {
+  for(let n=1;n<=90;n++) { const s=stageFor(n); assert.equal(s.cycle,Math.floor((n-1)/CAMPAIGN_LENGTH)); assert.equal(s.worldIndex,Math.floor((n-1)%CAMPAIGN_LENGTH/3)); }
+  assert.equal(stageFor(19).name,stageFor(1).name); assert(stageFor(19).reward>stageFor(1).reward);
   assert(stageFor(9).width>stageFor(1).width); assert(stageFor(9).height>stageFor(1).height);
 });
 test('locked and malformed stage requests do not modify a running stage', () => {
@@ -36,7 +36,7 @@ test('death gives only earned essence and keeps campaign unlocks', () => {
   assert(g.claimResult()); assert(!g.claimResult()); assert.equal(g.meta.shards,9); assert.equal(g.meta.unlockedStage,5);
 });
 test('all world layouts have safe spawn, reachable cache and intact boundaries', () => {
-  for(let stage=1;stage<=9;stage++) for(let seed=1;seed<=20;seed++) {
+  for(let stage=1;stage<=CAMPAIGN_LENGTH;stage++) for(let seed=1;seed<=20;seed++) {
     const g=game(stage,seed); assert.equal(g.grid.length,g.height); assert(g.grid.every(row=>row.length===g.width));
     assert.equal(g.tile(1,1),0); assert.equal(g.tile(2,1),0); assert.equal(g.tile(1,2),0); assert.equal(g.tile(3,3),2);
     assert(g.grid[0].every(t=>t===1)); assert(g.grid.at(-1).every(t=>t===1)); assert(g.grid.every(row=>row[0]===1 && row.at(-1)===1));

@@ -1,5 +1,7 @@
 import { SKILLS } from './game.js';
 import { skillArt } from './skill-art.js';
+import { GEAR, OUTFITS, RESOURCES } from './legacy.js';
+import { rpgArt } from './rpg-art.js';
 import { relicById } from './campaign.js';
 
 export class GameHud {
@@ -19,11 +21,12 @@ export class GameHud {
       </div><div class="world-overlay" id="world-overlay"><div class="player-tag" id="player-tag"><span id="player-tag-name">VOCÊ</span><div><span id="player-tag-life"></span></div></div></div>
     `);
     this.root = document.querySelector('.combat-hud');
+    this.root.insertAdjacentHTML('beforeend', `<div class="material-hud"><small>MATERIAIS DA EXPEDIÇÃO</small>${['scrap', 'cores'].map(id => `<span style="--resource-color:${RESOURCES[id].color}" title="${RESOURCES[id].name} coletados nesta fase">${rpgArt(id)}<b id="combat-${id}">0</b></span>`).join('')}</div><div class="player-status-chips"><span id="combat-ward" hidden>✦ ESCUDO</span><span id="combat-slow" hidden>❄ LENTO · SHIFT</span></div>`);
     this.root.insertAdjacentHTML('beforeend', '<div id="event-feed" class="event-feed" role="status" aria-live="polite"></div>');
     this.bossBar = document.querySelector('#boss-health');
     this.bossBar.insertAdjacentHTML('afterbegin', '<div class="boss-identity"><span id="boss-title"></span><b id="boss-phase">I · O DESPERTAR</b></div>');
     this.bossBar.insertAdjacentHTML('beforeend', '<div class="boss-attack-readout"><span id="boss-attack-name">OBSERVE OS SINAIS NO CHÃO</span><span id="boss-quote"></span></div><div class="boss-cast-track"><span id="boss-cast-fill"></span></div>');
-    document.querySelector('#combat-build').insertAdjacentHTML('beforebegin', '<div class="relic-belt" id="combat-relics"></div>');
+    document.querySelector('#combat-build').insertAdjacentHTML('beforebegin', '<div class="prepared-gear" id="combat-equipment"></div><div class="relic-belt" id="combat-relics"></div>');
     this.el = Object.fromEntries([...document.querySelectorAll('.combat-hud [id], .world-overlay [id]')].map(el => [el.id, el]));
   }
   update() {
@@ -35,7 +38,7 @@ export class GameHud {
     document.querySelector('#boss-title').textContent = g.biome.title.toUpperCase();
     document.querySelector('#boss-phase').textContent = g.boss?.enraged ? 'II · FÚRIA' : 'I · O DESPERTAR';
     document.body.classList.toggle('low-health', fighting && p.hp > 0 && p.hp / p.maxHp <= .3);
-    const state = [g.phase, p.hp, p.maxHp, g.xp, g.level, g.crystals, g.kills, g.round, g.relics.join(','), g.bombs.length, Math.ceil(p.dashCooldown * 10), g.forgeCost, g.combo, Math.ceil(g.comboTimer * 10), g.boss?.enraged].join(':');
+    const state = [g.phase, p.hp, p.maxHp, g.xp, g.level, g.crystals, g.kills, g.round, g.relics.join(','), g.bombs.length, Math.ceil(p.dashCooldown * 10), g.forgeCost, g.combo, Math.ceil(g.comboTimer * 10), g.boss?.enraged, g.materials.scrap, g.materials.cores, p.ward, p.slow > 0, p.outfit, JSON.stringify(p.equipment)].join(':');
     if (state === this.last) return; this.last = state;
     const e = this.el, ratio = Math.max(0, p.hp / p.maxHp);
     e['combat-level'].textContent = g.level; e['combat-hp'].textContent = p.hp; e['combat-maxhp'].textContent = `/ ${p.maxHp}`;
@@ -45,6 +48,10 @@ export class GameHud {
     e['combat-life-gauge'].style.setProperty('--life-color', ratio <= .3 ? '#ff576c' : ratio <= .55 ? '#ffbe6a' : '#7feab5');
     e['combat-xp-fill'].style.width = `${g.xp / g.nextXp * 100}%`; e['combat-xp-text'].textContent = `${g.xp} / ${g.nextXp} XP`;
     e['player-tag-life'].style.width = `${ratio * 100}%`;
+    const outfit = OUTFITS.find(o => o.id === p.outfit) || OUTFITS[0];
+    this.root.style.setProperty('--hero-outfit', outfit.color); this.root.style.setProperty('--hero-outfit-light', outfit.light);
+    e['combat-scrap'].textContent = g.materials.scrap; e['combat-cores'].textContent = g.materials.cores;
+    e['combat-ward'].hidden = !p.ward; e['combat-slow'].hidden = !p.slow;
     e['combat-crystals'].textContent = g.crystals; e['combat-kills'].textContent = g.kills;
     e['combat-round'].textContent = String(g.round).padStart(2, '0'); e['combat-biome'].textContent = g.stage.name.toUpperCase();
     e['combat-objective'].textContent = g.boss ? (g.boss.enraged ? 'GUARDIÃO EM FÚRIA' : 'DERROTE O GUARDIÃO') : 'SOBREVIVA À HORDA';
@@ -58,9 +65,10 @@ export class GameHud {
     e['combat-status'].textContent = !e['combat-forge'].disabled ? 'NOVA HABILIDADE DISPONÍVEL · E' : 'EXPLORADOR DA FENDA';
     e['combo-hud'].classList.toggle('visible', g.combo > 1 && g.comboTimer > 0);
     e['combat-combo'].textContent = `${g.combo}×`; e['combo-fill'].style.width = `${g.comboTimer / 4 * 100}%`;
-    const buildStamp = JSON.stringify([g.skillLevels, g.relics]);
+    const buildStamp = JSON.stringify([g.skillLevels, g.relics, p.equipment]);
     if (buildStamp !== this.buildStamp) {
       this.buildStamp = buildStamp;
+      e['combat-equipment'].innerHTML = Object.values(p.equipment).map(id => { const item = GEAR.find(g => g.id === id); return `<span style="--gear-color:${item.color}" title="${item.name}: ${item.desc}" aria-label="Equipado: ${item.name}">${rpgArt(item.art)}</span>`; }).join('');
       const skills = SKILLS.filter(s => g.skillLevels[s.id]);
       e['combat-relics'].innerHTML = g.relics.map(id => { const r = relicById(id); return `<button data-action="build" class="build-rune" title="${r.name}: ${r.desc}" aria-label="Relíquia ${r.name}" style="--skill-color:${r.color}">${skillArt(r.art)}</button>`; }).join('');
       e['combat-build'].innerHTML = skills.length ? skills.map(s => `<button data-action="build" data-rune="${s.id}" class="build-rune ${this.gained === s.id ? 'rune-gained' : ''}" title="${s.name} · Nível ${g.skillLevels[s.id]} — ${s.desc}" aria-label="${s.name}, nível ${g.skillLevels[s.id]}" style="--skill-color:${s.color}">${skillArt(s.id)}<b>${g.skillLevels[s.id]}</b></button>`).join('') : Array.from({ length: 4 }, () => '<span class="rune-empty">◇</span>').join('');
@@ -83,7 +91,10 @@ export class GameHud {
     const g = this.game;
     if (event.type === 'arena') { for (const f of this.floaters) f.el.remove(); this.floaters = []; this.gained = null; this.el['event-feed'].classList.remove('visible'); }
     if (event.type === 'enemyHit') this.floating(`−${event.damage}`, event.x, event.z, 'damage');
-    if (event.type === 'pickup' && event.entityType !== 'relic') this.floating(event.entityType === 'heart' ? '+20 ♥' : `+${event.value} ◆`, event.x, event.z, event.entityType === 'heart' ? 'healing' : 'crystal');
+    if (event.type === 'pickup' && ['heart', 'crystal'].includes(event.entityType)) this.floating(event.entityType === 'heart' ? '+20 ♥' : `+${event.value} ◆`, event.x, event.z, event.entityType === 'heart' ? 'healing' : 'crystal');
+    if (event.type === 'pickup' && ['scrap', 'cores'].includes(event.entityType)) { const token = this.el[`combat-${event.entityType}`].parentElement; token.classList.remove('loot-pop'); void token.offsetWidth; token.classList.add('loot-pop'); }
+    if (event.type === 'blocked') this.floating('BLOQUEADO', event.x, event.z, 'healing');
+    if (event.type === 'snared') this.notice('Preso por um instante', 'Use SHIFT para romper a lentidão.', '#a6deed', 'dash');
     if (event.type === 'hurt') this.floating(`−${event.amount}`, event.x, event.z, 'player-damage');
     if (event.type === 'skill') { const s = SKILLS.find(s => s.id === event.id); this.gained = s.id; this.notice(s.name, `NV. ${g.skillLevels[s.id]} · ${s.desc}`, s.color, s.id); }
     if (event.type === 'pickup' && event.entityType === 'crystal') { const el = this.el['combat-crystals'].parentElement; el.classList.remove('loot-pop'); void el.offsetWidth; el.classList.add('loot-pop'); }
@@ -105,14 +116,14 @@ export class GameHud {
     this.bossBar.classList.toggle('casting', !!cast);
     const ids = new Set();
     for (const enemy of [...this.game.enemies, ...(this.game.boss ? [this.game.boss] : [])]) {
-      if (enemy.hp === enemy.maxHp && !enemy.windup && enemy.intent !== 'evade' && enemy.type !== 'sentinel' && enemy.intent !== 'cast' && !enemy.slow) continue;
+      if (enemy.hp === enemy.maxHp && !enemy.windup && enemy.intent !== 'evade' && enemy.type !== 'sentinel' && enemy.intent !== 'cast' && !enemy.slow && !enemy.mending && enemy.intent !== 'ambush') continue;
       ids.add(enemy.id);
       if (!this.labels.has(enemy.id)) {
         const el = document.createElement('div'); el.className = 'enemy-tag'; el.innerHTML = '<span></span><div><i></i></div>'; document.querySelector('#world-overlay').append(el); this.labels.set(enemy.id, el);
       }
       const el = this.labels.get(enemy.id), pos = scene.projectEntity(enemy);
       el.style.transform = `translate(${pos.x}px,${pos.y}px) translate(-50%,-100%)`;
-      el.firstElementChild.textContent = enemy.windup ? '⚠ INVESTIDA' : enemy.slow ? '❄ LENTO' : enemy.type === 'sentinel' ? '◆ SENTINELA' : enemy.intent === 'cast' ? '✦ CONJURANDO' : enemy.intent === 'evade' ? '↗' : '';
+      el.firstElementChild.textContent = enemy.mending ? '✦ CURANDO A HORDA' : enemy.intent === 'ambush' ? '⚠ EMBOSCADA' : enemy.windup ? '⚠ INVESTIDA' : enemy.slow ? '❄ LENTO' : enemy.type === 'sentinel' ? '◆ SENTINELA' : enemy.intent === 'cast' ? '✦ CONJURANDO' : enemy.intent === 'evade' ? '↗' : '';
       el.querySelector('i').style.width = `${Math.max(0, enemy.hp / enemy.maxHp * 100)}%`;
       el.classList.toggle('charging', enemy.windup > 0);
     }

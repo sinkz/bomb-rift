@@ -31,6 +31,10 @@ export class Sound {
     notes.miniDefeated = [330, 990, .6, 'triangle'];
     notes.enemyCast = [480, 170, .4, 'sine'];
     notes.relicDrop = [740, 1480, .28, 'sine'];
+    notes.blocked = [880, 440, .2, 'sine'];
+    notes.mimicAwake = [90, 230, .3, 'square'];
+    notes.enemyMend = [390, 780, .65, 'triangle'];
+    notes.webBurst = [790, 190, .24, 'sine'];
     notes.echo = [140, 55, .3, 'triangle'];
     if (name === 'explosion' || name === 'enemyExplosion') {
       const length = this.ctx.sampleRate * .35, buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate), data = buffer.getChannelData(0);

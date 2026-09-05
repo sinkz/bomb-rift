@@ -5,7 +5,7 @@ import { ArenaScene } from '../src/scene.js';
 
 test('all enemy models merge compatible geometry, including the boss mixed primitives', () => {
   const factory = { enemyModels: new Map(), mergeModel: ArenaScene.prototype.mergeModel };
-  for (const type of ['slime', 'ember', 'beetle', 'wisp', 'sentinel', 'boss']) {
+  for (const type of ['slime', 'ember', 'beetle', 'wisp', 'spore', 'weaver', 'oracle', 'mimic', 'sentinel', 'boss']) {
     const model = ArenaScene.prototype.makeEnemy.call(factory, type);
     assert(model.children.length > 0);
     for (const mesh of model.children) {
