@@ -1,3 +1,4 @@
+import { setAttr } from './i18n.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -32,7 +33,7 @@ export class BossPreview {
   }
   attach(mount, world) {
     this.observer.disconnect(); this.mount = mount; mount.append(this.canvas); this.observer.observe(mount);
-    this.canvas.setAttribute('aria-label', `${world.boss}, ${world.title}. Arraste ou use as setas para girar. Espaço para provocar.`);
+    setAttr(this.canvas, 'aria-label', `${world.boss}, ${world.title}. Arraste ou use as setas para girar. Espaço para provocar.`);
     this.resize(); this.setVisible(true);
     if (world.id === this.world && this.actor) { mount.dataset.state = 'ready'; return; }
     this.world = world.id; const ticket = ++this.ticket; mount.dataset.state = 'loading';

@@ -1,6 +1,6 @@
 {
   "name": "bomb-rift",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.js",
-    "standalone": "node scripts/standalone.mjs"
+    "standalone": "node scripts/standalone.mjs",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.3.0",

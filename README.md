@@ -1,6 +1,18 @@
-# BOMB RIFT 2.2 — Crônicas da Fenda
+# BOMB RIFT 2.3 — Crônicas da Fenda
 
-Um protótipo jogável de sobrevivência e exploração em Three.js, inspirado na estratégia de bombas em grade e na evolução imprevisível dos roguelikes. Interface em português, personagens e cenário originais construídos em 3D.
+Um protótipo jogável de sobrevivência e exploração em Three.js, inspirado na estratégia de bombas em grade e na evolução imprevisível dos roguelikes. Interface em português brasileiro e inglês, personagens e cenário originais construídos em 3D.
+
+## Atualização 2.3 — dois idiomas e pixel art
+
+O seletor de idioma aparece nas configurações. A escolha fica em `bomb-rift-language`, separada do save; na primeira visita, o jogo considera os idiomas suportados do navegador e usa inglês caso não encontre português ou inglês. A troca não reinicia a fase nem altera recursos. Textos, descrições, atributos, datas, números e rótulos de acessibilidade acompanham o idioma.
+
+Os assets aprovados agora ilustram habilidades, relíquias, talentos, equipamentos, contratos, bestiário, recursos, controles, retratos, tinturas e miniaturas de mundos. Cada item usa sua identidade visual. Os chefes 3D, a arena, a jogabilidade e as barras dinâmicas continuam. A biblioteca tem 147 imagens WebP sem perda para 157 usos; o navegador carrega as imagens conforme aparecem na interface. Os PNGs e as pranchas originais permanecem guardados para edição.
+
+`src/i18n-catalog.js` reúne as traduções; os renderizadores usam `setHTML`, `setText` e `setAttr` para guardar a fonte em português e permitir a volta ao idioma original. Novos textos de interface devem entrar no catálogo e passar por esses helpers. Os IDs usados pela simulação não são traduzidos.
+
+O build Cloudflare inclui os assets importados, sem páginas de aprovação ou arquivos de trabalho. A versão offline embute também as imagens e fica com aproximadamente 16 MB. As 77 verificações automatizadas incluem tradução, persistência, assets e troca de retratos; a revisão de navegador cobriu menu, atlas, refúgio, configurações, HUD e cards de habilidades nos dois idiomas, incluindo telas de 390 px. `qa/skills.html` é uma fixture apenas de desenvolvimento para revisar os cards; não entra no build de produção.
+
+Veja `docs/PIXEL-INTEGRATION.md` e `DEPLOYMENT.md` para preparar os assets e publicar atualizações. A versão 2.3 está publicada em https://bomb-rift.pages.dev/; o pacote de produção exclui páginas de aprovação e fixtures de QA.
 
 ## Atualização 2.2 — Refúgio da Faísca
 

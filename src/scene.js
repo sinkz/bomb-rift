@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setAttr } from './i18n.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -52,7 +53,7 @@ export class ArenaScene {
     this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.15;
     container.appendChild(this.renderer.domElement);
-    this.renderer.domElement.setAttribute('aria-label', 'Arena tridimensional de BOMB RIFT');
+    setAttr(this.renderer.domElement, 'aria-label', 'Arena tridimensional de BOMB RIFT');
     this.renderer.domElement.setAttribute('role', 'img');
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));

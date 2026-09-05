@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 
@@ -9,13 +9,23 @@ const scriptMatch = html.match(/<script\b[^>]*src="([^"]+)"[^>]*><\/script>/);
 const styleMatch = html.match(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/);
 if (!scriptMatch || !styleMatch) throw new Error('Bundle Vite não encontrado. Execute npm run build antes.');
 const asset = name => join(dist, name.replace(/^\//, ''));
-const script = await readFile(asset(scriptMatch[1]), 'utf8');
+let script = await readFile(asset(scriptMatch[1]), 'utf8');
 let style = await readFile(asset(styleMatch[1]), 'utf8');
+const mimeTypes = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.avif': 'image/avif' };
+const dataUri = async url => {
+  const mime = mimeTypes[extname(url)];
+  if (!mime) throw new Error(`Tipo de asset offline não suportado: ${url}`);
+  return `data:${mime};base64,${(await readFile(asset(url))).toString('base64')}`;
+};
 const urls = [...new Set([...style.matchAll(/url\(([^)]+)\)/g)].map(m => m[1].replace(/["']/g, '')).filter(url => !url.startsWith('data:')))];
 for (const url of urls) {
-  const file = await readFile(asset(url));
-  const mime = extname(url) === '.woff2' ? 'font/woff2' : 'font/woff';
-  style = style.split(url).join(`data:${mime};base64,${file.toString('base64')}`);
+  style = style.split(url).join(await dataUri(url));
+}
+// Vite emits imported icon URLs into JS. Embed them too so the single file stays offline.
+for (const filename of await readdir(join(dist, 'assets'))) {
+  if (!mimeTypes[extname(filename)]) continue;
+  const url = `/assets/${filename}`;
+  if (script.includes(url)) script = script.split(url).join(await dataUri(url));
 }
 html = html.replace(scriptMatch[0], () => `<script type="module">${script.replace(/<\/script/gi, '<\\/script')}</script>`);
 html = html.replace(styleMatch[0], () => `<style>${style}</style>`);

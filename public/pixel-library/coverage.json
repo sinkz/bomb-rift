@@ -1,0 +1,78 @@
+{
+  "ok": true,
+  "comparisons": 157,
+  "uniqueAssets": 147,
+  "categories": {
+    "Habilidades": 10,
+    "Relíquias": 10,
+    "Talentos": 9,
+    "Equipamentos": 9,
+    "Contratos": 4,
+    "Bestiário": 9,
+    "Recursos": 3,
+    "HUD e controles": 41,
+    "Símbolos de estado": 12,
+    "Retratos": 5,
+    "Tinturas": 5,
+    "Guardiões 2D": 6,
+    "Mapas 2D": 6,
+    "Molduras e estados": 25,
+    "Ramos": 3
+  },
+  "sourceCoverage": [
+    {
+      "label": "Habilidades",
+      "count": 10
+    },
+    {
+      "label": "Relíquias",
+      "count": 10
+    },
+    {
+      "label": "Talentos",
+      "count": 9
+    },
+    {
+      "label": "Equipamentos",
+      "count": 9
+    },
+    {
+      "label": "Contratos",
+      "count": 4
+    },
+    {
+      "label": "Bestiário",
+      "count": 9
+    },
+    {
+      "label": "Recursos",
+      "count": 3
+    },
+    {
+      "label": "Retratos",
+      "count": 5
+    },
+    {
+      "label": "Tinturas",
+      "count": 5
+    },
+    {
+      "label": "Guardiões 2D",
+      "count": 6
+    },
+    {
+      "label": "Mapas 2D",
+      "count": 6
+    },
+    {
+      "label": "Ramos",
+      "count": 3
+    },
+    {
+      "label": "Registro completo de controles",
+      "count": 41
+    }
+  ],
+  "gameFilesUnchanged": 25,
+  "notes": "Cobertura comparada aos dados vivos e ao registro de controles. Molduras e glifos auditados visualmente; a galeria é uma prévia isolada."
+}

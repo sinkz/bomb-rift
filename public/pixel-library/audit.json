@@ -1,0 +1,4032 @@
+{
+  "entries": 157,
+  "expectedAssets": 147,
+  "readyAssets": 147,
+  "missing": [],
+  "sourceChanged": [],
+  "cells": [
+    {
+      "id": "approved-capacity",
+      "sheet": "icon-lab\\skills-pixel-v1.png",
+      "cell": 0,
+      "sourceSize": [
+        2172,
+        724
+      ],
+      "cellBox": [
+        0,
+        0,
+        740,
+        724
+      ],
+      "bbox": [
+        58,
+        33,
+        668,
+        650
+      ],
+      "boundaryMargin": 33,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "approved-magnet",
+      "sheet": "icon-lab\\skills-pixel-v1.png",
+      "cell": 1,
+      "sourceSize": [
+        2172,
+        724
+      ],
+      "cellBox": [
+        740,
+        0,
+        1463,
+        724
+      ],
+      "bbox": [
+        74,
+        52,
+        667,
+        632
+      ],
+      "boundaryMargin": 52,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "approved-speed",
+      "sheet": "icon-lab\\skills-pixel-v1.png",
+      "cell": 2,
+      "sourceSize": [
+        2172,
+        724
+      ],
+      "cellBox": [
+        1463,
+        0,
+        2172,
+        724
+      ],
+      "bbox": [
+        57,
+        75,
+        630,
+        642
+      ],
+      "boundaryMargin": 57,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "skill-power",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        352,
+        362
+      ],
+      "bbox": [
+        84,
+        37,
+        307,
+        344
+      ],
+      "boundaryMargin": 18,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "skill-range",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        352,
+        0,
+        751,
+        370
+      ],
+      "bbox": [
+        47,
+        50,
+        363,
+        351
+      ],
+      "boundaryMargin": 19,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "skill-health",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        751,
+        0,
+        1058,
+        369
+      ],
+      "bbox": [
+        37,
+        100,
+        267,
+        324
+      ],
+      "boundaryMargin": 37,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "skill-fuse",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1058,
+        0,
+        1448,
+        371
+      ],
+      "bbox": [
+        42,
+        22,
+        294,
+        356
+      ],
+      "boundaryMargin": 15,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "skill-dash",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        362,
+        388,
+        706
+      ],
+      "bbox": [
+        78,
+        19,
+        336,
+        322
+      ],
+      "boundaryMargin": 19,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "skill-heal",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        388,
+        370,
+        717,
+        706
+      ],
+      "bbox": [
+        53,
+        20,
+        280,
+        314
+      ],
+      "boundaryMargin": 20,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "skill-vampire",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        717,
+        369,
+        1066,
+        678
+      ],
+      "bbox": [
+        51,
+        47,
+        310,
+        292
+      ],
+      "boundaryMargin": 17,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-pierce",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1066,
+        371,
+        1448,
+        700
+      ],
+      "bbox": [
+        41,
+        16,
+        298,
+        313
+      ],
+      "boundaryMargin": 16,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-overdrive",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        706,
+        391,
+        1086
+      ],
+      "bbox": [
+        63,
+        23,
+        357,
+        300
+      ],
+      "boundaryMargin": 23,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-mercy",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        391,
+        706,
+        735,
+        1086
+      ],
+      "bbox": [
+        35,
+        23,
+        299,
+        306
+      ],
+      "boundaryMargin": 23,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-azure",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        735,
+        678,
+        1052,
+        1086
+      ],
+      "bbox": [
+        47,
+        19,
+        266,
+        342
+      ],
+      "boundaryMargin": 19,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-clock",
+      "sheet": "sheets\\batch-01.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1052,
+        700,
+        1448,
+        1086
+      ],
+      "bbox": [
+        52,
+        18,
+        300,
+        324
+      ],
+      "boundaryMargin": 18,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-echo",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        411,
+        351
+      ],
+      "bbox": [
+        40,
+        99,
+        372,
+        304
+      ],
+      "boundaryMargin": 39,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-frost",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        411,
+        0,
+        733,
+        356
+      ],
+      "bbox": [
+        40,
+        50,
+        285,
+        332
+      ],
+      "boundaryMargin": 24,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-shell",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        733,
+        0,
+        1050,
+        344
+      ],
+      "bbox": [
+        39,
+        59,
+        279,
+        324
+      ],
+      "boundaryMargin": 20,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-magnet",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1050,
+        0,
+        1448,
+        361
+      ],
+      "bbox": [
+        40,
+        42,
+        321,
+        324
+      ],
+      "boundaryMargin": 37,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "relic-phoenix",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        351,
+        377,
+        692
+      ],
+      "bbox": [
+        52,
+        49,
+        320,
+        313
+      ],
+      "boundaryMargin": 28,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-power",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        377,
+        356,
+        669,
+        702
+      ],
+      "bbox": [
+        59,
+        25,
+        249,
+        325
+      ],
+      "boundaryMargin": 21,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-reach",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        669,
+        344,
+        1056,
+        703
+      ],
+      "bbox": [
+        44,
+        21,
+        346,
+        330
+      ],
+      "boundaryMargin": 21,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-stock",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1056,
+        361,
+        1448,
+        702
+      ],
+      "bbox": [
+        43,
+        39,
+        330,
+        302
+      ],
+      "boundaryMargin": 39,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-health",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        692,
+        350,
+        1086
+      ],
+      "bbox": [
+        52,
+        30,
+        290,
+        299
+      ],
+      "boundaryMargin": 30,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-armor",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        350,
+        702,
+        694,
+        1086
+      ],
+      "bbox": [
+        61,
+        23,
+        297,
+        306
+      ],
+      "boundaryMargin": 23,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-siphon",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        694,
+        703,
+        1030,
+        1086
+      ],
+      "bbox": [
+        48,
+        31,
+        299,
+        284
+      ],
+      "boundaryMargin": 31,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-stride",
+      "sheet": "sheets\\batch-02.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1030,
+        702,
+        1448,
+        1086
+      ],
+      "bbox": [
+        38,
+        41,
+        341,
+        285
+      ],
+      "boundaryMargin": 38,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-dash",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        363,
+        378
+      ],
+      "bbox": [
+        65,
+        61,
+        323,
+        338
+      ],
+      "boundaryMargin": 40,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "talent-magnet",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        363,
+        0,
+        721,
+        359
+      ],
+      "bbox": [
+        41,
+        93,
+        308,
+        321
+      ],
+      "boundaryMargin": 38,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-pulse",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        721,
+        0,
+        1068,
+        373
+      ],
+      "bbox": [
+        52,
+        65,
+        283,
+        336
+      ],
+      "boundaryMargin": 37,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-azure-core",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1068,
+        0,
+        1448,
+        371
+      ],
+      "bbox": [
+        66,
+        65,
+        300,
+        336
+      ],
+      "boundaryMargin": 35,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-twin-core",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        378,
+        353,
+        691
+      ],
+      "bbox": [
+        63,
+        41,
+        307,
+        278
+      ],
+      "boundaryMargin": 35,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-traveler",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        353,
+        359,
+        685,
+        691
+      ],
+      "bbox": [
+        47,
+        39,
+        283,
+        301
+      ],
+      "boundaryMargin": 31,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-wind-boots",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        685,
+        373,
+        1087,
+        687
+      ],
+      "bbox": [
+        50,
+        39,
+        349,
+        280
+      ],
+      "boundaryMargin": 34,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-bastion-boots",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1087,
+        371,
+        1448,
+        699
+      ],
+      "bbox": [
+        54,
+        37,
+        305,
+        302
+      ],
+      "boundaryMargin": 26,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-compass",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        691,
+        339,
+        1086
+      ],
+      "bbox": [
+        88,
+        36,
+        280,
+        312
+      ],
+      "boundaryMargin": 36,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-salvager",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        339,
+        691,
+        706,
+        1086
+      ],
+      "bbox": [
+        61,
+        32,
+        288,
+        329
+      ],
+      "boundaryMargin": 32,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "gear-guardian-charm",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        706,
+        687,
+        1042,
+        1086
+      ],
+      "bbox": [
+        80,
+        36,
+        266,
+        326
+      ],
+      "boundaryMargin": 36,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "contract-first-guardian",
+      "sheet": "sheets\\batch-03.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1042,
+        699,
+        1448,
+        1086
+      ],
+      "bbox": [
+        72,
+        27,
+        318,
+        325
+      ],
+      "boundaryMargin": 27,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "contract-demolisher",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        359,
+        377
+      ],
+      "bbox": [
+        47,
+        61,
+        330,
+        338
+      ],
+      "boundaryMargin": 29,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "contract-hunter",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        359,
+        0,
+        712,
+        372
+      ],
+      "bbox": [
+        30,
+        78,
+        330,
+        340
+      ],
+      "boundaryMargin": 23,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "contract-cartographer",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        712,
+        0,
+        1075,
+        356
+      ],
+      "bbox": [
+        24,
+        73,
+        319,
+        331
+      ],
+      "boundaryMargin": 24,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-slime",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1075,
+        0,
+        1448,
+        364
+      ],
+      "bbox": [
+        45,
+        85,
+        279,
+        319
+      ],
+      "boundaryMargin": 45,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-ember",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        377,
+        337,
+        682
+      ],
+      "bbox": [
+        62,
+        41,
+        312,
+        265
+      ],
+      "boundaryMargin": 25,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-beetle",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        337,
+        372,
+        709,
+        691
+      ],
+      "bbox": [
+        27,
+        34,
+        301,
+        285
+      ],
+      "boundaryMargin": 27,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-wisp",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        709,
+        356,
+        1015,
+        683
+      ],
+      "bbox": [
+        72,
+        26,
+        274,
+        306
+      ],
+      "boundaryMargin": 21,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-sentinel",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1015,
+        364,
+        1448,
+        697
+      ],
+      "bbox": [
+        33,
+        47,
+        385,
+        293
+      ],
+      "boundaryMargin": 33,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-spore",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        682,
+        349,
+        1086
+      ],
+      "bbox": [
+        55,
+        41,
+        328,
+        308
+      ],
+      "boundaryMargin": 21,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-weaver",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        349,
+        691,
+        716,
+        1086
+      ],
+      "bbox": [
+        22,
+        35,
+        343,
+        317
+      ],
+      "boundaryMargin": 22,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-oracle",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        716,
+        683,
+        1052,
+        1086
+      ],
+      "bbox": [
+        26,
+        23,
+        290,
+        314
+      ],
+      "boundaryMargin": 23,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "enemy-mimic",
+      "sheet": "sheets\\batch-04.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1052,
+        697,
+        1448,
+        1086
+      ],
+      "bbox": [
+        48,
+        42,
+        297,
+        314
+      ],
+      "boundaryMargin": 42,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "resource-shards",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        365,
+        363
+      ],
+      "bbox": [
+        114,
+        62,
+        306,
+        327
+      ],
+      "boundaryMargin": 36,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "resource-scrap",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        365,
+        0,
+        740,
+        349
+      ],
+      "bbox": [
+        60,
+        62,
+        317,
+        319
+      ],
+      "boundaryMargin": 30,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "resource-cores",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        740,
+        0,
+        1078,
+        378
+      ],
+      "bbox": [
+        59,
+        59,
+        283,
+        327
+      ],
+      "boundaryMargin": 51,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Bomb",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1078,
+        0,
+        1448,
+        366
+      ],
+      "bbox": [
+        57,
+        54,
+        261,
+        322
+      ],
+      "boundaryMargin": 44,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Flame",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        363,
+        348,
+        697
+      ],
+      "bbox": [
+        101,
+        37,
+        301,
+        291
+      ],
+      "boundaryMargin": 37,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Expand",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        348,
+        349,
+        741,
+        684
+      ],
+      "bbox": [
+        48,
+        31,
+        345,
+        317
+      ],
+      "boundaryMargin": 18,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Heart",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        741,
+        378,
+        1065,
+        669
+      ],
+      "bbox": [
+        49,
+        53,
+        276,
+        258
+      ],
+      "boundaryMargin": 33,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Wind",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1065,
+        366,
+        1448,
+        710
+      ],
+      "bbox": [
+        49,
+        45,
+        282,
+        294
+      ],
+      "boundaryMargin": 45,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Magnet",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        697,
+        371,
+        1086
+      ],
+      "bbox": [
+        94,
+        44,
+        308,
+        275
+      ],
+      "boundaryMargin": 44,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Timer",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        371,
+        684,
+        721,
+        1086
+      ],
+      "bbox": [
+        64,
+        20,
+        279,
+        306
+      ],
+      "boundaryMargin": 20,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Zap",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        721,
+        669,
+        1048,
+        1086
+      ],
+      "bbox": [
+        73,
+        35,
+        272,
+        317
+      ],
+      "boundaryMargin": 35,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-HeartPulse",
+      "sheet": "sheets\\batch-05.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1048,
+        710,
+        1448,
+        1086
+      ],
+      "bbox": [
+        56,
+        52,
+        279,
+        260
+      ],
+      "boundaryMargin": 52,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Droplets",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        409,
+        354
+      ],
+      "bbox": [
+        112,
+        96,
+        352,
+        320
+      ],
+      "boundaryMargin": 34,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-ArrowUpRight",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        409,
+        0,
+        740,
+        376
+      ],
+      "bbox": [
+        59,
+        104,
+        263,
+        318
+      ],
+      "boundaryMargin": 58,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-ArrowRight",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        740,
+        0,
+        1085,
+        345
+      ],
+      "bbox": [
+        69,
+        131,
+        260,
+        287
+      ],
+      "boundaryMargin": 58,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-ChevronRight",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1085,
+        0,
+        1448,
+        357
+      ],
+      "bbox": [
+        86,
+        98,
+        238,
+        310
+      ],
+      "boundaryMargin": 47,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Gem",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        354,
+        385,
+        682
+      ],
+      "bbox": [
+        129,
+        35,
+        304,
+        296
+      ],
+      "boundaryMargin": 32,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Skull",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        385,
+        376,
+        696,
+        670
+      ],
+      "bbox": [
+        83,
+        60,
+        254,
+        249
+      ],
+      "boundaryMargin": 45,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Trophy",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        696,
+        345,
+        1066,
+        701
+      ],
+      "bbox": [
+        58,
+        59,
+        327,
+        311
+      ],
+      "boundaryMargin": 43,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Swords",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1066,
+        357,
+        1448,
+        698
+      ],
+      "bbox": [
+        45,
+        48,
+        294,
+        294
+      ],
+      "boundaryMargin": 45,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Shield",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        682,
+        397,
+        1086
+      ],
+      "bbox": [
+        101,
+        34,
+        328,
+        295
+      ],
+      "boundaryMargin": 34,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-LockKeyhole",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        397,
+        670,
+        719,
+        1086
+      ],
+      "bbox": [
+        71,
+        46,
+        252,
+        299
+      ],
+      "boundaryMargin": 46,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Plus",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        719,
+        701,
+        1040,
+        1086
+      ],
+      "bbox": [
+        71,
+        46,
+        271,
+        253
+      ],
+      "boundaryMargin": 46,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Volume2",
+      "sheet": "sheets\\batch-06.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1040,
+        698,
+        1448,
+        1086
+      ],
+      "bbox": [
+        52,
+        49,
+        323,
+        257
+      ],
+      "boundaryMargin": 49,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-VolumeX",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        392,
+        378
+      ],
+      "bbox": [
+        100,
+        102,
+        343,
+        316
+      ],
+      "boundaryMargin": 49,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Maximize",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        392,
+        0,
+        727,
+        373
+      ],
+      "bbox": [
+        51,
+        84,
+        269,
+        313
+      ],
+      "boundaryMargin": 51,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Minimize",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        727,
+        0,
+        1073,
+        377
+      ],
+      "bbox": [
+        67,
+        92,
+        287,
+        313
+      ],
+      "boundaryMargin": 59,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Settings2",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1073,
+        0,
+        1448,
+        355
+      ],
+      "bbox": [
+        60,
+        99,
+        265,
+        305
+      ],
+      "boundaryMargin": 50,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Pause",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        378,
+        379,
+        670
+      ],
+      "bbox": [
+        144,
+        64,
+        282,
+        229
+      ],
+      "boundaryMargin": 63,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Play",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        379,
+        373,
+        712,
+        672
+      ],
+      "bbox": [
+        98,
+        62,
+        234,
+        242
+      ],
+      "boundaryMargin": 57,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-X",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        712,
+        377,
+        1046,
+        665
+      ],
+      "bbox": [
+        101,
+        65,
+        267,
+        234
+      ],
+      "boundaryMargin": 54,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-RotateCcw",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1046,
+        355,
+        1448,
+        685
+      ],
+      "bbox": [
+        68,
+        52,
+        280,
+        276
+      ],
+      "boundaryMargin": 52,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-BookOpen",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        670,
+        390,
+        1086
+      ],
+      "bbox": [
+        80,
+        65,
+        342,
+        287
+      ],
+      "boundaryMargin": 48,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Sparkles",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        390,
+        672,
+        698,
+        1086
+      ],
+      "bbox": [
+        49,
+        58,
+        243,
+        277
+      ],
+      "boundaryMargin": 49,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-CircleHelp",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        698,
+        665,
+        1072,
+        1086
+      ],
+      "bbox": [
+        67,
+        55,
+        308,
+        300
+      ],
+      "boundaryMargin": 55,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-MoveUp",
+      "sheet": "sheets\\batch-07.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1072,
+        685,
+        1448,
+        1086
+      ],
+      "bbox": [
+        67,
+        55,
+        231,
+        264
+      ],
+      "boundaryMargin": 55,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-MoveDown",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        381,
+        339
+      ],
+      "bbox": [
+        106,
+        86,
+        298,
+        298
+      ],
+      "boundaryMargin": 41,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-MoveLeft",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        381,
+        0,
+        746,
+        367
+      ],
+      "bbox": [
+        85,
+        109,
+        292,
+        282
+      ],
+      "boundaryMargin": 73,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-MoveRight",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        746,
+        0,
+        1075,
+        341
+      ],
+      "bbox": [
+        74,
+        109,
+        267,
+        282
+      ],
+      "boundaryMargin": 59,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Check",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1075,
+        0,
+        1448,
+        355
+      ],
+      "bbox": [
+        64,
+        89,
+        281,
+        294
+      ],
+      "boundaryMargin": 61,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Target",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        339,
+        375,
+        720
+      ],
+      "bbox": [
+        72,
+        42,
+        339,
+        298
+      ],
+      "boundaryMargin": 36,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Infinity",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        375,
+        367,
+        739,
+        667
+      ],
+      "bbox": [
+        38,
+        87,
+        323,
+        239
+      ],
+      "boundaryMargin": 38,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Crosshair",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        739,
+        341,
+        1067,
+        682
+      ],
+      "bbox": [
+        43,
+        61,
+        279,
+        306
+      ],
+      "boundaryMargin": 35,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Sprout",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1067,
+        355,
+        1448,
+        693
+      ],
+      "bbox": [
+        50,
+        62,
+        301,
+        282
+      ],
+      "boundaryMargin": 50,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-minus",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        720,
+        364,
+        1086
+      ],
+      "bbox": [
+        84,
+        85,
+        292,
+        165
+      ],
+      "boundaryMargin": 72,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-warning",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        364,
+        667,
+        734,
+        1086
+      ],
+      "bbox": [
+        74,
+        63,
+        313,
+        287
+      ],
+      "boundaryMargin": 57,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-snow",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        734,
+        682,
+        1084,
+        1086
+      ],
+      "bbox": [
+        59,
+        37,
+        279,
+        288
+      ],
+      "boundaryMargin": 37,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-diamond",
+      "sheet": "sheets\\batch-08.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1084,
+        693,
+        1448,
+        1086
+      ],
+      "bbox": [
+        72,
+        58,
+        235,
+        246
+      ],
+      "boundaryMargin": 58,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-empty-diamond",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        350,
+        364
+      ],
+      "bbox": [
+        109,
+        110,
+        287,
+        297
+      ],
+      "boundaryMargin": 63,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "portrait-ember",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        350,
+        0,
+        684,
+        347
+      ],
+      "bbox": [
+        65,
+        60,
+        256,
+        321
+      ],
+      "boundaryMargin": 26,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "outfit-ember",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        684,
+        0,
+        1034,
+        369
+      ],
+      "bbox": [
+        79,
+        120,
+        281,
+        307
+      ],
+      "boundaryMargin": 62,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "portrait-jade",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1034,
+        0,
+        1448,
+        347
+      ],
+      "bbox": [
+        71,
+        60,
+        263,
+        321
+      ],
+      "boundaryMargin": 26,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "outfit-jade",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        364,
+        358,
+        690
+      ],
+      "bbox": [
+        101,
+        68,
+        302,
+        256
+      ],
+      "boundaryMargin": 56,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "portrait-polar",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        358,
+        347,
+        685,
+        666
+      ],
+      "bbox": [
+        57,
+        27,
+        248,
+        288
+      ],
+      "boundaryMargin": 27,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "outfit-polar",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        685,
+        369,
+        1035,
+        686
+      ],
+      "bbox": [
+        80,
+        63,
+        280,
+        252
+      ],
+      "boundaryMargin": 63,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "portrait-rose",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1035,
+        347,
+        1448,
+        649
+      ],
+      "bbox": [
+        71,
+        27,
+        261,
+        288
+      ],
+      "boundaryMargin": 14,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "outfit-rose",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        690,
+        358,
+        1086
+      ],
+      "bbox": [
+        101,
+        72,
+        302,
+        259
+      ],
+      "boundaryMargin": 56,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "portrait-royal",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        358,
+        666,
+        669,
+        1086
+      ],
+      "bbox": [
+        57,
+        33,
+        247,
+        295
+      ],
+      "boundaryMargin": 33,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "outfit-royal",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        669,
+        693,
+        956,
+        1086
+      ],
+      "bbox": [
+        66,
+        73,
+        267,
+        259
+      ],
+      "boundaryMargin": 20,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "guardian-ruins",
+      "sheet": "sheets\\batch-09.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        956,
+        649,
+        1448,
+        1086
+      ],
+      "bbox": [
+        21,
+        15,
+        407,
+        375
+      ],
+      "boundaryMargin": 15,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "map-ruins",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        380,
+        377
+      ],
+      "bbox": [
+        41,
+        37,
+        364,
+        368
+      ],
+      "boundaryMargin": 9,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "guardian-forge",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        380,
+        0,
+        738,
+        368
+      ],
+      "bbox": [
+        18,
+        21,
+        341,
+        346
+      ],
+      "boundaryMargin": 17,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "map-forge",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        738,
+        0,
+        1103,
+        369
+      ],
+      "bbox": [
+        18,
+        9,
+        338,
+        360
+      ],
+      "boundaryMargin": 9,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "guardian-abyss",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1103,
+        0,
+        1448,
+        375
+      ],
+      "bbox": [
+        29,
+        27,
+        272,
+        375
+      ],
+      "boundaryMargin": 0,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "map-abyss",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        377,
+        371,
+        712
+      ],
+      "bbox": [
+        36,
+        10,
+        353,
+        335
+      ],
+      "boundaryMargin": 0,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "guardian-garden",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        371,
+        368,
+        734,
+        702
+      ],
+      "bbox": [
+        19,
+        23,
+        355,
+        327
+      ],
+      "boundaryMargin": 7,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "map-garden",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        734,
+        369,
+        1061,
+        712
+      ],
+      "bbox": [
+        9,
+        10,
+        319,
+        342
+      ],
+      "boundaryMargin": 1,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "guardian-storm",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1061,
+        375,
+        1448,
+        775
+      ],
+      "bbox": [
+        9,
+        0,
+        364,
+        325
+      ],
+      "boundaryMargin": 0,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "map-storm",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        712,
+        389,
+        1086
+      ],
+      "bbox": [
+        32,
+        0,
+        353,
+        335
+      ],
+      "boundaryMargin": 0,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "guardian-frost",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        389,
+        702,
+        693,
+        1086
+      ],
+      "bbox": [
+        38,
+        8,
+        277,
+        361
+      ],
+      "boundaryMargin": 8,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "map-frost",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        693,
+        712,
+        1048,
+        1086
+      ],
+      "bbox": [
+        28,
+        2,
+        346,
+        341
+      ],
+      "boundaryMargin": 2,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-life-full",
+      "sheet": "sheets\\batch-10.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1048,
+        775,
+        1448,
+        1086
+      ],
+      "bbox": [
+        10,
+        77,
+        384,
+        184
+      ],
+      "boundaryMargin": 10,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-life-low",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        354,
+        311
+      ],
+      "bbox": [
+        46,
+        164,
+        317,
+        237
+      ],
+      "boundaryMargin": 37,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-xp",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        354,
+        0,
+        691,
+        350
+      ],
+      "bbox": [
+        38,
+        174,
+        316,
+        226
+      ],
+      "boundaryMargin": 21,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-boss-life",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        691,
+        0,
+        1089,
+        364
+      ],
+      "bbox": [
+        23,
+        141,
+        379,
+        251
+      ],
+      "boundaryMargin": 19,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-timer",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1089,
+        0,
+        1448,
+        366
+      ],
+      "bbox": [
+        20,
+        134,
+        315,
+        255
+      ],
+      "boundaryMargin": 20,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-slot-empty",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        311,
+        362,
+        718
+      ],
+      "bbox": [
+        59,
+        76,
+        303,
+        316
+      ],
+      "boundaryMargin": 59,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-bomb-ready",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        362,
+        350,
+        706,
+        684
+      ],
+      "bbox": [
+        61,
+        126,
+        264,
+        209
+      ],
+      "boundaryMargin": 61,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-bomb-spent",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        706,
+        364,
+        1061,
+        684
+      ],
+      "bbox": [
+        82,
+        114,
+        286,
+        196
+      ],
+      "boundaryMargin": 69,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-talent-on",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1061,
+        366,
+        1448,
+        648
+      ],
+      "bbox": [
+        71,
+        113,
+        253,
+        195
+      ],
+      "boundaryMargin": 71,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-talent-off",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        718,
+        354,
+        1086
+      ],
+      "bbox": [
+        72,
+        92,
+        299,
+        166
+      ],
+      "boundaryMargin": 55,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-toggle-on",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        354,
+        684,
+        710,
+        1086
+      ],
+      "bbox": [
+        56,
+        125,
+        309,
+        209
+      ],
+      "boundaryMargin": 47,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-toggle-off",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        710,
+        684,
+        1063,
+        1086
+      ],
+      "bbox": [
+        48,
+        125,
+        292,
+        209
+      ],
+      "boundaryMargin": 48,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-node-open",
+      "sheet": "sheets\\batch-11.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1063,
+        648,
+        1448,
+        1086
+      ],
+      "bbox": [
+        62,
+        88,
+        286,
+        315
+      ],
+      "boundaryMargin": 62,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-node-locked",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 0,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        0,
+        387,
+        364
+      ],
+      "bbox": [
+        88,
+        52,
+        328,
+        326
+      ],
+      "boundaryMargin": 38,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-node-done",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 1,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        387,
+        0,
+        735,
+        367
+      ],
+      "bbox": [
+        61,
+        59,
+        293,
+        290
+      ],
+      "boundaryMargin": 55,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-medal-first",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 2,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        735,
+        0,
+        1072,
+        403
+      ],
+      "bbox": [
+        56,
+        52,
+        284,
+        346
+      ],
+      "boundaryMargin": 52,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-medal-second",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 3,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1072,
+        0,
+        1448,
+        367
+      ],
+      "bbox": [
+        54,
+        56,
+        278,
+        349
+      ],
+      "boundaryMargin": 18,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-medal-third",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 4,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        364,
+        380,
+        718
+      ],
+      "bbox": [
+        96,
+        40,
+        320,
+        328
+      ],
+      "boundaryMargin": 26,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-live",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 5,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        380,
+        367,
+        674,
+        694
+      ],
+      "bbox": [
+        61,
+        79,
+        242,
+        257
+      ],
+      "boundaryMargin": 52,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-button",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 6,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        674,
+        403,
+        1096,
+        667
+      ],
+      "bbox": [
+        54,
+        58,
+        381,
+        214
+      ],
+      "boundaryMargin": 41,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-card",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 7,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1096,
+        367,
+        1448,
+        724
+      ],
+      "bbox": [
+        43,
+        19,
+        255,
+        314
+      ],
+      "boundaryMargin": 19,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-portrait-frame",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 8,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        0,
+        718,
+        383,
+        1086
+      ],
+      "bbox": [
+        94,
+        28,
+        334,
+        282
+      ],
+      "boundaryMargin": 28,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-rarity",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 9,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        383,
+        694,
+        687,
+        1086
+      ],
+      "bbox": [
+        51,
+        72,
+        263,
+        275
+      ],
+      "boundaryMargin": 41,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-compass",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 10,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        687,
+        667,
+        1069,
+        1086
+      ],
+      "bbox": [
+        42,
+        52,
+        329,
+        341
+      ],
+      "boundaryMargin": 42,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "part-level-badge",
+      "sheet": "sheets\\batch-12.png",
+      "cell": 11,
+      "sourceSize": [
+        1448,
+        1086
+      ],
+      "cellBox": [
+        1069,
+        724,
+        1448,
+        1086
+      ],
+      "bbox": [
+        55,
+        45,
+        235,
+        262
+      ],
+      "boundaryMargin": 45,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-Minimize",
+      "sheet": "sheets\\corrections-ui.png",
+      "cell": 0,
+      "sourceSize": [
+        1774,
+        887
+      ],
+      "cellBox": [
+        0,
+        0,
+        872,
+        887
+      ],
+      "bbox": [
+        104,
+        94,
+        784,
+        784
+      ],
+      "boundaryMargin": 88,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    },
+    {
+      "id": "ui-RotateCcw",
+      "sheet": "sheets\\corrections-ui.png",
+      "cell": 1,
+      "sourceSize": [
+        1774,
+        887
+      ],
+      "cellBox": [
+        872,
+        0,
+        1774,
+        887
+      ],
+      "bbox": [
+        90,
+        96,
+        793,
+        777
+      ],
+      "boundaryMargin": 90,
+      "transparent": true,
+      "size": [
+        384,
+        384
+      ]
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+[
+  {
+    "width": 1440,
+    "errors": [],
+    "failed": [],
+    "overflows": [],
+    "searchCount": 2,
+    "storage": [],
+    "checked": [
+      [
+        "Habilidades",
+        10
+      ],
+      [
+        "Relíquias",
+        10
+      ],
+      [
+        "Talentos",
+        9
+      ],
+      [
+        "Equipamentos",
+        9
+      ],
+      [
+        "Contratos",
+        4
+      ],
+      [
+        "Bestiário",
+        9
+      ],
+      [
+        "Recursos",
+        3
+      ],
+      [
+        "HUD e controles",
+        41
+      ],
+      [
+        "Símbolos de estado",
+        12
+      ],
+      [
+        "Retratos",
+        5
+      ],
+      [
+        "Tinturas",
+        5
+      ],
+      [
+        "Guardiões 2D",
+        6
+      ],
+      [
+        "Mapas 2D",
+        6
+      ],
+      [
+        "Molduras e estados",
+        25
+      ],
+      [
+        "Ramos",
+        3
+      ]
+    ],
+    "loaded": "147/147 PNGs carregados · coleção completa"
+  },
+  {
+    "width": 390,
+    "errors": [],
+    "failed": [],
+    "overflows": [],
+    "searchCount": 2,
+    "storage": [],
+    "checked": [
+      [
+        "Habilidades",
+        10
+      ],
+      [
+        "Relíquias",
+        10
+      ],
+      [
+        "Talentos",
+        9
+      ],
+      [
+        "Equipamentos",
+        9
+      ],
+      [
+        "Contratos",
+        4
+      ],
+      [
+        "Bestiário",
+        9
+      ],
+      [
+        "Recursos",
+        3
+      ],
+      [
+        "HUD e controles",
+        41
+      ],
+      [
+        "Símbolos de estado",
+        12
+      ],
+      [
+        "Retratos",
+        5
+      ],
+      [
+        "Tinturas",
+        5
+      ],
+      [
+        "Guardiões 2D",
+        6
+      ],
+      [
+        "Mapas 2D",
+        6
+      ],
+      [
+        "Molduras e estados",
+        25
+      ],
+      [
+        "Ramos",
+        3
+      ]
+    ],
+    "loaded": "147/147 PNGs carregados · coleção completa"
+  }
+]

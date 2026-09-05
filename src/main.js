@@ -1,3 +1,6 @@
+import { pixelIcon, applyPixelIcons, portraitArt } from './pixel-art.js';
+import './pixel-art.css';
+import { formatNumber, t, setHTML, setText, setAttr, insertHTML, getLocale, setLocale, localeTag, languagePicker } from './i18n.js';
 import '@fontsource/oxanium/latin-500.css';
 import '@fontsource/oxanium/latin-600.css';
 import '@fontsource/oxanium/latin-700.css';
@@ -23,10 +26,11 @@ import './game-hud.css';
 import './atlas.css';
 import './juice.css';
 import './refuge.css';
+import './i18n.css';
 
 const ICONS = { Bomb, Flame, Expand, Heart, Wind, Magnet, Timer, Zap, HeartPulse, Droplets, ArrowUpRight, ArrowRight, ChevronRight, Gem, Skull, Trophy, Swords, Shield, LockKeyhole, Plus, Volume2, VolumeX, Maximize, Minimize, Settings2, Pause, Play, X, RotateCcw, BookOpen, Sparkles, CircleHelp, MoveUp, MoveDown, MoveLeft, MoveRight, Check, Target, Infinity: InfinityIcon, Crosshair, Sprout };
-const icon = (name, cls = '') => `<i data-lucide="${name}" class="${cls}" aria-hidden="true"></i>`;
-const icons = () => createIcons({ icons: ICONS, attrs: { 'stroke-width': 1.7 } });
+const icon = pixelIcon;
+const icons = () => { createIcons({ icons: ICONS, attrs: { 'stroke-width': 1.7 } }); applyPixelIcons(); };
 const $ = s => document.querySelector(s);
 let meta;
 try { meta = normalizeMeta(JSON.parse(localStorage.getItem('bomb-rift-v1') || '{}')); } catch { meta = normalizeMeta(); }
@@ -35,13 +39,13 @@ let rankingStorage; try { rankingStorage = localStorage; } catch {}
 const ranking = new LocalRanking(rankingStorage); let lastRunScore = null;
 let scene, fatal = false, modalType = null, returnFocus = null, saveWarning = false;
 let highQuality = true, reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const avatar = `<svg viewBox="0 0 110 120" class="avatar-art" aria-hidden="true"><defs><linearGradient id="helm" x2="0" y2="1"><stop stop-color="#fffaf0"/><stop offset="1" stop-color="#b7aaa7"/></linearGradient><linearGradient id="suit" x2="0" y2="1"><stop stop-color="#ffaf64"/><stop offset="1" stop-color="#d36a38"/></linearGradient></defs><ellipse cx="55" cy="109" rx="32" ry="7" fill="#100f14" opacity=".4"/><path d="M37 93v15h15V94m7 0v14h16V93" stroke="#302b35" stroke-width="7" fill="#ed9357"/><rect x="32" y="63" width="47" height="34" rx="13" fill="url(#suit)"/><rect x="37" y="86" width="37" height="9" rx="3" fill="#4a3741"/><rect x="50" y="86" width="10" height="9" rx="2" fill="#ffcf89"/><rect x="18" y="69" width="18" height="20" rx="8" fill="url(#helm)"/><rect x="76" y="69" width="18" height="20" rx="8" fill="url(#helm)"/><rect x="23" y="23" width="65" height="49" rx="19" fill="url(#helm)"/><rect x="29" y="40" width="53" height="25" rx="9" fill="#312b38"/><rect x="34" y="44" width="43" height="17" rx="6" fill="#ffd4aa"/><rect x="43" y="46" width="4" height="11" rx="2" fill="#312b38"/><rect x="63" y="46" width="4" height="11" rx="2" fill="#312b38"/><path d="M55 26V18" stroke="#e9b47f" stroke-width="6"/><circle cx="55" cy="13" r="9" fill="#ffab59"/><path d="M31 31q12-7 24-4" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/></svg>`;
+const avatar = portraitArt(meta.outfit);
 
-$('#app').innerHTML = `
+setHTML($('#app'), `
   <header class="site-header">
     <a class="brand" href="#" aria-label="BOMB RIFT, início"><span class="brand-mark">${icon('Bomb')}</span><span>BOMB<span class="brand-rift">RIFT</span><small>ROGUELIKE SURVIVAL</small></span></a>
     <nav aria-label="Navegação principal"><button class="nav-link active" data-action="explore">${icon('Crosshair')} Explorar</button><button class="nav-link" data-action="meta">${icon('Sprout')} Evolução</button><button class="nav-link" data-action="guide">${icon('BookOpen')} Como jogar</button></nav>
-    <div class="header-actions"><span class="version"><span class="status-dot"></span> V.2.0</span><span class="header-divider"></span><button class="icon-button" id="sound-button" data-action="sound" aria-label="Desativar som" title="Som">${icon('Volume2')}</button><button class="icon-button" data-action="settings" aria-label="Configurações" title="Configurações">${icon('Settings2')}</button></div>
+    <div class="header-actions"><span class="version"><span class="status-dot"></span> V.2.3</span><span class="header-divider"></span><button class="icon-button" id="sound-button" data-action="sound" aria-label="Desativar som" title="Som">${icon('Volume2')}</button><button class="icon-button" data-action="settings" aria-label="Configurações" title="Configurações">${icon('Settings2')}</button></div>
   </header>
   <main>
     <section class="page-heading"><div><div class="eyebrow"><span class="little-line"></span> A MASMORRA NUNCA É A MESMA</div><h1>Uma nova run. <span>Infinitas possibilidades.</span></h1></div><div class="record"><span class="record-icon">${icon('Trophy')}</span><div><span class="micro">SEU RECORDE</span><strong id="record-round">${meta.bestRound ? `RODADA ${String(meta.bestRound).padStart(2, '0')}` : 'A HISTÓRIA É SUA'}</strong></div></div></section>
@@ -68,29 +72,29 @@ $('#app').innerHTML = `
     <footer class="game-footer"><div class="keyboard-guide"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Mover</span><span><kbd class="space-key">ESPAÇO</kbd> Bomba</span><span><kbd>SHIFT</kbd> Esquiva</span><span><kbd>E</kbd> Evoluir</span><span><kbd>ESC</kbd> Pausar</span></div><span class="endless-label">${icon('Infinity')} SEM FIM. SEM DUAS RUNS IGUAIS.</span></footer>
   </main>
   <div class="modal-root hidden" id="modal-root"></div><div class="toast" id="toast" role="status"></div>
-`;
+`);
 const refuge = new Refuge(meta, { avatar, icon });
 const hud = new GameHud(game, { icon, icons, avatar });
 const atlas = new Atlas(game, { icon, icons, bossSources });
 const launch = new LaunchScreen(game, atlas, ranking, { icon, icons, avatar }); launch.show();
 document.body.classList.toggle('reduced-motion', reducedMotion);
-document.body.insertAdjacentHTML('beforeend', '<div class="relic-notice" id="relic-notice" role="status"></div>');
+insertHTML(document.body, 'beforeend', '<div class="relic-notice" id="relic-notice" role="status"></div>');
 icons();
 
 function saveMeta() { try { localStorage.setItem('bomb-rift-v1', JSON.stringify(meta)); } catch { saveWarning = true; toast('O navegador não permitiu salvar a evolução. Ela continuará disponível nesta sessão.'); } }
-function toast(text) { $('#toast').textContent = text; $('#toast').classList.add('visible'); clearTimeout(toast.timer); toast.timer = setTimeout(() => $('#toast').classList.remove('visible'), 3300); }
+function toast(text) { setText($('#toast'), text); $('#toast').classList.add('visible'); clearTimeout(toast.timer); toast.timer = setTimeout(() => $('#toast').classList.remove('visible'), 3300); }
 function announce(text, kind = '') { hud.notice(text, '', kind === 'danger' ? '#ff8e9c' : '#ffd39b'); }
 function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); saveMeta(); } }
-function scoreCard() { return lastRunScore ? `<div class="score-result"><div>${lastRunScore.place ? `${String(lastRunScore.place).padStart(2, '0')}º NO SEU RANKING` : 'RESULTADO DA EXPEDIÇÃO'}<small>${ranking.saved ? 'Salvo neste navegador' : 'Válido nesta sessão'} · abates, coleta e conquista</small></div><strong>${lastRunScore.score.toLocaleString('pt-BR')} <small>PTS</small></strong></div>` : ''; }
+function scoreCard() { return lastRunScore ? `<div class="score-result"><div>${lastRunScore.place ? `${String(lastRunScore.place).padStart(2, '0')}º NO SEU RANKING` : 'RESULTADO DA EXPEDIÇÃO'}<small>${ranking.saved ? 'Salvo neste navegador' : 'Válido nesta sessão'} · abates, coleta e conquista</small></div><strong>${lastRunScore.score.toLocaleString(localeTag())} <small>PTS</small></strong></div>` : ''; }
 function legacyResultCard() {
   const result = game.result?.legacy; if (!result) return '';
   return `<div class="legacy-result"><div class="recipe-cost">${resourceCost(result.materials, '+')}</div><span>+${result.xp} EXP DE EXPLORADOR <b>${result.rankedUp ? 'NOVO RANQUE ' : 'RANQUE '}${result.rank}</b></span><small>Materiais e experiência ficam com você.</small></div>`;
 }
-function closeModal() { $('#modal-root').classList.add('hidden'); $('#modal-root').innerHTML = ''; modalType = null; returnFocus?.focus?.(); }
+function closeModal() { $('#modal-root').classList.add('hidden'); setHTML($('#modal-root'), ''); modalType = null; returnFocus?.focus?.(); }
 function modal(type, content, { wide = false, closable = true } = {}) {
   if (type === 'dead' || type === 'intermission') content = content.replace('<button class="primary-button', `${scoreCard()}${legacyResultCard()}<button class="primary-button`) + `<button class="text-button" data-action="home">${icon('Trophy')} Menu inicial e ranking</button>`;
   keys.clear(); if (!modalType) returnFocus = document.activeElement; modalType = type;
-  $('#modal-root').innerHTML = `<section class="modal modal-${type} ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${closable ? `<button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('X')}</button>` : ''}${content}</section>`;
+  setHTML($('#modal-root'), `<section class="modal modal-${type} ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${closable ? `<button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('X')}</button>` : ''}${content}</section>`);
   $('#modal-root').classList.remove('hidden'); icons(); $('#modal-root button:not(:disabled)')?.focus();
 }
 function resume() { closeModal(); if (game.phase === 'paused') game.pause(); updateHud(); }
@@ -109,7 +113,7 @@ function returnToMap() {
   $('#mobile-controls').classList.remove('running'); $('#relic-notice').classList.remove('visible'); updateBuild(); updateHud();
 }
 function showRelic(id) {
-  const r = relicById(id); hud.notice(r.name, `${r.rarity} · EQUIPADA`, r.color, r.art);
+  const r = relicById(id); hud.notice(r.name, `${r.rarity} · EQUIPADA`, r.color, 'relic-' + r.id);
 }
 function pauseForModal() { if (game.active) game.pause(); }
 function showPause() {
@@ -125,7 +129,7 @@ function showUpgrade() {
 function showBuild() {
   pauseForModal();
   const entries = SKILLS.filter(s => game.skillLevels[s.id]);
-  modal('build', `<span class="eyebrow orange">ARSENAL DA FASE ${game.round} · NÍVEL ${game.level}</span><h2 id="modal-title">Seu tipo de caos.</h2><div class="build-summary"><span>${icon('Flame')} ${game.player.damage} DANO</span><span>${icon('Expand')} ${game.player.range} ALCANCE</span><span>${icon('Bomb')} ${game.player.capacity} BOMBAS</span></div><div class="relic-codex">${game.relics.map(id => { const r = relicById(id); return `<div class="relic-entry" style="--skill-color:${r.color}">${skillArt(r.art)}<div><h3>${r.name}${id === 'phoenix' && !game.player.revive ? ' · consumida' : ''}</h3><p>${r.desc}</p></div></div>`; }).join('')}</div><div class="equipped-skills">${entries.length ? entries.map(s => `<div class="equipped-skill" style="--skill-color:${s.color}">${skillArt(s.id)}<div><small>${s.branch} · NV. ${game.skillLevels[s.id]}</small><h3>${s.name}</h3><p>${s.desc}</p></div></div>`).join('') : '<p>Suba de nível ou colete cristais para forjar habilidades. Destrua o baú dourado e vença minichefes para encontrar relíquias.</p>'}</div><p class="small-note">Esta build dura só esta fase. Suas melhorias permanentes continuam na próxima.</p><button class="primary-button full-width" data-action="close-modal">Voltar ao combate ${icon('Swords')}</button>`, { wide: true });
+  modal('build', `<span class="eyebrow orange">ARSENAL DA FASE ${game.round} · NÍVEL ${game.level}</span><h2 id="modal-title">Seu tipo de caos.</h2><div class="build-summary"><span>${icon('Flame')} ${game.player.damage} DANO</span><span>${icon('Expand')} ${game.player.range} ALCANCE</span><span>${icon('Bomb')} ${game.player.capacity} BOMBAS</span></div><div class="relic-codex">${game.relics.map(id => { const r = relicById(id); return `<div class="relic-entry" style="--skill-color:${r.color}">${skillArt('relic-' + r.id)}<div><h3>${r.name}${id === 'phoenix' && !game.player.revive ? ' · consumida' : ''}</h3><p>${r.desc}</p></div></div>`; }).join('')}</div><div class="equipped-skills">${entries.length ? entries.map(s => `<div class="equipped-skill" style="--skill-color:${s.color}">${skillArt(s.id)}<div><small>${s.branch} · NV. ${game.skillLevels[s.id]}</small><h3>${s.name}</h3><p>${s.desc}</p></div></div>`).join('') : '<p>Suba de nível ou colete cristais para forjar habilidades. Destrua o baú dourado e vença minichefes para encontrar relíquias.</p>'}</div><p class="small-note">Esta build dura só esta fase. Suas melhorias permanentes continuam na próxima.</p><button class="primary-button full-width" data-action="close-modal">Voltar ao combate ${icon('Swords')}</button>`, { wide: true });
 }
 function showIntermission() {
   modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU. SEU LEGADO CRESCE.</span><h2 id="modal-title">${game.round % CAMPAIGN_LENGTH === 0 ? 'O infinito se abre.' : game.stage.local === 3 ? 'Um mundo conquistado.' : 'Uma fenda a menos.'}</h2><p>${game.stage.name} concluída. ${game.round % CAMPAIGN_LENGTH === 0 ? 'Uma nova ascensão foi desbloqueada. Os seis mundos retornam com inimigos mais fortes.' : `A fase ${game.round + 1} está disponível no atlas.`}</p><div class="results-row"><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>${game.relics.length}</strong><span>RELÍQUIAS ENCONTRADAS</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS SALVAS</span></div></div><p class="victory-map-note">Sua build cumpriu seu destino. <b>Skills, relíquias e cristais reiniciam na próxima fase.</b> Suas essências e evoluções permanentes continuam com você.</p><button class="primary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowUpRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
@@ -147,16 +151,17 @@ function showMeta() {
 function showSettings() {
   pauseForModal();
   modal('settings', `<span class="eyebrow orange">DO SEU JEITO</span><h2 id="modal-title">Ajuste a experiência.</h2><div class="setting-row"><div><h3>Efeitos sonoros</h3><p>Explosões, cristais e pequenas vitórias.</p></div><button class="toggle ${sound.enabled ? 'on' : ''}" data-setting="sound" role="switch" aria-checked="${sound.enabled}" aria-label="Efeitos sonoros"><span></span></button></div><div class="setting-row"><div><h3>Qualidade visual</h3><p>Sombras suaves e brilho dos cristais.</p></div><button class="toggle ${highQuality ? 'on' : ''}" data-setting="quality" role="switch" aria-checked="${highQuality}" aria-label="Qualidade visual alta"><span></span></button></div><div class="setting-row"><div><h3>Reduzir movimento</h3><p>Sem tremor de câmera e com menos partículas.</p></div><button class="toggle ${reducedMotion ? 'on' : ''}" data-setting="motion" role="switch" aria-checked="${reducedMotion}" aria-label="Reduzir movimento"><span></span></button></div><button class="primary-button full-width" data-action="close-modal">Tudo pronto ${icon('Check')}</button>`);
+  insertHTML($('#modal-root .setting-row'), 'beforebegin', `<div class="setting-row language-setting"><div><h3>Idioma</h3><p>Preferência salva neste navegador.</p></div>${languagePicker('settings-language')}</div>`);
   const row = document.createElement('div'); row.className = 'music-settings';
-  row.innerHTML = `<div class="setting-row"><div><h3>Trilha musical</h3><p>Temas próprios para cada mundo e seus guardiões.</p></div><button class="toggle ${sound.musicEnabled ? 'on' : ''}" data-setting="music" role="switch" aria-checked="${sound.musicEnabled}" aria-label="Trilha musical"><span></span></button></div><div class="setting-row"><div><h3>Volume da música</h3><p>Deixe as explosões em primeiro plano.</p></div><label><input class="music-volume" type="range" min="0" max="100" value="${Math.round(sound.volume * 100)}" aria-label="Volume da música"><output class="setting-volume-value">${Math.round(sound.volume * 100)}%</output></label></div>`;
+  setHTML(row, `<div class="setting-row"><div><h3>Trilha musical</h3><p>Temas próprios para cada mundo e seus guardiões.</p></div><button class="toggle ${sound.musicEnabled ? 'on' : ''}" data-setting="music" role="switch" aria-checked="${sound.musicEnabled}" aria-label="Trilha musical"><span></span></button></div><div class="setting-row"><div><h3>Volume da música</h3><p>Deixe as explosões em primeiro plano.</p></div><label><input class="music-volume" type="range" min="0" max="100" value="${Math.round(sound.volume * 100)}" aria-label="Volume da música"><output class="setting-volume-value">${Math.round(sound.volume * 100)}%</output></label></div>`);
   $('#modal-root .setting-row').after(row);
-  row.querySelector('input').addEventListener('input', e => { sound.volume = Number(e.target.value) / 100; sound.save(); row.querySelector('output').textContent = `${e.target.value}%`; });
+  row.querySelector('input').addEventListener('input', e => { sound.volume = Number(e.target.value) / 100; sound.save(); setText(row.querySelector('output'), `${e.target.value}%`); });
 }
 function updateBuild() {
   const entries = SKILLS.filter(s => game.skillLevels[s.id]);
-  $('#build-count').textContent = `${entries.length} HABILIDADE${entries.length === 1 ? '' : 'S'}`;
-  if (!entries.length) $('#skill-list').innerHTML = `<div class="empty-build"><div class="empty-slots">${[0, 1, 2, 3].map(() => `<span>${icon('Plus')}</span>`).join('')}</div><p>Cada escolha cria um novo caminho.</p></div>`;
-  else $('#skill-list').innerHTML = entries.map(s => `<div class="build-skill" style="--skill-color:${s.color}" title="${s.desc}"><span>${icon(s.icon)}</span><strong>${s.name}</strong><b>${game.skillLevels[s.id]}</b></div>`).join('');
+  setText($('#build-count'), `${entries.length} HABILIDADE${entries.length === 1 ? '' : 'S'}`);
+  if (!entries.length) setHTML($('#skill-list'), `<div class="empty-build"><div class="empty-slots">${[0, 1, 2, 3].map(() => `<span>${icon('Plus')}</span>`).join('')}</div><p>Cada escolha cria um novo caminho.</p></div>`);
+  else setHTML($('#skill-list'), entries.map(s => `<div class="build-skill" style="--skill-color:${s.color}" title="${s.desc}"><span>${icon(s.icon)}</span><strong>${s.name}</strong><b>${game.skillLevels[s.id]}</b></div>`).join(''));
   icons();
 }
 let lastHud = '';
@@ -165,25 +170,25 @@ function updateHud() {
   const p = game.player, remaining = Math.max(0, Math.ceil(ROUND_SECONDS - game.elapsed));
   const stamp = [remaining, game.phase, p.hp, p.maxHp, game.xp, game.crystals, game.kills, game.bombs.length, Math.ceil(p.dashCooldown * 10), game.boss?.hp, game.round, game.level, game.forgeCost].join('/');
   if (stamp === lastHud) return; lastHud = stamp;
-  $('#timer').innerHTML = `${String(Math.floor(remaining / 60)).padStart(2, '0')}<span>:</span>${String(remaining % 60).padStart(2, '0')}`;
+  setHTML($('#timer'), `${String(Math.floor(remaining / 60)).padStart(2, '0')}<span>:</span>${String(remaining % 60).padStart(2, '0')}`);
   $('#timer').classList.toggle('urgent', remaining <= 20 && remaining > 0);
   $('#timer-fill').style.width = `${remaining / 120 * 100}%`;
-  $('#timer-caption').textContent = game.boss ? 'O GUARDIÃO DESPERTOU' : 'O CHEFE DESPERTA EM';
-  $('#hp-label').innerHTML = `${p.hp} <span>/ ${p.maxHp}</span>`; $('#hp-fill').style.width = `${p.hp / p.maxHp * 100}%`;
+  setText($('#timer-caption'), game.boss ? 'O GUARDIÃO DESPERTOU' : 'O CHEFE DESPERTA EM');
+  setHTML($('#hp-label'), `${p.hp} <span>/ ${p.maxHp}</span>`); $('#hp-fill').style.width = `${p.hp / p.maxHp * 100}%`;
   $('#hp-fill').classList.toggle('low', p.hp < p.maxHp * .3);
-  $('#xp-label').textContent = `${game.xp} / ${game.nextXp} XP`; $('#xp-fill').style.width = `${game.xp / game.nextXp * 100}%`;
-  $('#level-pill').textContent = `NV. ${String(game.level).padStart(2, '0')}`;
-  $('#crystal-count').textContent = game.crystals; $('#kill-count').textContent = game.kills;
-  $('#damage-stat').textContent = p.damage; $('#range-stat').textContent = p.range; $('#capacity-stat').textContent = p.capacity;
-  $('#forge-cost').textContent = game.forgeCost; $('#forge-button').disabled = !game.active || game.crystals < game.forgeCost;
-  $('#forge-button').title = game.crystals < game.forgeCost ? `Colete mais ${game.forgeCost - game.crystals} cristais para forjar uma habilidade` : 'Sortear 3 habilidades e escolher uma (E)';
-  $('#round-label').textContent = `EXPEDIÇÃO · RODADA ${String(game.round).padStart(2, '0')}`; $('#biome-name').textContent = game.biome.name; $('#biome-tag').textContent = game.biome.tag;
+  setText($('#xp-label'), `${game.xp} / ${game.nextXp} XP`); $('#xp-fill').style.width = `${game.xp / game.nextXp * 100}%`;
+  setText($('#level-pill'), `NV. ${String(game.level).padStart(2, '0')}`);
+  setText($('#crystal-count'), game.crystals); setText($('#kill-count'), game.kills);
+  setText($('#damage-stat'), p.damage); setText($('#range-stat'), p.range); setText($('#capacity-stat'), p.capacity);
+  setText($('#forge-cost'), game.forgeCost); $('#forge-button').disabled = !game.active || game.crystals < game.forgeCost;
+  setAttr($('#forge-button'), 'title', game.crystals < game.forgeCost ? `Colete mais ${game.forgeCost - game.crystals} cristais para forjar uma habilidade` : 'Sortear 3 habilidades e escolher uma (E)');
+  setText($('#round-label'), `EXPEDIÇÃO · RODADA ${String(game.round).padStart(2, '0')}`); setText($('#biome-name'), game.biome.name); setText($('#biome-tag'), game.biome.tag);
   const status = { menu: 'PRONTO PARA ENTRAR', playing: 'SOBREVIVA À HORDA', boss: 'DERROTE O GUARDIÃO', paused: 'EXPEDIÇÃO EM PAUSA', upgrade: 'ESCOLHA SUA EVOLUÇÃO', intermission: 'FENDA CONQUISTADA', dead: 'EXPEDIÇÃO ENCERRADA' };
-  $('#live-label').innerHTML = `<span class="status-dot ${game.active ? 'live' : ''}"></span> ${status[game.phase]}`;
+  setHTML($('#live-label'), `<span class="status-dot ${game.active ? 'live' : ''}"></span> ${status[game.phase]}`);
   $('#boss-health').classList.toggle('hidden', !game.boss);
-  if (game.boss) { $('#boss-name').textContent = game.boss.name; $('#boss-hp').textContent = `${game.boss.hp} / ${game.boss.maxHp}`; $('#boss-fill').style.width = `${game.boss.hp / game.boss.maxHp * 100}%`; }
-  $('#bomb-slots').innerHTML = Array.from({ length: p.capacity }, (_, i) => `<span class="bomb-pip ${i < p.capacity - game.bombs.length ? 'ready' : ''}"></span>`).join('');
-  $('#dash-status').innerHTML = `${icon('Zap')} ${p.dashCooldown > 0 ? `ESQUIVA ${p.dashCooldown.toFixed(1)}s` : 'ESQUIVA PRONTA'}`;
+  if (game.boss) { setText($('#boss-name'), game.boss.name); setText($('#boss-hp'), `${game.boss.hp} / ${game.boss.maxHp}`); $('#boss-fill').style.width = `${game.boss.hp / game.boss.maxHp * 100}%`; }
+  setHTML($('#bomb-slots'), Array.from({ length: p.capacity }, (_, i) => `<span class="bomb-pip ${i < p.capacity - game.bombs.length ? 'ready' : ''}"></span>`).join(''));
+  setHTML($('#dash-status'), `${icon('Zap')} ${p.dashCooldown > 0 ? `ESQUIVA ${formatNumber(p.dashCooldown, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}s` : 'ESQUIVA PRONTA'}`);
   $('#pause-button').disabled = !game.active && game.phase !== 'paused'; icons();
 }
 
@@ -200,7 +205,7 @@ function handleEvents() {
     if (event.type === 'hurt') { $('.arena-card').classList.add('hit'); setTimeout(() => $('.arena-card').classList.remove('hit'), 230); }
     if (event.type === 'dead') {
       claimRun();
-      $('#record-round').textContent = `RODADA ${String(meta.bestRound).padStart(2, '0')}`; showDead();
+      setText($('#record-round'), `RODADA ${String(meta.bestRound).padStart(2, '0')}`); showDead();
     }
     if (event.type === 'nextRound') announce(`RODADA ${game.round} · ${game.biome.name.toUpperCase()}`);
   }
@@ -225,9 +230,23 @@ const actions = {
   forge() { if (!game.openUpgrade(true) && game.active) toast(`Colete ${game.forgeCost} cristais para forjar uma habilidade.`); },
   reroll() { game.reroll(); },
   'next-round': returnToMap,
-  sound() { sound.init(); sound.muted = !sound.muted; $('#sound-button').innerHTML = icon(sound.muted ? 'VolumeX' : 'Volume2'); $('#sound-button').setAttribute('aria-label', sound.muted ? 'Ativar som' : 'Desativar som'); icons(); },
+  sound() { sound.init(); sound.muted = !sound.muted; setHTML($('#sound-button'), icon(sound.muted ? 'VolumeX' : 'Volume2')); setAttr($('#sound-button'), 'aria-label', sound.muted ? 'Ativar som' : 'Desativar som'); icons(); },
   async fullscreen() { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch { toast('Tela cheia indisponível neste navegador. Abra o jogo em uma aba própria.'); } },
 };
+document.addEventListener('change', event => {
+  if (event.target.matches('[data-language]')) setLocale(event.target.value);
+});
+document.addEventListener('bomb-rift:language', () => {
+  const languageControlId = document.activeElement?.matches('[data-language]') ? document.activeElement.id : null;
+  keys.clear(); touchMove = null;
+  lastHud = ''; hud.last = ''; hud.buildStamp = '';
+  updateBuild(); updateHud();
+  if (!launch.root.hidden) launch.render();
+  else if (!atlas.root.hidden) atlas.render();
+  if (modalType === 'settings') { showSettings(); $('#settings-language')?.focus(); }
+  document.querySelectorAll('[data-language]').forEach(select => { select.value = getLocale(); });
+  if (languageControlId) document.getElementById(languageControlId)?.focus({ preventScroll: true });
+});
 document.addEventListener('click', event => {
   const button = event.target.closest('button'); if (!button || button.disabled) return;
   if (button.dataset.action !== 'music') sound.init();
@@ -247,13 +266,13 @@ document.addEventListener('click', event => {
 const movement = { KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1], KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
 document.addEventListener('keydown', event => {
   if (['Enter', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code) && !event.target.closest('[data-action="music"]')) sound.init();
-  if (event.target.matches('input, select, textarea') && event.code !== 'Escape') return;
   if (event.code === 'Tab' && modalType) {
-    const list = [...document.querySelectorAll('#modal-root button:not(:disabled)')]; const first = list[0], last = list.at(-1);
+    const list = [...document.querySelectorAll('#modal-root button:not(:disabled), #modal-root select:not(:disabled), #modal-root input:not(:disabled)')]; const first = list[0], last = list.at(-1);
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     return;
   }
+  if (event.target.matches('input, select, textarea') && event.code !== 'Escape') return;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code) && game.active) event.preventDefault();
   if (event.repeat) return;
   if (modalType === 'upgrade') { const index = Number(event.key) - 1; if (game.offers[index]) game.chooseSkill(game.offers[index].id); handleEvents(); return; }
@@ -295,7 +314,7 @@ function frame(now) {
     if (game.phase !== 'menu') { scene.update(dt); hud.frame(dt, scene); } updateHud(); sound.update(game);
     const musicState = $('#launch-music-state');
     const musicLabel = !sound.ctx ? 'TOQUE PARA OUVIR' : sound.musicEnabled && !sound.muted ? 'TOCANDO · PAUSAR' : 'PAUSADA · ATIVAR';
-    if (musicState && musicState.textContent !== musicLabel) musicState.textContent = musicLabel;
+    if (musicState && musicState.textContent !== t(musicLabel)) setText(musicState, musicLabel);
   }
   requestAnimationFrame(frame);
 }

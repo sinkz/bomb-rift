@@ -2,3 +2,7 @@ node_modules/
 dist/
 .vite/
 *.log
+
+dist-cloudflare/
+bomb-rift-cloudflare.zip
+.wrangler/
