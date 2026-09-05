@@ -8,14 +8,18 @@ import '@fontsource/dm-sans/latin-700.css';
 import { createIcons, Bomb, Flame, Expand, Heart, Wind, Magnet, Timer, Zap, HeartPulse, Droplets, ArrowUpRight, ArrowRight, ChevronRight, Gem, Skull, Trophy, Swords, Shield, LockKeyhole, Plus, Volume2, VolumeX, Maximize, Minimize, Settings2, Pause, Play, X, RotateCcw, BookOpen, Sparkles, CircleHelp, MoveUp, MoveDown, MoveLeft, MoveRight, Check, Target, Infinity as InfinityIcon, Crosshair, Sprout } from 'lucide';
 import { Game, SKILLS, ROUND_SECONDS } from './game.js';
 import { ArenaScene } from './scene.js';
+import { bossSources } from './boss-sources.js';
 import { Sound } from './audio.js';
 import { GameHud } from './hud.js';
 import { skillArt, skillPreview } from './skill-art.js';
 import { Atlas } from './atlas.js';
 import { relicById } from './campaign.js';
+import { LocalRanking } from './ranking.js';
+import { LaunchScreen } from './launch.js';
 import './style.css';
 import './game-hud.css';
 import './atlas.css';
+import './juice.css';
 
 const ICONS = { Bomb, Flame, Expand, Heart, Wind, Magnet, Timer, Zap, HeartPulse, Droplets, ArrowUpRight, ArrowRight, ChevronRight, Gem, Skull, Trophy, Swords, Shield, LockKeyhole, Plus, Volume2, VolumeX, Maximize, Minimize, Settings2, Pause, Play, X, RotateCcw, BookOpen, Sparkles, CircleHelp, MoveUp, MoveDown, MoveLeft, MoveRight, Check, Target, Infinity: InfinityIcon, Crosshair, Sprout };
 const icon = (name, cls = '') => `<i data-lucide="${name}" class="${cls}" aria-hidden="true"></i>`;
@@ -25,6 +29,8 @@ const defaults = { shards: 0, health: 0, power: 0, bestRound: 0, bestKills: 0, r
 let meta;
 try { const saved = JSON.parse(localStorage.getItem('bomb-rift-v1') || '{}'); meta = { ...defaults }; for (const key of Object.keys(defaults)) if (Number.isFinite(saved[key])) meta[key] = Math.max(0, Math.floor(saved[key])); } catch { meta = { ...defaults }; }
 const game = new Game({ meta }); const sound = new Sound(); const keys = new Set();
+let rankingStorage; try { rankingStorage = localStorage; } catch {}
+const ranking = new LocalRanking(rankingStorage); let lastRunScore = null;
 let scene, fatal = false, modalType = null, returnFocus = null, saveWarning = false;
 let highQuality = true, reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const avatar = `<svg viewBox="0 0 110 120" class="avatar-art" aria-hidden="true"><defs><linearGradient id="helm" x2="0" y2="1"><stop stop-color="#fffaf0"/><stop offset="1" stop-color="#b7aaa7"/></linearGradient><linearGradient id="suit" x2="0" y2="1"><stop stop-color="#ffaf64"/><stop offset="1" stop-color="#d36a38"/></linearGradient></defs><ellipse cx="55" cy="109" rx="32" ry="7" fill="#100f14" opacity=".4"/><path d="M37 93v15h15V94m7 0v14h16V93" stroke="#302b35" stroke-width="7" fill="#ed9357"/><rect x="32" y="63" width="47" height="34" rx="13" fill="url(#suit)"/><rect x="37" y="86" width="37" height="9" rx="3" fill="#4a3741"/><rect x="50" y="86" width="10" height="9" rx="2" fill="#ffcf89"/><rect x="18" y="69" width="18" height="20" rx="8" fill="url(#helm)"/><rect x="76" y="69" width="18" height="20" rx="8" fill="url(#helm)"/><rect x="23" y="23" width="65" height="49" rx="19" fill="url(#helm)"/><rect x="29" y="40" width="53" height="25" rx="9" fill="#312b38"/><rect x="34" y="44" width="43" height="17" rx="6" fill="#ffd4aa"/><rect x="43" y="46" width="4" height="11" rx="2" fill="#312b38"/><rect x="63" y="46" width="4" height="11" rx="2" fill="#312b38"/><path d="M55 26V18" stroke="#e9b47f" stroke-width="6"/><circle cx="55" cy="13" r="9" fill="#ffab59"/><path d="M31 31q12-7 24-4" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/></svg>`;
@@ -62,15 +68,20 @@ $('#app').innerHTML = `
   <div class="modal-root hidden" id="modal-root"></div><div class="toast" id="toast" role="status"></div>
 `;
 const hud = new GameHud(game, { icon, icons, avatar });
-const atlas = new Atlas(game, { icon, icons }); atlas.show();
+const atlas = new Atlas(game, { icon, icons, bossSources });
+const launch = new LaunchScreen(game, atlas, ranking, { icon, icons, avatar }); launch.show();
+document.body.classList.toggle('reduced-motion', reducedMotion);
 document.body.insertAdjacentHTML('beforeend', '<div class="relic-notice" id="relic-notice" role="status"></div>');
 icons();
 
 function saveMeta() { try { localStorage.setItem('bomb-rift-v1', JSON.stringify(meta)); } catch { saveWarning = true; toast('O navegador não permitiu salvar a evolução. Ela continuará disponível nesta sessão.'); } }
 function toast(text) { $('#toast').textContent = text; $('#toast').classList.add('visible'); clearTimeout(toast.timer); toast.timer = setTimeout(() => $('#toast').classList.remove('visible'), 3300); }
-function announce(text, kind = '') { const el = $('#floating-message'); el.textContent = text; el.className = `floating-message visible ${kind}`; clearTimeout(announce.timer); announce.timer = setTimeout(() => el.classList.remove('visible'), 2700); }
+function announce(text, kind = '') { hud.notice(text, '', kind === 'danger' ? '#ff8e9c' : '#ffd39b'); }
+function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); saveMeta(); } }
+function scoreCard() { return lastRunScore ? `<div class="score-result"><div>${lastRunScore.place ? `${String(lastRunScore.place).padStart(2, '0')}º NO SEU RANKING` : 'RESULTADO DA EXPEDIÇÃO'}<small>${ranking.saved ? 'Salvo neste navegador' : 'Válido nesta sessão'} · abates, coleta e conquista</small></div><strong>${lastRunScore.score.toLocaleString('pt-BR')} <small>PTS</small></strong></div>` : ''; }
 function closeModal() { $('#modal-root').classList.add('hidden'); $('#modal-root').innerHTML = ''; modalType = null; returnFocus?.focus?.(); }
 function modal(type, content, { wide = false, closable = true } = {}) {
+  if (type === 'dead' || type === 'intermission') content = content.replace('<button class="primary-button', `${scoreCard()}<button class="primary-button`) + `<button class="text-button" data-action="home">${icon('Trophy')} Menu inicial e ranking</button>`;
   keys.clear(); if (!modalType) returnFocus = document.activeElement; modalType = type;
   $('#modal-root').innerHTML = `<section class="modal modal-${type} ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${closable ? `<button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('X')}</button>` : ''}${content}</section>`;
   $('#modal-root').classList.remove('hidden'); icons(); $('#modal-root button:not(:disabled)')?.focus();
@@ -79,20 +90,18 @@ function resume() { closeModal(); if (game.phase === 'paused') game.pause(); upd
 function start() {
   if (fatal) return;
   if (!game.start(atlas.selected)) return;
-  closeModal(); sound.init(); atlas.hide(); keys.clear(); scene.preview?.clear();
+  closeModal(); sound.init(); launch.hide(); atlas.hide(); keys.clear(); scene.preview?.clear(); lastRunScore = null;
   $('#start-banner').classList.add('hidden'); $('#in-game-bottom').classList.remove('hidden');
   $('#mobile-controls').classList.add('running'); $('#pause-button').disabled = false;
   updateBuild(); updateHud(); scene.resize(); announce(`${game.stage.name.toUpperCase()} · ${game.biome.boss} ESTÁ OBSERVANDO`);
 }
 function returnToMap() {
-  game.claimResult(); saveMeta(); closeModal(); keys.clear(); touchMove = null;
+  claimRun(); closeModal(); keys.clear(); touchMove = null; launch.hide();
   game.returnToMap(); atlas.show(Math.max(game.round, meta.unlockedStage || 1));
   $('#mobile-controls').classList.remove('running'); $('#relic-notice').classList.remove('visible'); updateBuild(); updateHud();
 }
 function showRelic(id) {
-  const r = relicById(id), el = $('#relic-notice');
-  el.style.setProperty('--skill-color', r.color); el.innerHTML = `${skillArt(r.art)}<div><small>${r.rarity} · RELÍQUIA EQUIPADA</small><h3>${r.name}</h3><p>${r.desc}</p></div>`;
-  el.classList.add('visible'); clearTimeout(showRelic.timer); showRelic.timer = setTimeout(() => el.classList.remove('visible'), 4400);
+  const r = relicById(id); hud.notice(r.name, `${r.rarity} · EQUIPADA`, r.color, r.art);
 }
 function pauseForModal() { if (game.active) game.pause(); }
 function showPause() {
@@ -126,6 +135,10 @@ function showMeta() {
 function showSettings() {
   pauseForModal();
   modal('settings', `<span class="eyebrow orange">DO SEU JEITO</span><h2 id="modal-title">Ajuste a experiência.</h2><div class="setting-row"><div><h3>Efeitos sonoros</h3><p>Explosões, cristais e pequenas vitórias.</p></div><button class="toggle ${sound.enabled ? 'on' : ''}" data-setting="sound" role="switch" aria-checked="${sound.enabled}" aria-label="Efeitos sonoros"><span></span></button></div><div class="setting-row"><div><h3>Qualidade visual</h3><p>Sombras suaves e brilho dos cristais.</p></div><button class="toggle ${highQuality ? 'on' : ''}" data-setting="quality" role="switch" aria-checked="${highQuality}" aria-label="Qualidade visual alta"><span></span></button></div><div class="setting-row"><div><h3>Reduzir movimento</h3><p>Sem tremor de câmera e com menos partículas.</p></div><button class="toggle ${reducedMotion ? 'on' : ''}" data-setting="motion" role="switch" aria-checked="${reducedMotion}" aria-label="Reduzir movimento"><span></span></button></div><button class="primary-button full-width" data-action="close-modal">Tudo pronto ${icon('Check')}</button>`);
+  const row = document.createElement('div'); row.className = 'music-settings';
+  row.innerHTML = `<div class="setting-row"><div><h3>Trilha musical</h3><p>Temas próprios para cada mundo e seus guardiões.</p></div><button class="toggle ${sound.musicEnabled ? 'on' : ''}" data-setting="music" role="switch" aria-checked="${sound.musicEnabled}" aria-label="Trilha musical"><span></span></button></div><div class="setting-row"><div><h3>Volume da música</h3><p>Deixe as explosões em primeiro plano.</p></div><label><input class="music-volume" type="range" min="0" max="100" value="${Math.round(sound.volume * 100)}" aria-label="Volume da música"><output class="setting-volume-value">${Math.round(sound.volume * 100)}%</output></label></div>`;
+  $('#modal-root .setting-row').after(row);
+  row.querySelector('input').addEventListener('input', e => { sound.volume = Number(e.target.value) / 100; sound.save(); row.querySelector('output').textContent = `${e.target.value}%`; });
 }
 function updateBuild() {
   const entries = SKILLS.filter(s => game.skillLevels[s.id]);
@@ -166,17 +179,15 @@ function handleEvents() {
   for (const event of game.drainEvents()) {
     scene?.handle(event); hud.handle(event); sound.play(event.type);
     if (event.type === 'upgrade') showUpgrade();
-    if (event.type === 'skill') { closeModal(); updateBuild(); toast(`${SKILLS.find(s => s.id === event.id).name} equipada.`); }
-    if (event.type === 'boss') announce(`${game.biome.boss} · ${game.biome.title.toUpperCase()}`, 'danger');
-    if (event.type === 'bossEnraged') announce('O GUARDIÃO ENTROU EM FÚRIA!', 'danger');
-    if (event.type === 'bossDefeated') { game.claimResult(); saveMeta(); showIntermission(); }
+    if (event.type === 'skill') { closeModal(); updateBuild(); }
+    if (event.type === 'bossDefeated') { claimRun(); showIntermission(); }
     if (event.type === 'miniboss') announce('SENTINELA DA FENDA · RELÍQUIA GARANTIDA', 'danger');
     if (event.type === 'miniDefeated') announce('SENTINELA DERROTADO · COLETE A RELÍQUIA');
     if (event.type === 'relic') { showRelic(event.id); sound.play('skill'); }
     if (event.type === 'revive') { announce('ÚLTIMA FAÍSCA · VOCÊ RENASCEU'); sound.play('skill'); }
     if (event.type === 'hurt') { $('.arena-card').classList.add('hit'); setTimeout(() => $('.arena-card').classList.remove('hit'), 230); }
     if (event.type === 'dead') {
-      game.claimResult(); saveMeta();
+      claimRun();
       $('#record-round').textContent = `RODADA ${String(meta.bestRound).padStart(2, '0')}`; showDead();
     }
     if (event.type === 'nextRound') announce(`RODADA ${game.round} · ${game.biome.name.toUpperCase()}`);
@@ -185,6 +196,10 @@ function handleEvents() {
 
 const actions = {
   start,
+  atlas() { launch.hide(); atlas.show(); },
+  home() { if (game.active || game.phase === 'upgrade') return; claimRun(); closeModal(); game.returnToMap(); $('#mobile-controls').classList.remove('running'); updateHud(); launch.show(); },
+  taunt() { atlas.bossPreview?.taunt(); sound.play('boss'); },
+  music() { const wasReady = !!sound.ctx; sound.init(); if (wasReady) sound.musicEnabled = !sound.musicEnabled; sound.save(); },
   'world-map': returnToMap,
   abandon() { game.die(); handleEvents(); returnToMap(); },
   explore() { if (modalType === 'upgrade' || modalType === 'intermission') return; if (game.phase === 'dead') showDead(); else resume(); },
@@ -193,16 +208,17 @@ const actions = {
   'zoom-out'() { scene?.adjustZoom(-.12); },
   pause() { if (game.active) { game.pause(); showPause(); } else if (game.phase === 'paused') resume(); },
   resume,
-  'close-modal'() { const phase = game.phase; closeModal(); if (phase === 'dead') showDead(); else if (phase === 'intermission') showIntermission(); else if (phase === 'paused') game.pause(); else if (phase === 'menu') atlas.render(); },
+  'close-modal'() { const phase = game.phase; closeModal(); if (phase === 'dead') showDead(); else if (phase === 'intermission') showIntermission(); else if (phase === 'paused') game.pause(); else if (phase === 'menu') { if (!launch.root.hidden) launch.render(); else atlas.render(); } },
   bomb() { sound.init(); game.plantBomb(); }, dash() { game.dash(); },
   forge() { if (!game.openUpgrade(true) && game.active) toast(`Colete ${game.forgeCost} cristais para forjar uma habilidade.`); },
   reroll() { game.reroll(); },
   'next-round': returnToMap,
-  sound() { sound.init(); sound.enabled = !sound.enabled; $('#sound-button').innerHTML = icon(sound.enabled ? 'Volume2' : 'VolumeX'); $('#sound-button').setAttribute('aria-label', sound.enabled ? 'Desativar som' : 'Ativar som'); icons(); },
+  sound() { sound.init(); sound.muted = !sound.muted; $('#sound-button').innerHTML = icon(sound.muted ? 'VolumeX' : 'Volume2'); $('#sound-button').setAttribute('aria-label', sound.muted ? 'Ativar som' : 'Desativar som'); icons(); },
   async fullscreen() { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch { toast('Tela cheia indisponível neste navegador. Abra o jogo em uma aba própria.'); } },
 };
 document.addEventListener('click', event => {
   const button = event.target.closest('button'); if (!button || button.disabled) return;
+  if (button.dataset.action !== 'music') sound.init();
   if (button.dataset.action) actions[button.dataset.action]?.();
   if (button.dataset.skill) game.chooseSkill(button.dataset.skill);
   if (button.dataset.meta) {
@@ -210,7 +226,8 @@ document.addEventListener('click', event => {
     if (meta.shards >= cost && meta[id] < max) { meta.shards -= cost; meta[id]++; saveMeta(); showMeta(); toast('Evolução permanente adquirida. Ativa na próxima expedição.'); }
   }
   if (button.dataset.setting) {
-    if (button.dataset.setting === 'sound') actions.sound();
+    if (button.dataset.setting === 'sound') { sound.enabled = !sound.enabled; sound.save(); }
+    if (button.dataset.setting === 'music') { sound.musicEnabled = !sound.musicEnabled; sound.save(); }
     if (button.dataset.setting === 'quality') { highQuality = !highQuality; scene?.setQuality(highQuality); }
     if (button.dataset.setting === 'motion') { reducedMotion = !reducedMotion; if (scene) scene.reducedMotion = reducedMotion; document.body.classList.toggle('reduced-motion', reducedMotion); }
     showSettings();
@@ -219,6 +236,8 @@ document.addEventListener('click', event => {
 });
 const movement = { KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1], KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
 document.addEventListener('keydown', event => {
+  if (['Enter', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code) && !event.target.closest('[data-action="music"]')) sound.init();
+  if (event.target.matches('input, select, textarea') && event.code !== 'Escape') return;
   if (event.code === 'Tab' && modalType) {
     const list = [...document.querySelectorAll('#modal-root button:not(:disabled)')]; const first = list[0], last = list.at(-1);
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
@@ -244,11 +263,11 @@ document.querySelectorAll('[data-move]').forEach(button => {
   button.addEventListener('pointerdown', event => { event.preventDefault(); touchMove = button.dataset.move.split(',').map(Number); button.setPointerCapture(event.pointerId); });
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(name, () => touchMove = null);
 });
-function blurPause() { keys.clear(); touchMove = null; if (game.active) { game.pause(); showPause(); updateHud(); } }
+function blurPause() { keys.clear(); touchMove = null; if (game.active) { game.pause(); showPause(); updateHud(); } sound.update(game); }
 window.addEventListener('blur', blurPause); document.addEventListener('visibilitychange', () => { if (document.hidden) blurPause(); });
 document.querySelector('.brand').addEventListener('click', event => { event.preventDefault(); actions.explore(); });
 
-try { scene = new ArenaScene($('#scene'), game, { reducedMotion }); game.drainEvents(); updateHud(); }
+try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources }); game.drainEvents(); updateHud(); }
 catch (error) { fatal = true; console.error(error); modal('error', `<div class="modal-emblem">${icon('CircleHelp')}</div><h2 id="modal-title">A fenda não conseguiu abrir.</h2><p>Este jogo precisa de WebGL 2. Ative a aceleração de hardware e tente um navegador atualizado, como Chrome ou Edge.</p><p class="small-note">Detalhe: ${String(error.message).replace(/[<>&]/g, '')}</p>`, { closable: false }); }
 
 let lastTime = performance.now(); let accumulator = 0;
@@ -263,11 +282,16 @@ function frame(now) {
       }
       game.tick(1 / 60); handleEvents(); accumulator -= 1 / 60;
     }
-    if (game.phase !== 'menu') { scene.update(dt); hud.frame(dt, scene); } updateHud();
+    if (game.phase !== 'menu') { scene.update(dt); hud.frame(dt, scene); } updateHud(); sound.update(game);
+    const musicState = $('#launch-music-state');
+    const musicLabel = !sound.ctx ? 'TOQUE PARA OUVIR' : sound.musicEnabled && !sound.muted ? 'TOCANDO · PAUSAR' : 'PAUSADA · ATIVAR';
+    if (musicState && musicState.textContent !== musicLabel) musicState.textContent = musicLabel;
   }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Read-only diagnostics for browser verification; no gameplay shortcuts are shipped.
+window.bombRiftBosses = () => ({ status: scene?.bossStatus, preview: atlas.bossPreview?.inspect(), playerOriginal: !scene?.playerMesh.userData.actor, active: scene ? [...scene.objects.values()].filter(o => o.userData.actor).map(o => o.userData.actor.key) : [] });
+window.bombRiftAudio = () => sound.inspect();
 window.bombRift = { snapshot: () => ({ phase: game.phase, round: game.round, stage: game.stage, selectedStage: atlas.selected, intelligence: game.intelligence, relics: [...game.relics], elapsed: game.elapsed, totalTime: game.totalTime, player: { ...game.player }, kills: game.kills, crystals: game.crystals, level: game.level, bombs: game.bombs.map(b => ({ ...b })), enemyCount: game.enemies.length, enemyIntents: game.enemies.map(e => ({ id: e.id, type: e.type, intent: e.intent, x: e.x, z: e.z })), boss: game.boss ? { ...game.boss } : null, skillLevels: { ...game.skillLevels }, meta: { ...meta }, camera: scene ? { span: scene.cameraSpan, zoom: scene.zoom, targetSpan: scene.targetSpan } : null, renderer: scene ? { calls: scene.renderer.info.render.calls, triangles: scene.renderer.info.render.triangles } : null, fatal }) };

@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { relicById } from './campaign.js';
+import { loadBossLibrary } from './boss-models.js';
 
 const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
@@ -18,6 +19,8 @@ const G = {
 };
 const materialCache = new Map();
 function mat(color, emissive = 0, intensity = 0, metalness = 0) {
+  if (color?.isColor) color = color.getHex();
+  if (emissive?.isColor) emissive = emissive.getHex();
   const key = `${color}:${emissive}:${intensity}:${metalness}`;
   if (!materialCache.has(key)) materialCache.set(key, new THREE.MeshStandardMaterial({ color, roughness: .76, metalness, emissive, emissiveIntensity: intensity, flatShading: true }));
   return materialCache.get(key);
@@ -29,11 +32,12 @@ function mesh(parent, geometry, material, x, y, z, sx = 1, sy = sx, sz = sx, sha
 
 
 export class ArenaScene {
-  constructor(container, game, { reducedMotion = false } = {}) {
+  constructor(container, game, { reducedMotion = false, bossSources } = {}) {
     this.container = container; this.game = game; this.reducedMotion = reducedMotion; this.time = 0; this.shake = 0;
     this.objects = new Map(); this.blocks = new Map(); this.particles = []; this.pulses = [];
     this.cameraSpan = 10.7; this.targetSpan = 10.7; this.zoom = 1; this.cameraFocus = new THREE.Vector3();
     this.staticSlots = new Map(); this.enemyModels = new Map();
+    this.retiredBoss = null; this.bossStatus = bossSources ? 'loading' : 'procedural';
     this.bombWarningMaterial = new THREE.MeshBasicMaterial({ color: 0xffb452, transparent: true, opacity: .14, depthWrite: false, blending: THREE.AdditiveBlending });
     this.chargeWarningMaterial = new THREE.MeshBasicMaterial({ color: 0xff945e, transparent: true, opacity: .36, depthWrite: false, blending: THREE.AdditiveBlending });
     this.echoWarningMaterial = new THREE.MeshBasicMaterial({ color: 0xb99aff, transparent: true, opacity: .4, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -65,6 +69,15 @@ export class ArenaScene {
     this.playerMesh = this.makePlayer(); this.dynamic.add(this.playerMesh);
     this.addAtmosphere(); this.buildArena();
     this.resizeObserver = new ResizeObserver(() => this.resize()); this.resizeObserver.observe(container); this.resize();
+    this.bossesReady = bossSources ? loadBossLibrary(bossSources).then(library => {
+      this.bossModels = library; this.bossStatus = 'ready';
+      const boss = game.boss, previous = boss && this.objects.get(boss.id);
+      if (previous) {
+        const next = this.makeEnemy('boss', boss.variant);
+        next.position.copy(previous.position); next.quaternion.copy(previous.quaternion);
+        this.dynamic.remove(previous); this.dynamic.add(next); this.objects.set(boss.id, next);
+      }
+    }).catch(error => { this.bossStatus = 'fallback'; console.error('Falha ao carregar os guardiões:', error); }) : Promise.resolve();
   }
   at(x, z) { return [x - (this.game.width - 1) / 2, z - (this.game.height - 1) / 2]; }
   resize() {
@@ -99,7 +112,8 @@ export class ArenaScene {
     this.static.traverse(object => { if (object.isInstancedMesh) object.dispose(); });
     this.staticSlots.clear();
     for (const child of [...this.static.children]) this.static.remove(child);
-    this.objects.forEach(o => this.dynamic.remove(o)); this.objects.clear(); this.blocks.clear();
+    this.objects.forEach(o => { o.userData.actor?.dispose(); this.dynamic.remove(o); }); this.objects.clear(); this.blocks.clear();
+    if (this.retiredBoss) { this.retiredBoss.userData.actor.dispose(); this.retiredBoss = null; }
     for (const pulse of this.pulses) pulse.mesh.material.dispose();
     this.fx.clear(); this.particles = []; this.pulses = [];
     const biome = this.game.biome, WIDTH = this.game.width, HEIGHT = this.game.height;
@@ -256,9 +270,18 @@ export class ArenaScene {
     mesh(group, 'round', ivory, -.34, .44, 0, .2, .24, .2); mesh(group, 'round', ivory, .34, .44, 0, .2, .24, .2);
     mesh(group, 'round', mat(0x62516b), 0, .46, -.25, .32, .35, .19);
     mesh(group, 'box', mat(0xffcc85, 0xff982c, .5), 0, .43, .214, .15, .12, .03);
+    const parts = [...group.children], body = new THREE.Group();
+    for (const part of parts.slice(1)) body.add(part);
+    group.add(body); ring.material = ring.material.clone();
+    group.userData.pose = { body, boots: [parts[3], parts[4]], hands: [parts[11], parts[12]] };
     return group;
   }
   makeEnemy(type, variant = 'ruins') {
+    if (type === 'boss' && this.bossModels) {
+      const actor = this.bossModels.create(variant);
+      actor.play('Spawn', { priority: 20, next: 'Taunt' });
+      return actor.root;
+    }
     const key = type + ':' + variant;
     if (this.enemyModels.has(key)) return this.enemyModels.get(key).clone(true);
     const group = new THREE.Group();
@@ -359,6 +382,9 @@ export class ArenaScene {
   }
   handle(event) {
     if (event.type === 'arena') this.buildArena();
+    this.animateBoss(event);
+    if (['bomb', 'dash', 'hurt', 'skill'].includes(event.type)) this.heroAction = { kind: event.type, age: 0, duration: event.type === 'skill' ? .65 : .3 };
+    if (event.type === 'arena') { this.heroAction = null; this.skillAura = null; }
     if (event.type === 'start') { this.zoom = 1; this.pulse(this.game.player.x, this.game.player.z, 0xffd58b, 2, .9); }
     if (event.type === 'crate' || event.type === 'clear') { const block = this.blocks.get(`${event.x},${event.z}`); if (block) { this.removeBlock(block); this.blocks.delete(`${event.x},${event.z}`); } if (event.type === 'crate') this.burst(event.x, event.z, 0xb58757, 9); }
     if (event.type === 'explosion' || event.type === 'enemyExplosion' || event.type === 'echo') {
@@ -378,11 +404,16 @@ export class ArenaScene {
     }
     if (event.type === 'chargeTrail') this.burst(event.x, event.z, 0xff9067, 4, 1);
     if (event.type === 'relic' || event.type === 'revive' || event.type === 'relicDrop' || event.type === 'miniboss' || event.type === 'miniDefeated') { this.pulse(event.x,event.z, event.type === 'miniboss' ? 0xff7c52 : 0xa9edff, 2.8, 1); this.burst(event.x,event.z,0xffd88e,26,3); }
-    if (event.type === 'skill') { const p = this.game.player; this.pulse(p.x, p.z, 0xdcb7ff, 2, .85); this.burst(p.x, p.z, 0xe4baff, 32, 3); }
-    if (event.type === 'boss' || event.type === 'bossEnraged') { const b = this.game.boss; if (b) { this.pulse(b.x, b.z, 0xff6776, 4, 1); this.burst(b.x, b.z, 0xff7870, 28, 4); } }
+    if (event.type === 'skill') {
+      const colors = { power: 0xff985c, range: 0xff985c, capacity: 0xb5a0ff, fuse: 0xb5a0ff, health: 0xfb7993, heal: 0xfb7993, vampire: 0xfb7993, speed: 0x72dcc5, dash: 0x72dcc5, magnet: 0x72dcc5 };
+      const p = this.game.player, color = colors[event.id]; this.skillAura = { color, life: 1.3 };
+      this.pulse(p.x, p.z, color, 1.8, .75); this.pulse(p.x, p.z, color, .9, 1.1); this.burst(p.x, p.z, color, 24, 2.5);
+    }
+    if (event.type === 'boss' || event.type === 'bossEnraged') { const b = this.game.boss; if (b) { const color = new THREE.Color(this.game.biome.color); this.pulse(b.x, b.z, color, 4, 1.4); this.pulse(b.x, b.z, color, 2.5, .8); this.burst(b.x, b.z, color, 35, 4); this.shake = this.reducedMotion ? 0 : .25; } }
     if (event.type === 'bossDefeated') { this.burst(event.x, event.z, 0xffc778, 80, 8); this.pulse(event.x, event.z, 0xffd695, 5.5, 1.1); this.shake = this.reducedMotion ? 0 : .4; }
   }
   update(dt) {
+    if (['paused', 'upgrade'].includes(this.game.phase)) dt = 0;
     this.time += dt; const t = this.time, game = this.game;
     const p = game.player, [px, pz] = this.at(p.x, p.z);
     this.playerMesh.position.x = THREE.MathUtils.damp(this.playerMesh.position.x, px, 25, dt);
@@ -392,14 +423,31 @@ export class ArenaScene {
     this.playerMesh.rotation.y = angle;
     this.playerMesh.visible = true;
     this.playerMesh.children[0].scale.setScalar(.44 + (p.invincible > 0 ? Math.sin(t * 8) * .05 : 0));
+    const pose = this.playerMesh.userData.pose, walking = game.active && p.moveCooldown > .025 && !this.reducedMotion;
+    const stride = walking ? Math.sin(t * 23) : 0;
+    if (this.heroAction) this.heroAction.age += dt;
+    const action = this.heroAction, kick = action && action.age < action.duration && !this.reducedMotion ? Math.sin(action.age / action.duration * Math.PI) : 0;
+    pose.body.rotation.z = THREE.MathUtils.damp(pose.body.rotation.z, game.phase === 'dead' ? -1.2 : action?.kind === 'hurt' ? kick * -.2 : stride * .04, 15, dt);
+    pose.body.rotation.x = action?.kind === 'dash' ? kick * .4 : action?.kind === 'bomb' ? kick * .17 : 0;
+    pose.body.scale.set(1 + kick * .06, 1 - kick * .08, 1 + kick * .06);
+    pose.body.position.y = game.phase === 'dead' ? -.12 : action?.kind === 'skill' ? kick * .17 : 0;
+    pose.boots.forEach((boot, i) => { boot.position.z = .08 + stride * (i ? -.065 : .065); boot.position.y = .13 + Math.max(0, stride * (i ? -1 : 1)) * .045; });
+    pose.hands.forEach((hand, i) => { hand.position.z = stride * (i ? .075 : -.075) + (action?.kind === 'bomb' ? kick * .15 : 0); hand.rotation.z = (i ? -1 : 1) * (kick * .25 + Math.abs(stride) * .08); });
+    if (this.skillAura) this.skillAura.life -= dt;
+    this.playerMesh.children[0].material.color.set(this.skillAura?.life > 0 ? this.skillAura.color : p.fire === 'azure' ? 0x59caff : 0xffc180);
+    this.playerMesh.children[0].material.emissive.set(this.skillAura?.life > 0 ? this.skillAura.color : p.fire === 'azure' ? 0x189de8 : 0xff9441);
     const live = new Set();
     for (const entity of [...game.enemies, ...(game.boss ? [game.boss] : [])]) {
       live.add(entity.id); const obj = this.ensureObject(entity.id, () => this.makeEnemy(entity.type, entity.variant || game.biome.id), entity); const [x, z] = this.at(entity.x, entity.z);
       const moving = Math.abs(obj.position.x - x) + Math.abs(obj.position.z - z) > .02;
       const damping = entity.chargeSteps > 0 ? 35 : 13;
       obj.position.x = THREE.MathUtils.damp(obj.position.x, x, damping, dt); obj.position.z = THREE.MathUtils.damp(obj.position.z, z, damping, dt);
-      obj.position.y = Math.abs(Math.sin(t * (entity.type === 'slime' ? 5 : 9) + entity.id)) * (moving ? .12 : .035);
+      const actor = obj.userData.actor;
+      obj.position.y = actor ? 0 : Math.abs(Math.sin(t * (entity.type === 'slime' ? 5 : 9) + entity.id)) * (moving ? .12 : .035);
+      actor?.update(['paused', 'upgrade', 'menu'].includes(game.phase) ? 0 : dt, { moving: game.active && moving, slow: entity.slow > 0 });
       obj.scale.setScalar((entity.hitFlash > 0 ? 1.15 : 1) * (entity.type === 'sentinel' ? .8 : 1));
+      if (entity.type === 'slime' && !this.reducedMotion) { const squash = Math.sin(t * (moving ? 10 : 4) + entity.id) * (moving ? .12 : .045); const hit = entity.hitFlash > 0 ? .16 : 0; obj.scale.set(1 + squash + hit, 1 - squash - hit * .5, 1 + squash + hit); }
+      if (entity.type === 'beetle' && moving && !this.reducedMotion) obj.rotation.z = Math.sin(t * 22) * .065;
       if (entity.type === 'wisp') obj.position.y += .17 + Math.sin(t*3+entity.id)*.1;
       if (entity.slow > 0 && Math.sin(t*15+entity.id) > .94) this.burst(entity.x,entity.z,0x86f5ff,1,.3);
       if (moving) obj.rotation.y = Math.atan2(x - obj.position.x, z - obj.position.z);
@@ -410,9 +458,23 @@ export class ArenaScene {
         lane.visible = this.reducedMotion || Math.sin(t * 16) > -.5;
       }
     }
+    if (game.boss) {
+      const b = game.boss, id = `boss-seal-${b.id}`; live.add(id);
+      const seal = this.ensureObject(id, () => {
+        const group = new THREE.Group(), color = new THREE.Color(game.biome.color), material = mat(color, color, .6);
+        for (const radius of [1.05, 1.28]) mesh(group, 'ring', material, 0, .05, 0, radius, radius, radius, false).rotation.x = Math.PI / 2;
+        for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; mesh(group, 'crystal', material, Math.sin(a) * 1.15, .06, Math.cos(a) * 1.15, .065, .08, .065, false); }
+        return group;
+      }, b);
+      const [x, z] = this.at(b.x, b.z); seal.position.x = THREE.MathUtils.damp(seal.position.x, x, 13, dt); seal.position.z = THREE.MathUtils.damp(seal.position.z, z, 13, dt);
+      seal.rotation.y = this.reducedMotion ? 0 : t * (b.enraged ? -.45 : .15);
+      seal.scale.setScalar(b.enraged ? 1.07 : 1);
+    }
     for (const bomb of game.bombs) {
       live.add(bomb.id); const obj = this.ensureObject(bomb.id, () => this.makeBomb(), bomb);
-      obj.scale.setScalar(1 + Math.sin(t * (bomb.fuse < .7 ? 30 : 10)) * .06); obj.rotation.y = Math.sin(t) * .08;
+      const urgency = Math.max(0, 1 - bomb.fuse / bomb.maxFuse), beat = this.reducedMotion ? 0 : Math.sin(t * (bomb.fuse < .7 ? 22 : 9)) * (.035 + urgency * .09);
+      obj.scale.set(1 + beat, 1 - beat * .8, 1 + beat); obj.rotation.y = Math.sin(t) * .08;
+      if (game.active && !this.reducedMotion && t > (obj.userData.sparkAt || 0)) { obj.userData.sparkAt = t + .22; this.burst(bomb.x, bomb.z, p.fire === 'azure' ? 0x6ae7ff : 0xffc478, 1, .65); }
       if (bomb.fuse < 1.3) {
         const id = `bomb-warning-${bomb.id}`; live.add(id);
         this.ensureObject(id, () => this.dangerTiles(game.blastCells(bomb), this.bombWarningMaterial), { x: (game.width - 1) / 2, z: (game.height - 1) / 2 });
@@ -429,7 +491,7 @@ export class ArenaScene {
     for (const flame of game.flames) {
       live.add(flame.id);
       const obj = this.ensureObject(flame.id, () => {
-        const group = new THREE.Group();
+        const group = new THREE.Group(); group.userData.maxLife = flame.life;
         for (const c of flame.cells) {
           const [x, z] = this.at(c.x, c.z), material = mat(flame.fire === 'azure' ? 0xa0eeff : flame.fire === 'spectral' ? 0x80ffee : flame.enemy ? 0xff716d : 0xffcc76, flame.fire === 'azure' ? 0x189de8 : flame.fire === 'spectral' ? 0x28bfca : flame.enemy ? 0xff253b : 0xff6a12, 3);
           mesh(group, 'box', material, x, .14, z, .91, .25, .91, false);
@@ -437,16 +499,25 @@ export class ArenaScene {
         }
         return group;
       }, { x: (game.width - 1) / 2, z: (game.height - 1) / 2 });
-      obj.scale.y = Math.max(.1, flame.life / .62) * (1 + Math.sin(t * 35) * .13);
+      // The flash collapses quickly into low embers: the impact is already over.
+      const age = obj.userData.maxLife - flame.life;
+      obj.scale.y = Math.max(.015, Math.exp(-age * 12));
+      obj.children.forEach((part, i) => { if (i % 2) part.visible = age < .2; });
     }
     for (const warning of game.warnings) {
       live.add(warning.id);
       const obj = this.ensureObject(warning.id, () => {
         const group = new THREE.Group(); for (const c of warning.cells) { const [x, z] = this.at(c.x, c.z); mesh(group, 'box', mat(0xf65a69, 0xff243b, 1), x, .035, z, .89, .025, .89, false); } return group;
       }, { x: (game.width - 1) / 2, z: (game.height - 1) / 2 });
-      obj.visible = this.reducedMotion || Math.sin(t * 20) > -.45;
+      obj.visible = true;
+      obj.scale.y = 1 + (this.reducedMotion ? 0 : Math.sin(t * 8) * .2);
     }
-    for (const [id, obj] of this.objects) if (!live.has(id)) { this.dynamic.remove(obj); this.objects.delete(id); }
+    for (const [id, obj] of this.objects) if (!live.has(id)) { obj.userData.actor?.dispose(); this.dynamic.remove(obj); this.objects.delete(id); }
+    if (this.retiredBoss) {
+      const obj = this.retiredBoss, elapsed = ['paused', 'upgrade', 'menu'].includes(game.phase) ? 0 : dt;
+      obj.userData.actor.update(elapsed); obj.userData.retireTime -= elapsed;
+      if (obj.userData.retireTime <= 0) { obj.userData.actor.dispose(); this.retiredBoss = null; }
+    }
     for (const particle of this.particles) {
       particle.life -= dt; particle.vy -= dt * 7;
       particle.mesh.position.x += particle.vx * dt; particle.mesh.position.y += particle.vy * dt; particle.mesh.position.z += particle.vz * dt;
@@ -476,4 +547,18 @@ export class ArenaScene {
     this.renderer.info.reset(); this.composer.render();
   }
   setQuality(high) { this.renderer.setPixelRatio(high ? Math.min(window.devicePixelRatio, 1.6) : 1); this.renderer.shadowMap.enabled = high; this.bloom.enabled = high; this.resize(); }
+  animateBoss(event) {
+    const boss = this.game.boss;
+    if (event.type === 'boss' && boss) this.ensureObject(boss.id, () => this.makeEnemy('boss', boss.variant), boss);
+    const obj = this.objects.get(event.id ?? boss?.id), actor = obj?.userData.actor;
+    if (!actor) return;
+    if (event.type === 'enemyHit') actor.play('Hit', { priority: 60 });
+    if (event.type === 'warning') actor.prepare(event.duration);
+    if (event.type === 'bossEnraged') actor.play('Enrage', { priority: 70 });
+    if (event.type === 'bossDefeated') {
+      actor.play('Death', { priority: 100, hold: true });
+      obj.userData.retireTime = actor.clips.get('Death').duration;
+      this.objects.delete(event.id); this.retiredBoss = obj;
+    }
+  }
 }

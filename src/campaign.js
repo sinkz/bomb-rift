@@ -22,7 +22,7 @@ export function stageFor(number = 1) {
     reward: 8 + index * 2 + Math.floor((number - 1) / 9) * 6, musicKey: `${WORLDS[worldIndex].music}-${index % 3 + 1}` };
 }
 export const RELICS = [
-  { id: 'azure', name: 'Fogo azul', icon: 'Flame', art: 'power', color: '#59caff', rarity: 'RARA', desc: '+1 dano. Suas chamas ficam azuis e duram 1,1s.' },
+  { id: 'azure', name: 'Fogo azul', icon: 'Flame', art: 'power', color: '#59caff', rarity: 'RARA', desc: '+1 dano e explosões azuis. O rastro luminoso é inofensivo depois do impacto.' },
   { id: 'clock', name: 'Bomba-relógio', icon: 'Timer', art: 'fuse', color: '#f5c477', rarity: 'RARA', desc: 'Pavio 1s mais longo, +2 dano e +1 alcance. Mais tempo para armar uma cilada.' },
   { id: 'echo', name: 'Eco do caos', icon: 'Expand', art: 'range', color: '#c39bff', rarity: 'ÉPICA', desc: 'Cada bomba repete a explosão após 0,85s com metade do dano. A repetição também machuca você.' },
   { id: 'frost', name: 'Geada do vazio', icon: 'Wind', art: 'speed', color: '#8bf3e7', rarity: 'RARA', desc: 'Explosões reduzem a velocidade dos inimigos por 2,5s. Chefes resistem parcialmente.' },

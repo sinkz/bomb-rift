@@ -46,7 +46,9 @@ export class Game {
   }
   get stage() { return stageFor(this.round); }
   get biome() { return this.stage.world; }
-  get intelligence() { return Math.min(.85, (this.round - 1) * .075 + this.elapsed / 120 * .12); }
+  get intelligence() { return Math.min(.85, (this.round - 1) * .065 + this.elapsed / 120 * (this.round === 1 ? .04 : .08)); }
+  get enemyLimit() { return 4 + Math.min(14, this.round) + Math.floor(this.elapsed / 60); }
+  get spawnInterval() { return Math.max(3, 11 - (this.round - 1) * .6 - this.elapsed / 90) + (this.boss ? 4 : 0); }
   get forgeCost() { return 20 + this.forgeCount * 10; }
   get active() { return this.phase === 'playing' || this.phase === 'boss'; }
   generateArena() {
@@ -60,7 +62,7 @@ export class Game {
       return !open && this.random() < .30 + worldIndex * .025 ? 2 : 0;
     }));
     this.bombs = []; this.flames = []; this.enemies = []; this.pickups = []; this.warnings = [];
-    this.boss = null; this.spawnClock = 5; this.player.x = 1; this.player.z = 1;
+    this.boss = null; this.spawnClock = this.round === 1 ? 10 : 7; this.player.x = 1; this.player.z = 1;
     this.player.invincible = 2; this.player.moveCooldown = 0; this.player.dashCooldown = 0;
     for (const [x, z] of [[3, 1], [1, 4], [5, 1], [7, 5], [11, 9]]) {
       this.grid[z][x] = 0; this.addPickup(x, z, 'crystal', 2);
@@ -68,7 +70,7 @@ export class Game {
     // A cache close to spawn teaches item collection in every stage.
     const cache = { x: 3, z: 3 }; this.grid[cache.z][cache.x] = 2;
     this.cacheCell = cache;
-    for (let i = 0; i < 3 + Math.min(5, Math.floor((this.round - 1) / 2)); i++) this.spawnEnemy();
+    for (let i = 0; i < 2 + Math.min(6, Math.floor(this.round / 2)); i++) this.spawnEnemy();
     this.emit('arena');
   }
   start(stage = 1) {
@@ -225,7 +227,6 @@ export class Game {
     }
     const add = (cells, time) => { for (const c of cells) { const key = `${c.x},${c.z}`; result.set(key, Math.min(result.get(key) ?? Infinity, time)); } };
     for (const b of this.bombs) add(blasts.get(b.id), times.get(b.id));
-    for (const f of this.flames) add(f.cells, 0);
     for (const echo of this.echoes) add(echo.cells, echo.timer);
     return result;
   }
@@ -298,6 +299,9 @@ export class Game {
     } else if (!this.player.hp) this.die();
   }
   applyFlame(flame) {
+    // A blast is an instant, not a damage zone. Its remaining life is visual only.
+    if (flame.resolved) return;
+    flame.resolved = true;
     if (flame.cells.some(c => c.x === this.player.x && c.z === this.player.z)) this.hurt(flame.enemy ? 25 : 20);
     if (this.phase === 'dead') return;
     if (flame.enemy) return;
@@ -327,7 +331,8 @@ export class Game {
       this.grid[zz][xx] = 0; this.emit('clear', { x: xx, z: zz });
     }
     const hp = 14 + this.round * 4;
-    this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 2.5, attackCooldown: 3, hitFlash: 0, attackIndex: 0, enraged: false };
+    this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 3.2, attackCooldown: 4, hitFlash: 0, attackIndex: 0, enraged: false };
+    this.spawnClock = this.spawnInterval;
     this.emit('boss');
   }
   bossAttack() {
@@ -350,8 +355,10 @@ export class Game {
         if (this.tile(p.x + dx, p.z + dz) === 0) cells.push({ x: p.x + dx, z: p.z + dz });
       }
     }
-    this.warnings.push({ id: this.nextId++, cells, timer: b.enraged ? 1 : 1.2 });
-    this.emit('warning', { cells });
+    const duration = (b.enraged ? 1 : 1.2) + (this.round <= 3 ? .5 : .15);
+    const names = { ruins: ['DOBRAR DOS SINOS', 'CRUZ DO SILÊNCIO'], forge: ['FORNALHA VIVA', 'RUPTURA ÍGNEA'], abyss: ['MARÉ DAS ALMAS', 'FENDA ESPECTRAL'] };
+    this.warnings.push({ id: this.nextId++, cells, timer: duration, duration });
+    this.emit('warning', { cells, duration, name: names[this.biome.id][attack % 2] });
   }
   defeatBoss() {
     if (!this.boss || !this.active) return;
@@ -442,8 +449,8 @@ export class Game {
     if (this.hazardClock <= 0) { this.hazardClock = Math.max(5, 12 - this.stage.local); this.environmentAttack(); }
     this.spawnClock -= dt;
     if (this.spawnClock <= 0) {
-      this.spawnClock = Math.max(2, 7 - this.round * .3 - this.elapsed / 85);
-      if (this.enemies.length < 8 + Math.min(12, this.round)) this.spawnEnemy();
+      this.spawnClock = this.spawnInterval;
+      if (this.enemies.length < (this.boss ? Math.max(3, this.enemyLimit - 3) : this.enemyLimit)) this.spawnEnemy();
     }
     for (const echo of this.echoes) {
       echo.timer -= dt;
@@ -456,7 +463,7 @@ export class Game {
     this.echoes = this.echoes.filter(e => e.timer > 0);
     if (!this.active) return;
     for (const b of [...this.bombs]) { b.fuse -= dt; if (b.fuse <= 0) this.explode(b); }
-    for (const f of [...this.flames]) { f.life -= dt; if (f.life > 0) this.applyFlame(f); }
+    for (const f of this.flames) f.life -= dt;
     this.flames = this.flames.filter(f => f.life > 0);
     if (!this.active) return;
     const hazards = this.dangerMap();
@@ -491,7 +498,7 @@ export class Game {
           } else {
             const pos = this.nextStep(enemy, hazards);
             if (pos && !this.occupied(pos.x, pos.z, enemy)) { enemy.x = pos.x; enemy.z = pos.z; }
-            enemy.cooldown = (enemy.intent === 'evade' ? .42 : enemy.type === 'boss' ? (enemy.enraged ? .75 : .95) : enemy.type === 'ember' ? .65 : enemy.type === 'beetle' ? 1.1 : .9) / (1 + Math.min(.5, (this.round - 1) * .035)) * (enemy.slow ? 1.8 : 1);
+            enemy.cooldown = (enemy.intent === 'evade' ? .42 : enemy.type === 'boss' ? (enemy.enraged ? .75 : .95) : enemy.type === 'ember' ? .65 : enemy.type === 'beetle' ? 1.1 : .9) / (1 + Math.min(.5, (this.round - 1) * .035)) * (enemy.slow ? 1.8 : 1) * (this.round === 1 ? 1.35 : this.round === 2 ? 1.2 : 1);
           }
         }
       }
@@ -504,12 +511,13 @@ export class Game {
         this.emit('bossEnraged', this.boss);
       }
       this.boss.attackCooldown -= dt;
-      if (this.boss.attackCooldown <= 0) { this.bossAttack(); this.boss.attackCooldown = Math.max(2.2, 4 - this.round * .12) * (this.boss.enraged ? .75 : 1); }
+      if (this.boss.attackCooldown <= 0) { this.bossAttack(); this.boss.attackCooldown = Math.max(2.2, 5.2 - this.round * .18) * (this.boss.enraged ? .8 : 1); }
     }
     for (const w of [...this.warnings]) {
       w.timer -= dt;
       if (w.timer <= 0) {
-        this.flames.push({ id: this.nextId++, cells: w.cells, life: .65, damage: 25, hit: new Set(), enemy: true, fire: this.stage.worldIndex === 2 ? 'spectral' : 'normal' });
+        const flame = { id: this.nextId++, cells: w.cells, life: .65, damage: 25, hit: new Set(), enemy: true, fire: this.stage.worldIndex === 2 ? 'spectral' : 'normal' };
+        this.flames.push(flame); this.applyFlame(flame);
         this.emit('enemyExplosion', { cells: w.cells });
       }
     }

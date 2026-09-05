@@ -19,12 +19,21 @@ export class GameHud {
       </div><div class="world-overlay" id="world-overlay"><div class="player-tag" id="player-tag"><span id="player-tag-name">VOCÊ</span><div><span id="player-tag-life"></span></div></div></div>
     `);
     this.root = document.querySelector('.combat-hud');
+    this.root.insertAdjacentHTML('beforeend', '<div id="event-feed" class="event-feed" role="status" aria-live="polite"></div>');
+    this.bossBar = document.querySelector('#boss-health');
+    this.bossBar.insertAdjacentHTML('afterbegin', '<div class="boss-identity"><span id="boss-title"></span><b id="boss-phase">I · O DESPERTAR</b></div>');
+    this.bossBar.insertAdjacentHTML('beforeend', '<div class="boss-attack-readout"><span id="boss-attack-name">OBSERVE OS SINAIS NO CHÃO</span><span id="boss-quote"></span></div><div class="boss-cast-track"><span id="boss-cast-fill"></span></div>');
     document.querySelector('#combat-build').insertAdjacentHTML('beforebegin', '<div class="relic-belt" id="combat-relics"></div>');
     this.el = Object.fromEntries([...document.querySelectorAll('.combat-hud [id], .world-overlay [id]')].map(el => [el.id, el]));
   }
   update() {
     const g = this.game, p = g.player, fighting = g.phase !== 'menu';
     document.body.classList.toggle('in-run', fighting);
+    document.body.classList.toggle('boss-encounter', !!g.boss && fighting);
+    this.bossBar.style.setProperty('--boss-color', g.biome.color);
+    this.bossBar.classList.toggle('enraged', !!g.boss?.enraged);
+    document.querySelector('#boss-title').textContent = g.biome.title.toUpperCase();
+    document.querySelector('#boss-phase').textContent = g.boss?.enraged ? 'II · FÚRIA' : 'I · O DESPERTAR';
     document.body.classList.toggle('low-health', fighting && p.hp > 0 && p.hp / p.maxHp <= .3);
     const state = [g.phase, p.hp, p.maxHp, g.xp, g.level, g.crystals, g.kills, g.round, g.relics.join(','), g.bombs.length, Math.ceil(p.dashCooldown * 10), g.forgeCost, g.combo, Math.ceil(g.comboTimer * 10), g.boss?.enraged].join(':');
     if (state === this.last) return; this.last = state;
@@ -54,7 +63,7 @@ export class GameHud {
       this.buildStamp = buildStamp;
       const skills = SKILLS.filter(s => g.skillLevels[s.id]);
       e['combat-relics'].innerHTML = g.relics.map(id => { const r = relicById(id); return `<button data-action="build" class="build-rune" title="${r.name}: ${r.desc}" aria-label="Relíquia ${r.name}" style="--skill-color:${r.color}">${skillArt(r.art)}</button>`; }).join('');
-      e['combat-build'].innerHTML = skills.length ? skills.map(s => `<button data-action="build" class="build-rune" title="${s.name} · Nível ${g.skillLevels[s.id]} — ${s.desc}" aria-label="${s.name}, nível ${g.skillLevels[s.id]}" style="--skill-color:${s.color}">${skillArt(s.id)}<b>${g.skillLevels[s.id]}</b></button>`).join('') : Array.from({ length: 4 }, () => '<span class="rune-empty">◇</span>').join('');
+      e['combat-build'].innerHTML = skills.length ? skills.map(s => `<button data-action="build" data-rune="${s.id}" class="build-rune ${this.gained === s.id ? 'rune-gained' : ''}" title="${s.name} · Nível ${g.skillLevels[s.id]} — ${s.desc}" aria-label="${s.name}, nível ${g.skillLevels[s.id]}" style="--skill-color:${s.color}">${skillArt(s.id)}<b>${g.skillLevels[s.id]}</b></button>`).join('') : Array.from({ length: 4 }, () => '<span class="rune-empty">◇</span>').join('');
       e['combat-build-hint'].textContent = skills.length ? `${skills.length} HABILIDADES · B PARA DETALHES` : 'SEU PODER COMEÇA AQUI';
     }
   }
@@ -63,14 +72,24 @@ export class GameHud {
     const el = document.createElement('span'); el.className = `combat-floater ${style}`; el.textContent = text;
     document.querySelector('#world-overlay').append(el); this.floaters.push({ el, x, z, age: 0, life: style === 'skill' ? 1.8 : 1 });
   }
+  notice(title, detail = '', color = '#ffd39b', art = null) {
+    const el = this.el['event-feed']; el.style.setProperty('--notice-color', color);
+    el.innerHTML = `${art ? `<span class="notice-art" style="--skill-color:${color}">${skillArt(art)}</span>` : '<span class="notice-mark">✦</span>'}<div><strong></strong><small></small></div>`;
+    el.querySelector('strong').textContent = title; el.querySelector('small').textContent = detail;
+    el.classList.remove('visible'); void el.offsetWidth; el.classList.add('visible');
+    clearTimeout(this.noticeTimer); this.noticeTimer = setTimeout(() => el.classList.remove('visible'), 3500);
+  }
   handle(event) {
     const g = this.game;
-    if (event.type === 'arena') { for (const f of this.floaters) f.el.remove(); this.floaters = []; }
+    if (event.type === 'arena') { for (const f of this.floaters) f.el.remove(); this.floaters = []; this.gained = null; this.el['event-feed'].classList.remove('visible'); }
     if (event.type === 'enemyHit') this.floating(`−${event.damage}`, event.x, event.z, 'damage');
     if (event.type === 'pickup' && event.entityType !== 'relic') this.floating(event.entityType === 'heart' ? '+20 ♥' : `+${event.value} ◆`, event.x, event.z, event.entityType === 'heart' ? 'healing' : 'crystal');
-    if (event.type === 'relic') this.floating(relicById(event.id).name.toUpperCase(), event.x, event.z, 'skill');
     if (event.type === 'hurt') this.floating(`−${event.amount}`, event.x, event.z, 'player-damage');
-    if (event.type === 'skill') this.floating('PODER DESPERTADO', g.player.x, g.player.z, 'skill');
+    if (event.type === 'skill') { const s = SKILLS.find(s => s.id === event.id); this.gained = s.id; this.notice(s.name, `NV. ${g.skillLevels[s.id]} · ${s.desc}`, s.color, s.id); }
+    if (event.type === 'pickup' && event.entityType === 'crystal') { const el = this.el['combat-crystals'].parentElement; el.classList.remove('loot-pop'); void el.offsetWidth; el.classList.add('loot-pop'); }
+    if (event.type === 'boss') { document.querySelector('#boss-quote').textContent = `“${g.biome.quote}”`; this.bossBar.classList.remove('boss-awakens'); void this.bossBar.offsetWidth; this.bossBar.classList.add('boss-awakens'); this.notice(g.biome.boss, g.biome.title, g.biome.color); }
+    if (event.type === 'warning') document.querySelector('#boss-attack-name').textContent = event.name;
+    if (event.type === 'bossEnraged') { document.querySelector('#boss-quote').textContent = 'A fenda responde à sua fúria.'; this.notice(`${g.biome.boss} · FÚRIA`, 'Ataques mais rápidos. Observe a preparação.', '#ff8b91'); }
     if (event.type === 'bossEnraged') this.floating('FÚRIA!', event.x, event.z, 'player-damage');
     if (event.type === 'kill' && g.combo > 1) {
       this.el['combo-hud'].classList.remove('combo-pop'); void this.el['combo-hud'].offsetWidth; this.el['combo-hud'].classList.add('combo-pop');
@@ -81,6 +100,9 @@ export class GameHud {
     const p = scene.projectPlayer(); const tag = this.el['player-tag'];
     tag.style.transform = `translate(${p.x}px,${p.y}px) translate(-50%,-100%)`;
     this.el['player-tag-name'].textContent = this.game.player.invincible > .1 ? '✦ PROTEGIDO' : 'VOCÊ';
+    const cast = this.game.warnings.find(w => w.duration);
+    document.querySelector('#boss-cast-fill').style.width = cast ? `${(1 - cast.timer / cast.duration) * 100}%` : '0%';
+    this.bossBar.classList.toggle('casting', !!cast);
     const ids = new Set();
     for (const enemy of [...this.game.enemies, ...(this.game.boss ? [this.game.boss] : [])]) {
       if (enemy.hp === enemy.maxHp && !enemy.windup && enemy.intent !== 'evade' && enemy.type !== 'sentinel' && enemy.intent !== 'cast' && !enemy.slow) continue;
@@ -93,15 +115,6 @@ export class GameHud {
       el.firstElementChild.textContent = enemy.windup ? '⚠ INVESTIDA' : enemy.slow ? '❄ LENTO' : enemy.type === 'sentinel' ? '◆ SENTINELA' : enemy.intent === 'cast' ? '✦ CONJURANDO' : enemy.intent === 'evade' ? '↗' : '';
       el.querySelector('i').style.width = `${Math.max(0, enemy.hp / enemy.maxHp * 100)}%`;
       el.classList.toggle('charging', enemy.windup > 0);
-    }
-    for (const pickup of this.game.pickups.filter(p => p.type === 'relic')) {
-      const id = `relic-${pickup.id}`, relic = relicById(pickup.value); ids.add(id);
-      if (!this.labels.has(id)) {
-        const el = document.createElement('div'); el.className = 'relic-world-tag'; el.textContent = `◆ ${relic.name}`; el.style.color = relic.color;
-        document.querySelector('#world-overlay').append(el); this.labels.set(id, el);
-      }
-      const pos = scene.projectWorld(pickup.x, pickup.z, 1.25);
-      this.labels.get(id).style.transform = `translate(${pos.x}px,${pos.y}px) translate(-50%,-100%)`;
     }
     for (const [id, el] of this.labels) if (!ids.has(id)) { el.remove(); this.labels.delete(id); }
     for (const f of this.floaters) {

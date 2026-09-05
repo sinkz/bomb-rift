@@ -30,6 +30,44 @@ test('own blasts damage the player, with invulnerability preventing repeated dam
   const g = arena(); g.plantBomb(); advance(g, 2.2); assert.equal(g.player.hp, 80);
   advance(g, .3); assert.equal(g.player.hp, 80);
 });
+test('entering normal or blue residue after detonation causes no damage to player or enemies', () => {
+  for (const fire of ['normal', 'azure']) {
+    const g = arena(); g.player.fire = fire;
+    const bomb = { id: 900, x: 5, z: 5, range: 2, damage: 2 }; g.bombs.push(bomb); g.explode(bomb);
+    g.player.x = 5; g.player.z = 5;
+    g.enemies = [{ id: 901, type: 'slime', x: 6, z: 5, hp: 4, maxHp: 4, cooldown: 100, hitFlash: 0 }];
+    advance(g, .2);
+    assert.equal(g.player.hp, 100); assert.equal(g.enemies[0].hp, 4);
+    assert(g.flames.length); assert(!g.dangerMap().has('5,5'));
+    g.applyFlame(g.flames[0]); assert.equal(g.player.hp, 100);
+  }
+});
+test('enemy warning deals damage on impact only, never on entering its residue', () => {
+  for (const presentAtImpact of [true, false]) {
+    const g = arena(); g.warnings.push({ id: 900, cells: [{ x: 5, z: 5 }], timer: .1 });
+    if (presentAtImpact) { g.player.x = 5; g.player.z = 5; }
+    advance(g, .15); assert.equal(g.player.hp, presentAtImpact ? 75 : 100);
+    g.player.x = 5; g.player.z = 5; g.player.invincible = 0;
+    advance(g, .2); assert.equal(g.player.hp, presentAtImpact ? 75 : 100);
+  }
+});
+test('echo is a separate detonation, followed by harmless residue', () => {
+  const g = arena(); g.relics.push('echo');
+  const b = { id: 900, x: 5, z: 5, range: 2, damage: 2 }; g.bombs.push(b); g.explode(b);
+  g.player.x = 5; g.player.z = 5;
+  advance(g, .5); assert.equal(g.player.hp, 100);
+  advance(g, .4); assert.equal(g.player.hp, 80);
+  g.player.invincible = 0; advance(g, .1); assert.equal(g.player.hp, 80);
+});
+test('the opening has a smaller, slower horde and longer boss telegraphs than late worlds', () => {
+  const early = new Game({ random: seededRandom(42) }); early.start();
+  const late = new Game({ random: seededRandom(42), meta: { unlockedStage: 9 } }); late.start(9);
+  assert.equal(early.enemies.length, 2); assert(early.enemies.length < late.enemies.length);
+  assert(early.spawnInterval > late.spawnInterval); assert(early.enemyLimit < late.enemyLimit);
+  early.spawnBoss(); late.spawnBoss(); early.bossAttack(); late.bossAttack();
+  assert(early.warnings[0].timer > late.warnings[0].timer);
+  assert.equal(early.drainEvents().find(e => e.type === 'warning').duration, early.warnings[0].timer);
+});
 test('dash stops at walls and requires cooldown', () => {
   const g = arena(); g.player.facing = [1, 0]; g.grid[1][4] = 1;
   assert(g.dash()); assert.equal(g.player.x, 3); assert(!g.dash()); assert(g.player.invincible > 0);
