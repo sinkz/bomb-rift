@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { relicById } from './campaign.js';
+import { skillById } from './skills.js';
 import { OUTFITS } from './legacy.js';
 import { loadBossLibrary } from './boss-models.js';
 
@@ -466,11 +467,29 @@ export class ArenaScene {
     if (event.type === 'relic' || event.type === 'revive' || event.type === 'relicDrop' || event.type === 'miniboss' || event.type === 'miniDefeated') { this.pulse(event.x,event.z, event.type === 'miniboss' ? 0xff7c52 : 0xa9edff, 2.8, 1); this.burst(event.x,event.z,0xffd88e,26,3); }
     if (event.type === 'skill') {
       const colors = { power: 0xff985c, range: 0xff985c, capacity: 0xb5a0ff, fuse: 0xb5a0ff, health: 0xfb7993, heal: 0xfb7993, vampire: 0xfb7993, speed: 0x72dcc5, dash: 0x72dcc5, magnet: 0x72dcc5 };
-      const p = this.game.player, color = colors[event.id]; this.skillAura = { color, life: 1.3 };
+      const p = this.game.player, color = colors[event.id] || skillById(event.id)?.color || '#d9b7ff'; this.skillAura = { color, life: 1.3 };
       this.pulse(p.x, p.z, color, 1.8, .75); this.pulse(p.x, p.z, color, .9, 1.1); this.burst(p.x, p.z, color, 24, 2.5);
     }
     if (event.type === 'boss' || event.type === 'bossEnraged') { const b = this.game.boss; if (b) { const color = new THREE.Color(this.game.biome.color); this.pulse(b.x, b.z, color, 4, 1.4); this.pulse(b.x, b.z, color, 2.5, .8); this.burst(b.x, b.z, color, 35, 4); this.shake = this.reducedMotion ? 0 : .25; } }
     if (event.type === 'bossDefeated') { this.burst(event.x, event.z, 0xffc778, 80, 8); this.pulse(event.x, event.z, 0xffd695, 5.5, 1.1); this.shake = this.reducedMotion ? 0 : .4; }
+    if (event.type === 'mastery') {
+      this.skillAura={color:event.color,life:2.5};
+      for (const size of [1.2,2.3,3.5]) this.pulse(event.x,event.z,event.color,size,1.4);
+      this.burst(event.x,event.z,event.color,55,4); this.heroAction={kind:'skill',age:0,duration:1};
+    }
+    if (event.type === 'chainArc') {
+      const steps=12;
+      for(let i=0;i<=steps;i++) { const k=i/steps; this.burst(event.from.x+(event.x-event.from.x)*k,event.from.z+(event.z-event.from.z)*k,0xffe698,1,.4); }
+      this.pulse(event.x,event.z,0xffe698,.5,.25);
+    }
+    if (event.type === 'comet') for(const c of event.cells) { this.pulse(c.x,c.z,0x6cf0d8,.7,.6);this.burst(c.x,c.z,0x6cf0d8,5,1.5); }
+    if (event.type === 'arenaShift') {
+      for(const c of event.cells) {this.burst(c.x,c.z,event.color,6,2);this.pulse(c.x,c.z,event.color,.8,.9);}
+      this.shake=this.reducedMotion?0:.2;
+    }
+    if (event.type === 'anchorBroken') {this.pulse(event.x,event.z,0xaaffe0,2.4,1);this.burst(event.x,event.z,0xe6ffe9,28,3);}
+    if (event.type === 'wardReady') this.pulse(event.x,event.z,0xb3e5d4,.8,.7);
+    if (event.type === 'bossTeleport') for(const c of [event.from,event]) {this.pulse(c.x,c.z,event.color,1.6,1);this.burst(c.x,c.z,event.color,20,2);}
   }
   update(dt) {
     if (['paused', 'upgrade'].includes(this.game.phase)) dt = 0;
@@ -498,6 +517,32 @@ export class ArenaScene {
     this.playerMesh.children[0].material.color.set(this.skillAura?.life > 0 ? this.skillAura.color : p.fire === 'azure' ? 0x59caff : 0xffc180);
     this.playerMesh.children[0].material.emissive.set(this.skillAura?.life > 0 ? this.skillAura.color : p.fire === 'azure' ? 0x189de8 : 0xff9441);
     const live = new Set();
+    if (game.masteries?.length || p.ward) {
+      const id='player-mastery'; live.add(id);
+      const aura=this.ensureObject(id,()=>{
+        const group=new THREE.Group();
+        mesh(group,'ring',mat(0xf5dba1,0xe1a953,.7),0,.045,0,.48,.48,.48,false).rotation.x=Math.PI/2;
+        for(let i=0;i<5;i++){const a=i*Math.PI*2/5;mesh(group,'crystal',mat(0xffe4a2,0xffcc6d,.8),Math.sin(a)*.5,.09,Math.cos(a)*.5,.045,.06,.045,false);}
+        const shield=mesh(group,'ring',mat(0xa7ffe2,0x62e8cb,.8),0,.65,0,.52,.52,.52,false);shield.name='ward';
+        return group;
+      },p);
+      aura.position.set(this.playerMesh.position.x,0,this.playerMesh.position.z);
+      aura.rotation.y=this.reducedMotion?0:t*.65;
+      aura.getObjectByName('ward').visible=!!p.ward;
+      aura.children.slice(0,6).forEach(child=>child.visible=!!game.masteries?.length);
+    }
+    for(const anchor of game.anchors || []) {
+      live.add(anchor.id);
+      const obj=this.ensureObject(anchor.id,()=>{
+        const group=new THREE.Group(), material=mat(anchor.color,anchor.color,.85);
+        mesh(group,'cylinder',mat(0x343142),0,.1,0,.32,.16,.32);
+        mesh(group,'crystal',material,0,.6,0,.26,.38,.26);
+        mesh(group,'ring',material,0,.08,0,.5,.5,.5,false).rotation.x=Math.PI/2;
+        return group;
+      },anchor);
+      obj.children[1].rotation.y=this.reducedMotion?0:t;
+      obj.children[1].position.y=.6+(this.reducedMotion?0:Math.sin(t*3)*.04);
+    }
     for (const entity of [...game.enemies, ...(game.boss ? [game.boss] : [])]) {
       live.add(entity.id); const obj = this.ensureObject(entity.id, () => this.makeEnemy(entity.type, entity.variant || game.biome.guardian || game.biome.id), entity); const [x, z] = this.at(entity.x, entity.z);
       const moving = Math.abs(obj.position.x - x) + Math.abs(obj.position.z - z) > .02;
@@ -514,7 +559,8 @@ export class ArenaScene {
       if (entity.type === 'mimic') { obj.position.y=entity.awake&&moving?Math.abs(Math.sin(t*13))*.1:0;obj.rotation.z=entity.awake?Math.sin(t*7)*.025:0; }
       if (entity.type === 'beetle' && moving && !this.reducedMotion) obj.rotation.z = Math.sin(t * 22) * .065;
       if (entity.type === 'wisp') obj.position.y += .17 + Math.sin(t*3+entity.id)*.1;
-      if (entity.slow > 0 && Math.sin(t*15+entity.id) > .94) this.burst(entity.x,entity.z,0x86f5ff,1,.3);
+      if (entity.slow > 0 && Math.sin(t*15+entity.id) > .94 && dt > 0 && !this.reducedMotion) this.burst(entity.x,entity.z,0x86f5ff,1,.3);
+      if (entity.stagger > 0) {const id=`stagger-${entity.id}`;live.add(id);const stars=this.ensureObject(id,()=>{const g=new THREE.Group();for(let i=0;i<3;i++){const a=i*Math.PI*2/3;mesh(g,'crystal',mat(0xaaffe0,0x65efc7,.8),Math.sin(a)*.6,2,Math.cos(a)*.6,.08,.12,.08,false);}return g;},entity);const [sx,sz]=this.at(entity.x,entity.z);stars.position.set(sx,0,sz);stars.rotation.y=this.reducedMotion?0:t*2;}
       if (moving) obj.rotation.y = Math.atan2(x - obj.position.x, z - obj.position.z);
       if (entity.windup > 0) {
         obj.scale.set(1.12, .84 + Math.sin(t * 30) * .04, 1.12); obj.rotation.y = Math.atan2(entity.chargeDir[0], entity.chargeDir[1]);
@@ -573,7 +619,7 @@ export class ArenaScene {
     for (const warning of game.warnings) {
       live.add(warning.id);
       const obj = this.ensureObject(warning.id, () => {
-        const group = new THREE.Group(); for (const c of warning.cells) { const [x, z] = this.at(c.x, c.z); mesh(group, 'box', mat(warning.effect === 'snare' ? 0x9cddff : 0xf65a69, warning.effect === 'snare' ? 0x338ad3 : 0xff243b, 1), x, .035, z, .89, .025, .89, false); } return group;
+        const group = new THREE.Group(); for (const c of warning.cells) { const [x, z] = this.at(c.x, c.z); const color=warning.color || (warning.effect === 'snare' ? 0x9cddff : 0xf65a69); mesh(group, 'box', mat(color,color,.8), x, .035, z, .89, .025, .89, false); if(warning.rite)mesh(group,'crystal',mat(color,color,.5),x,1.05,z,.09,.15,.09,false); } return group;
       }, { x: (game.width - 1) / 2, z: (game.height - 1) / 2 });
       obj.visible = true;
       obj.scale.y = 1 + (this.reducedMotion ? 0 : Math.sin(t * 8) * .2);

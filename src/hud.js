@@ -102,6 +102,9 @@ export class GameHud {
     if (event.type === 'skill') { const s = SKILLS.find(s => s.id === event.id); this.gained = s.id; this.notice(s.name, `NV. ${g.skillLevels[s.id]} · ${s.desc}`, s.color, s.id); }
     if (event.type === 'pickup' && event.entityType === 'crystal') { const el = this.el['combat-crystals'].parentElement; el.classList.remove('loot-pop'); void el.offsetWidth; el.classList.add('loot-pop'); }
     if (event.type === 'boss') { setText(document.querySelector('#boss-quote'), `“${g.biome.quote}”`); this.bossBar.classList.remove('boss-awakens'); void this.bossBar.offsetWidth; this.bossBar.classList.add('boss-awakens'); this.notice(g.biome.boss, g.biome.title, g.biome.color); }
+    if (event.type === 'mastery') this.notice('DESPERTAR · '+event.name,event.desc,event.color,event.id);
+    if (event.type === 'arenaRite') this.notice(event.name,event.hint,event.color);
+    if (event.type === 'anchorBroken') this.notice('GUARDIÃO ATORDOADO','4s para atacar · +50% de dano','#aaffe0');
     if (event.type === 'warning') setText(document.querySelector('#boss-attack-name'), event.name);
     if (event.type === 'bossEnraged') { setText(document.querySelector('#boss-quote'), 'A fenda responde à sua fúria.'); this.notice(`${g.biome.boss} · FÚRIA`, 'Ataques mais rápidos. Observe a preparação.', '#ff8b91'); }
     if (event.type === 'bossEnraged') this.floating('FÚRIA!', event.x, event.z, 'player-damage');

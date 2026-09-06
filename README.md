@@ -1,6 +1,16 @@
-# BOMB RIFT 2.3 — Crônicas da Fenda
+# BOMB RIFT 2.4 — O último refúgio
 
 Um protótipo jogável de sobrevivência e exploração em Three.js, inspirado na estratégia de bombas em grade e na evolução imprevisível dos roguelikes. Interface em português brasileiro e inglês, personagens e cenário originais construídos em 3D.
+
+## Atualização 2.4 — refúgio, despertares e trilhas
+
+A tela inicial agora é o refúgio aprovado: Faísca passeia de frente e de costas, rega flores, brinca com pássaros, lê e dorme. O mapa em pixel art exibe os seis mundos, 18 fases e ascensões ilimitadas, com guardiões 3D e bloqueios vinculados ao save. Oficina, loja, mochila, contratos e ranking local usam o progresso real; a prévia demonstrativa continua isolada em `HUD-APROVACAO.html`.
+
+O grimório apresenta 16 habilidades. A quinta escolha da mesma habilidade desperta um efeito especial (15 despertares; a cura imediata é consumível). Arenas ganharam uma borda jogável adicional de cada lado, e os chefes podem transformar a arena com ataques anunciados e âncoras destrutíveis. Explosões continuam causando dano apenas no impacto.
+
+As molduras, os botões e as janelas usam a arte aprovada. No celular, a HUD reserva espaço para a arena, o joystick e os botões de bomba, esquiva e evolução, em retrato e paisagem. PT-BR e inglês continuam disponíveis nas configurações, com inglês como fallback.
+
+O refúgio toca **Beneath the Violet Arch**, enviada pelo usuário. Também estão disponíveis **Tiptoeing Past the Sentinel** e a composição sintetizada revisada. A seleção e o volume são salvos; as faixas carregam após interação, preservam a velocidade original, repetem com fades e pausam ao esconder a página. Temas de combate e chefes continuam sintetizados. As notas abaixo documentam as versões anteriores.
 
 ## Atualização 2.3 — dois idiomas e pixel art
 

@@ -1,3 +1,5 @@
+import { masteryProgress } from './skills.js';
+import './mastery.css';
 import { pixelIcon, applyPixelIcons, portraitArt } from './pixel-art.js';
 import './pixel-art.css';
 import { formatNumber, t, setHTML, setText, setAttr, insertHTML, getLocale, setLocale, localeTag, languagePicker } from './i18n.js';
@@ -13,6 +15,8 @@ import { Game, SKILLS, ROUND_SECONDS } from './game.js';
 import { ArenaScene } from './scene.js';
 import { bossSources } from './boss-sources.js';
 import { Sound } from './audio.js';
+import { REFUGE_TRACKS } from './refuge-tracks.js';
+import '@fontsource/silkscreen/latin-400.css';
 import { GameHud } from './hud.js';
 import { skillArt, skillPreview } from './skill-art.js';
 import { Atlas } from './atlas.js';
@@ -23,10 +27,10 @@ import { LocalRanking } from './ranking.js';
 import { LaunchScreen } from './launch.js';
 import './style.css';
 import './game-hud.css';
-import './atlas.css';
 import './juice.css';
 import './refuge.css';
 import './i18n.css';
+import './pixel-interface.css';
 
 const ICONS = { Bomb, Flame, Expand, Heart, Wind, Magnet, Timer, Zap, HeartPulse, Droplets, ArrowUpRight, ArrowRight, ChevronRight, Gem, Skull, Trophy, Swords, Shield, LockKeyhole, Plus, Volume2, VolumeX, Maximize, Minimize, Settings2, Pause, Play, X, RotateCcw, BookOpen, Sparkles, CircleHelp, MoveUp, MoveDown, MoveLeft, MoveRight, Check, Target, Infinity: InfinityIcon, Crosshair, Sprout };
 const icon = pixelIcon;
@@ -34,7 +38,7 @@ const icons = () => { createIcons({ icons: ICONS, attrs: { 'stroke-width': 1.7 }
 const $ = s => document.querySelector(s);
 let meta;
 try { meta = normalizeMeta(JSON.parse(localStorage.getItem('bomb-rift-v1') || '{}')); } catch { meta = normalizeMeta(); }
-const game = new Game({ meta }); const sound = new Sound(); const keys = new Set();
+const game = new Game({ meta }); const sound = new Sound({ refugeTracks: REFUGE_TRACKS }); const keys = new Set();
 let rankingStorage; try { rankingStorage = localStorage; } catch {}
 const ranking = new LocalRanking(rankingStorage); let lastRunScore = null;
 let scene, fatal = false, modalType = null, returnFocus = null, saveWarning = false;
@@ -90,10 +94,13 @@ function legacyResultCard() {
   const result = game.result?.legacy; if (!result) return '';
   return `<div class="legacy-result"><div class="recipe-cost">${resourceCost(result.materials, '+')}</div><span>+${result.xp} EXP DE EXPLORADOR <b>${result.rankedUp ? 'NOVO RANQUE ' : 'RANQUE '}${result.rank}</b></span><small>Materiais e experiência ficam com você.</small></div>`;
 }
-function closeModal() { $('#modal-root').classList.add('hidden'); setHTML($('#modal-root'), ''); modalType = null; returnFocus?.focus?.(); }
+function closeModal() { $('#modal-root').classList.add('hidden'); setHTML($('#modal-root'), ''); modalType = null; document.querySelectorAll('#app > main, #launch, #atlas').forEach(el => el.inert = el.hidden); returnFocus?.focus?.(); }
 function modal(type, content, { wide = false, closable = true } = {}) {
+  touchMove = null;
+  if (!modalType) returnFocus = document.activeElement;
+  document.querySelectorAll('#app > main, #launch, #atlas').forEach(el => el.inert = true);
   if (type === 'dead' || type === 'intermission') content = content.replace('<button class="primary-button', `${scoreCard()}${legacyResultCard()}<button class="primary-button`) + `<button class="text-button" data-action="home">${icon('Trophy')} Menu inicial e ranking</button>`;
-  keys.clear(); if (!modalType) returnFocus = document.activeElement; modalType = type;
+  keys.clear(); modalType = type;
   setHTML($('#modal-root'), `<section class="modal modal-${type} ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${closable ? `<button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('X')}</button>` : ''}${content}</section>`);
   $('#modal-root').classList.remove('hidden'); icons(); $('#modal-root button:not(:disabled)')?.focus();
 }
@@ -124,12 +131,12 @@ function showGuide() {
   modal('guide', `<span class="eyebrow orange">MANUAL DO PEQUENO CAOS</span><h2 id="modal-title">Um pavio. Muitas possibilidades.</h2><p>Sobreviva por <b>2 minutos</b>, derrote o chefe e atravesse a próxima fenda. A masmorra muda, a dificuldade aumenta e cada fase começa com uma build nova. Suas melhorias permanentes ficam.</p><div class="guide-grid"><div><span>${icon('Bomb')}</span><h3>Abra o caminho</h3><p>Bombas explodem em cruz. Caixas são destruídas, pedras bloqueiam o fogo e outras bombas explodem em cadeia. <b>Suas explosões também machucam você.</b></p></div><div><span>${icon('Gem')}</span><h3>Transforme o caos</h3><p>Recolha cristais para ganhar XP. Cada nível dá uma habilidade grátis. Use cristais para forjar outras escolhas com <b>E</b>.</p></div><div><span>${icon('Zap')}</span><h3>Tenha uma saída</h3><p>Use <b>Shift</b> para avançar até 3 casas na direção em que está olhando, com invulnerabilidade breve. Paredes bloqueiam a esquiva.</p></div><div><span>${icon('Skull')}</span><h3>Encare o guardião</h3><p>Quando o tempo terminar, o chefe aparece. Fuja das casas vermelhas e use bombas. A vitória desbloqueia a próxima fase e salva essências. Volte ao atlas para investir no seu legado.</p></div></div><div class="guide-controls"><span><kbd>W A S D</kbd> ou <kbd>↑ ← ↓ →</kbd> mover pela grade</span><span><kbd>ESPAÇO</kbd> colocar bomba</span><span><kbd>ESC / P</kbd> pausar</span></div><p class="small-note">Cada 5 abates rendem 1 essência. Minichefes rendem 3, uma relíquia e um núcleo para coletar. Cada fase mostra a recompensa do seu guardião no atlas. A cada duas caixas ou três abates, colete sucata. Use essências, sucata e núcleos no Refúgio: talentos, equipamentos e tinturas ficam para as próximas fases. Complete contratos para ganhar recursos extras. O progresso é salvo neste navegador.</p><button class="primary-button full-width" data-action="close-modal">Entendi. Vamos nessa. ${icon('ArrowRight')}</button>`, { wide: true });
 }
 function showUpgrade() {
-  modal('upgrade', `<div class="upgrade-sigil">${icon('Sparkles')}</div><span class="eyebrow orange">${game.upgradeCost ? 'A FORJA RESPONDEU AO SEU CHAMADO' : `NÍVEL ${game.level} · PODER DESPERTADO`}</span><h2 id="modal-title">Escolha sua evolução.</h2><p>Três caminhos. Uma escolha. Faça a fenda lembrar de você.</p><div class="skill-options">${game.offers.map((skill, i) => `<button class="skill-option" data-skill="${skill.id}" style="--skill-color:${skill.color}"><span class="skill-option-top"><span>${icon(skill.icon)} ${skill.branch}</span><kbd>${i + 1}</kbd></span><span class="skill-option-icon">${skillArt(skill.id)}</span><h3>${skill.name}</h3><p>${skill.desc}</p>${skillPreview(game, skill.id)}<span class="skill-option-bottom"><span>◆ NÍVEL ${(game.skillLevels[skill.id] || 0) + 1}</span> ${icon('ArrowUpRight')}</span></button>`).join('')}</div><div class="upgrade-footer"><span>${icon('Gem')} ${game.crystals} cristais</span><button class="secondary-button" data-action="reroll" ${game.crystals < 6 ? 'disabled' : ''}>${icon('RotateCcw')} Sortear novamente <b>6 ${icon('Gem')}</b></button></div><span class="upgrade-pause-note">TEMPO SUSPENSO · ESCOLHA COM CALMA</span>`, { wide: true, closable: false });
+  modal('upgrade', `<div class="upgrade-sigil">${icon('Sparkles')}</div><span class="eyebrow orange">${game.upgradeCost ? 'A FORJA RESPONDEU AO SEU CHAMADO' : `NÍVEL ${game.level} · PODER DESPERTADO`}</span><h2 id="modal-title">Escolha sua evolução.</h2><p>Três caminhos. Uma escolha. Faça a fenda lembrar de você.</p><div class="skill-options">${game.offers.map((skill, i) => `<button class="skill-option" data-skill="${skill.id}" style="--skill-color:${skill.color}"><span class="skill-option-top"><span>${icon(skill.icon)} ${skill.branch}</span><kbd>${i + 1}</kbd></span><span class="skill-option-icon">${skillArt(skill.id)}</span><h3>${skill.name}</h3><p>${skill.desc}</p>${skillPreview(game, skill.id)}${masteryProgress(game, skill.id)}<span class="skill-option-bottom"><span>◆ NÍVEL ${(game.skillLevels[skill.id] || 0) + 1}</span> ${icon('ArrowUpRight')}</span></button>`).join('')}</div><div class="upgrade-footer"><span>${icon('Gem')} ${game.crystals} cristais</span><button class="secondary-button" data-action="reroll" ${game.crystals < 6 ? 'disabled' : ''}>${icon('RotateCcw')} Sortear novamente <b>6 ${icon('Gem')}</b></button></div><span class="upgrade-pause-note">TEMPO SUSPENSO · ESCOLHA COM CALMA</span>`, { wide: true, closable: false });
 }
 function showBuild() {
   pauseForModal();
   const entries = SKILLS.filter(s => game.skillLevels[s.id]);
-  modal('build', `<span class="eyebrow orange">ARSENAL DA FASE ${game.round} · NÍVEL ${game.level}</span><h2 id="modal-title">Seu tipo de caos.</h2><div class="build-summary"><span>${icon('Flame')} ${game.player.damage} DANO</span><span>${icon('Expand')} ${game.player.range} ALCANCE</span><span>${icon('Bomb')} ${game.player.capacity} BOMBAS</span></div><div class="relic-codex">${game.relics.map(id => { const r = relicById(id); return `<div class="relic-entry" style="--skill-color:${r.color}">${skillArt('relic-' + r.id)}<div><h3>${r.name}${id === 'phoenix' && !game.player.revive ? ' · consumida' : ''}</h3><p>${r.desc}</p></div></div>`; }).join('')}</div><div class="equipped-skills">${entries.length ? entries.map(s => `<div class="equipped-skill" style="--skill-color:${s.color}">${skillArt(s.id)}<div><small>${s.branch} · NV. ${game.skillLevels[s.id]}</small><h3>${s.name}</h3><p>${s.desc}</p></div></div>`).join('') : '<p>Suba de nível ou colete cristais para forjar habilidades. Destrua o baú dourado e vença minichefes para encontrar relíquias.</p>'}</div><p class="small-note">Esta build dura só esta fase. Suas melhorias permanentes continuam na próxima.</p><button class="primary-button full-width" data-action="close-modal">Voltar ao combate ${icon('Swords')}</button>`, { wide: true });
+  modal('build', `<span class="eyebrow orange">ARSENAL DA FASE ${game.round} · NÍVEL ${game.level}</span><h2 id="modal-title">Seu tipo de caos.</h2><div class="build-summary"><span>${icon('Flame')} ${game.player.damage} DANO</span><span>${icon('Expand')} ${game.player.range} ALCANCE</span><span>${icon('Bomb')} ${game.player.capacity} BOMBAS</span></div><div class="relic-codex">${game.relics.map(id => { const r = relicById(id); return `<div class="relic-entry" style="--skill-color:${r.color}">${skillArt('relic-' + r.id)}<div><h3>${r.name}${id === 'phoenix' && !game.player.revive ? ' · consumida' : ''}</h3><p>${r.desc}</p></div></div>`; }).join('')}</div><div class="equipped-skills">${entries.length ? entries.map(s => `<div class="equipped-skill" style="--skill-color:${s.color}">${skillArt(s.id)}<div><small>${s.branch} · NV. ${game.skillLevels[s.id]}</small><h3>${s.name}</h3><p>${s.desc}</p>${masteryProgress(game,s.id)}</div></div>`).join('') : '<p>Suba de nível ou colete cristais para forjar habilidades. Destrua o baú dourado e vença minichefes para encontrar relíquias.</p>'}</div><p class="small-note">Esta build dura só esta fase. Suas melhorias permanentes continuam na próxima.</p><button class="primary-button full-width" data-action="close-modal">Voltar ao combate ${icon('Swords')}</button>`, { wide: true });
 }
 function showIntermission() {
   modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU. SEU LEGADO CRESCE.</span><h2 id="modal-title">${game.round % CAMPAIGN_LENGTH === 0 ? 'O infinito se abre.' : game.stage.local === 3 ? 'Um mundo conquistado.' : 'Uma fenda a menos.'}</h2><p>${game.stage.name} concluída. ${game.round % CAMPAIGN_LENGTH === 0 ? 'Uma nova ascensão foi desbloqueada. Os seis mundos retornam com inimigos mais fortes.' : `A fase ${game.round + 1} está disponível no atlas.`}</p><div class="results-row"><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>${game.relics.length}</strong><span>RELÍQUIAS ENCONTRADAS</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS SALVAS</span></div></div><p class="victory-map-note">Sua build cumpriu seu destino. <b>Skills, relíquias e cristais reiniciam na próxima fase.</b> Suas essências e evoluções permanentes continuam com você.</p><button class="primary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowUpRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
@@ -155,6 +162,8 @@ function showSettings() {
   const row = document.createElement('div'); row.className = 'music-settings';
   setHTML(row, `<div class="setting-row"><div><h3>Trilha musical</h3><p>Temas próprios para cada mundo e seus guardiões.</p></div><button class="toggle ${sound.musicEnabled ? 'on' : ''}" data-setting="music" role="switch" aria-checked="${sound.musicEnabled}" aria-label="Trilha musical"><span></span></button></div><div class="setting-row"><div><h3>Volume da música</h3><p>Deixe as explosões em primeiro plano.</p></div><label><input class="music-volume" type="range" min="0" max="100" value="${Math.round(sound.volume * 100)}" aria-label="Volume da música"><output class="setting-volume-value">${Math.round(sound.volume * 100)}%</output></label></div>`);
   $('#modal-root .setting-row').after(row);
+  insertHTML(row, 'beforeend', `<div class="setting-row track-setting"><div><h3>Trilha do refúgio</h3><p>Escolha a companhia para sua próxima pausa.</p></div><select id="refuge-track" aria-label="Trilha do refúgio">${REFUGE_TRACKS.map(track => `<option value="${track.id}" ${sound.refugeTrack === track.id ? 'selected' : ''}>${track.name}</option>`).join('')}<option value="" ${!sound.refugeTrack ? 'selected' : ''}>O pavio pode esperar</option></select></div>`);
+  row.querySelector('#refuge-track').addEventListener('change', e => { sound.selectRefugeTrack(e.target.value); sound.init(); sound.save(); });
   row.querySelector('input').addEventListener('input', e => { sound.volume = Number(e.target.value) / 100; sound.save(); setText(row.querySelector('output'), `${e.target.value}%`); });
 }
 function updateBuild() {
@@ -214,6 +223,10 @@ function handleEvents() {
 const actions = {
   start,
   atlas() { launch.hide(); atlas.show(); },
+  workshop() { refuge.tab = 'talents'; showMeta(); },
+  shop() { refuge.tab = 'gear'; showMeta(); },
+  inventory() { refuge.tab = 'inventory'; showMeta(); },
+  ranking() { pauseForModal(); modal('ranking', `<span class="eyebrow orange">SEUS FEITOS · RANKING LOCAL</span><h2 id="modal-title">Salão das faíscas</h2>${launch.rows()}<p class="small-note">${ranking.saved ? 'Seus resultados, salvos neste navegador.' : 'Salvamento indisponível. Resultados desta sessão.'}</p><button class="primary-button full-width" data-action="close-modal">Voltar ao refúgio →</button>`); },
   home() { if (game.active || game.phase === 'upgrade') return; claimRun(); closeModal(); game.returnToMap(); $('#mobile-controls').classList.remove('running'); updateHud(); launch.show(); },
   taunt() { atlas.bossPreview?.taunt(); sound.play('boss'); },
   music() { const wasReady = !!sound.ctx; sound.init(); if (wasReady) sound.musicEnabled = !sound.musicEnabled; sound.save(); },
@@ -277,9 +290,14 @@ document.addEventListener('keydown', event => {
   if (event.repeat) return;
   if (modalType === 'upgrade') { const index = Number(event.key) - 1; if (game.offers[index]) game.chooseSkill(game.offers[index].id); handleEvents(); return; }
   if (modalType === 'intermission' || modalType === 'dead') return;
-  if (event.code === 'Escape' || event.code === 'KeyP') { if (modalType) actions['close-modal'](); else actions.pause(); return; }
+  if (event.code === 'Escape' || event.code === 'KeyP') { if (modalType) actions['close-modal'](); else if (event.code === 'Escape' && game.phase === 'menu' && !atlas.root.hidden) actions.home(); else actions.pause(); return; }
   if (modalType) return;
-  if (event.code === 'Enter' && game.phase === 'menu' && !event.target.closest('button')) { event.preventDefault(); start(); return; }
+  if (game.phase === 'menu') {
+    const shortcut = { KeyM: 'atlas', KeyB: 'workshop', KeyL: 'shop', KeyI: 'inventory', KeyR: 'ranking' }[event.code];
+    if (shortcut) { event.preventDefault(); actions[shortcut](); return; }
+    if (event.code === 'Enter' && !event.target.closest('button')) { event.preventDefault(); if (launch.root.hidden) start(); else actions.atlas(); return; }
+    if (event.code === 'Escape' && !atlas.root.hidden) { actions.home(); return; }
+  }
   if (movement[event.code]) keys.add(event.code);
   if (event.code === 'Space' && game.active) { event.preventDefault(); game.plantBomb(); }
   if (event.code.startsWith('Shift') && game.active) game.dash();
@@ -288,11 +306,24 @@ document.addEventListener('keydown', event => {
 });
 document.addEventListener('keyup', event => keys.delete(event.code));
 let touchMove = null;
+
+insertHTML($('.arena-card'), 'beforeend', '<div class="touch-joystick" id="touch-joystick" role="group" aria-label="Controle de movimento"><i aria-hidden="true">✥</i><span aria-hidden="true"></span></div>');
+const joystick = $('#touch-joystick'); let stickPointer = null;
+function steerStick(event) {
+  const rect = joystick.getBoundingClientRect(), dx = event.clientX - rect.left - rect.width / 2, dy = event.clientY - rect.top - rect.height / 2;
+  const length = Math.hypot(dx, dy), max = rect.width * .27, ratio = length > max ? max / length : 1;
+  joystick.querySelector('span').style.transform = `translate(calc(-50% + ${dx * ratio}px),calc(-50% + ${dy * ratio}px))`;
+  touchMove = length < 12 ? null : Math.abs(dx) > Math.abs(dy) ? [Math.sign(dx), 0] : [0, Math.sign(dy)];
+}
+joystick.addEventListener('pointerdown', e => { if (!game.active || stickPointer !== null) return; e.preventDefault(); sound.init(); stickPointer = e.pointerId; joystick.setPointerCapture(e.pointerId); steerStick(e); });
+joystick.addEventListener('pointermove', e => { if (e.pointerId === stickPointer) steerStick(e); });
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) joystick.addEventListener(type, e => { if (e.pointerId !== stickPointer) return; stickPointer = null; touchMove = null; joystick.querySelector('span').style.transform = 'translate(-50%,-50%)'; });
 document.querySelectorAll('[data-move]').forEach(button => {
   button.addEventListener('pointerdown', event => { event.preventDefault(); touchMove = button.dataset.move.split(',').map(Number); button.setPointerCapture(event.pointerId); });
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(name, () => touchMove = null);
 });
-function blurPause() { keys.clear(); touchMove = null; if (game.active) { game.pause(); showPause(); updateHud(); } sound.update(game); }
+function updateSound() { sound.update(game, game.phase === 'menu' ? 'refuge' : null); }
+function blurPause() { keys.clear(); touchMove = null; if (game.active) { game.pause(); showPause(); updateHud(); } updateSound(); }
 window.addEventListener('blur', blurPause); document.addEventListener('visibilitychange', () => { if (document.hidden) blurPause(); });
 document.querySelector('.brand').addEventListener('click', event => { event.preventDefault(); actions.explore(); });
 
@@ -311,7 +342,8 @@ function frame(now) {
       }
       game.tick(1 / 60); handleEvents(); accumulator -= 1 / 60;
     }
-    if (game.phase !== 'menu') { scene.update(dt); hud.frame(dt, scene); } updateHud(); sound.update(game);
+    if (game.phase !== 'menu') { scene.update(dt); hud.frame(dt, scene); } updateHud(); updateSound();
+    if (!modalType && !document.hidden) launch.frame(now, reducedMotion);
     const musicState = $('#launch-music-state');
     const musicLabel = !sound.ctx ? 'TOQUE PARA OUVIR' : sound.musicEnabled && !sound.muted ? 'TOCANDO · PAUSAR' : 'PAUSADA · ATIVAR';
     if (musicState && musicState.textContent !== t(musicLabel)) setText(musicState, musicLabel);

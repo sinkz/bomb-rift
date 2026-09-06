@@ -12,7 +12,10 @@ import { TALENTS, GEAR, CONTRACTS, OUTFITS, RESOURCES } from '../src/legacy.js';
 test('all game entities have approved runtime art with a valid lossless WebP file', () => {
   const groups = { skill: SKILLS, relic: RELICS, talent: TALENTS, gear: GEAR, contract: CONTRACTS, portrait: OUTFITS, outfit: OUTFITS, guardian: WORLDS, map: WORLDS };
   for (const [group, rows] of Object.entries(groups)) {
-    for (const row of rows) assert.ok(PIXEL_URLS[`${group}-${row.id}`], `${group}-${row.id}`);
+    for (const row of rows) {
+      const artId = group === 'skill' && row.art ? row.art : `${group}-${row.id}`;
+      assert.ok(PIXEL_URLS[artId], `${group}-${row.id} uses ${artId}`);
+    }
   }
   for (const id of Object.keys(RESOURCES)) assert.ok(PIXEL_URLS[`resource-${id}`]);
   for (const id of Object.keys(ENEMY_NAMES)) assert.ok(PIXEL_URLS[`enemy-${id}`]);

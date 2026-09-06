@@ -11,7 +11,7 @@ if (!scriptMatch || !styleMatch) throw new Error('Bundle Vite não encontrado. E
 const asset = name => join(dist, name.replace(/^\//, ''));
 let script = await readFile(asset(scriptMatch[1]), 'utf8');
 let style = await readFile(asset(styleMatch[1]), 'utf8');
-const mimeTypes = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.avif': 'image/avif' };
+const mimeTypes = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.avif': 'image/avif', '.mp3': 'audio/mpeg' };
 const dataUri = async url => {
   const mime = mimeTypes[extname(url)];
   if (!mime) throw new Error(`Tipo de asset offline não suportado: ${url}`);

@@ -1,15 +1,18 @@
 import { Music, THEMES } from './music.js';
+import { RecordedMusic } from './recorded-music.js';
 
 export class Sound {
-  constructor() {
+  constructor({ refugeTracks = [] } = {}) {
+    this.refugeTracks = refugeTracks; this.refugeTrack = refugeTracks[0]?.id || '';
     this.enabled = true; this.musicEnabled = true; this.volume = .42; this.muted = false; this.ctx = null;
     try { const p = JSON.parse(localStorage.getItem('bomb-rift-audio-v1') || '{}');
       if (typeof p.effects === 'boolean') this.enabled = p.effects;
       if (typeof p.music === 'boolean') this.musicEnabled = p.music;
       if (Number.isFinite(p.volume)) this.volume = Math.max(0, Math.min(1, p.volume));
+      if (p.refugeTrack === '' || refugeTracks.some(track => track.id === p.refugeTrack)) this.refugeTrack = p.refugeTrack;
     } catch { /* Defaults also work when storage is disabled. */ }
   }
-  save() { try { localStorage.setItem('bomb-rift-audio-v1', JSON.stringify({ effects: this.enabled, music: this.musicEnabled, volume: this.volume })); } catch {} }
+  save() { try { localStorage.setItem('bomb-rift-audio-v1', JSON.stringify({ effects: this.enabled, music: this.musicEnabled, volume: this.volume, refugeTrack: this.refugeTrack })); } catch {} }
   init() {
     if (!this.ctx) {
       const Context = window.AudioContext || window.webkitAudioContext; if (!Context) return;
@@ -17,6 +20,7 @@ export class Sound {
       const limiter = this.ctx.createDynamicsCompressor(); limiter.threshold.value = -8; limiter.ratio.value = 8; limiter.connect(this.ctx.destination);
       this.master = this.ctx.createGain(); this.master.gain.value = .19; this.master.connect(limiter);
       this.music = new Music(this.ctx, limiter);
+      if(this.refugeTracks.length){this.recorded=new RecordedMusic(this.ctx,limiter,this.refugeTracks);this.recorded.select(this.refugeTrack);}
     }
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
   }
@@ -36,6 +40,11 @@ export class Sound {
     notes.enemyMend = [390, 780, .65, 'triangle'];
     notes.webBurst = [790, 190, .24, 'sine'];
     notes.echo = [140, 55, .3, 'triangle'];
+    notes.mastery = [440, 1760, 1.1, 'triangle'];
+    notes.chainArc = [780, 150, .15, 'triangle'];
+    notes.anchorBroken = [220, 1100, .7, 'sine'];
+    notes.arenaShift = [90, 42, .55, 'triangle'];
+    notes.wardReady = [420, 680, .16, 'sine'];
     if (name === 'explosion' || name === 'enemyExplosion') {
       const length = this.ctx.sampleRate * .35, buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate), data = buffer.getChannelData(0);
       for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 2;
@@ -49,13 +58,19 @@ export class Sound {
     gain.gain.setValueAtTime(.001, now); gain.gain.exponentialRampToValueAtTime(.35, now + .015); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
     osc.connect(gain); gain.connect(this.master); osc.onended = () => { osc.disconnect(); gain.disconnect(); }; osc.start(now); osc.stop(now + duration + .05);
   }
-  update(game) {
+  selectRefugeTrack(id) {
+    if(id && !this.refugeTracks.some(t=>t.id===id))return false;
+    this.refugeTrack=id;this.recorded?.select(id);return true;
+  }
+  update(game, sceneKey = null) {
     if (!this.music) return;
     const menu = game.phase === 'menu', boss = !!game.boss && !['dead', 'intermission'].includes(game.phase);
-    this.music.enabled = this.musicEnabled && !this.muted;
+    const recorded = sceneKey==='refuge' && !!this.refugeTrack && !!this.recorded;
+    this.recorded?.update(recorded && this.musicEnabled && !this.muted && !document.hidden, this.volume);
+    this.music.enabled = this.musicEnabled && !this.muted && (!recorded || this.recorded.failed);
     this.music.volume = this.volume * (['paused', 'upgrade'].includes(game.phase) ? .4 : 1);
-    this.music.setScene(menu || ['dead', 'intermission'].includes(game.phase) ? 'menu' : game.biome.id, boss, !!game.boss?.enraged, document.hidden);
+    this.music.setScene(sceneKey || (menu || ['dead', 'intermission'].includes(game.phase) ? 'menu' : game.biome.id), boss, !!game.boss?.enraged, document.hidden);
     this.music.update();
   }
-  inspect() { return { state: this.ctx?.state || 'awaiting-gesture', enabled: this.musicEnabled, muted: this.muted, volume: this.volume, track: THEMES[this.music?.key || 'menu'].name, boss: this.music?.boss || false }; }
+  inspect() { const recorded=this.music?.key==='refuge'&&this.refugeTrack&&this.recorded;return { state: this.ctx?.state || 'awaiting-gesture', enabled: this.musicEnabled, muted: this.muted, volume: this.volume, track: recorded&&!recorded.failed?recorded.name:THEMES[this.music?.key || 'menu'].name, playback: recorded?recorded.state:this.musicEnabled&&!this.muted?'playing':'paused', boss: this.music?.boss || false }; }
 }

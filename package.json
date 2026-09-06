@@ -1,6 +1,6 @@
 {
   "name": "bomb-rift",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,6 +14,7 @@
   "dependencies": {
     "@fontsource/dm-sans": "^5.3.0",
     "@fontsource/oxanium": "^5.3.0",
+    "@fontsource/silkscreen": "^5.3.0",
     "lucide": "^1.41.0",
     "three": "^0.185.1"
   },

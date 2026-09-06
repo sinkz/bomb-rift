@@ -1,5 +1,6 @@
 // Original four-bar motifs. MIDI pitches, eighth-note grid; no downloaded audio.
 export const THEMES = {
+  refuge: { name: 'O pavio pode esperar', bpm: 76, roots: [48,43,45,41,48,40,41,43], melody: [76,null,79,null,84,79,76,null,74,null,71,74,79,null,null,null,76,null,81,84,88,null,84,81,77,null,81,84,81,77,null,null,79,null,84,null,88,84,79,null,76,79,83,null,79,null,76,null,77,null,81,null,84,81,77,null,74,null,71,74,79,null,null,null], wave: 'sine' },
   menu: { name: 'Uma faísca no escuro', bpm: 82, roots: [50, 58, 53, 48], melody: [74,null,77,81,null,77,74,null,72,null,69,72,74,null,69,null], wave: 'sine' },
   ruins: { name: 'Ecos sob a pedra', bpm: 98, roots: [50, 53, 48, 55], melody: [74,null,77,76,74,null,69,72,74,77,null,81,79,null,77,72], wave: 'triangle' },
   forge: { name: 'Coração de brasa', bpm: 116, roots: [40, 43, 48, 47], melody: [76,76,null,79,83,null,81,79,76,null,74,76,79,78,74,null], wave: 'square' },
@@ -50,6 +51,17 @@ export class Music {
     src.connect(filter); filter.connect(gain); gain.connect(this.bus); this.connect(src, [filter, gain]); src.start(at);
   }
   schedule(step, at, beat) {
+    if (this.key === 'refuge') {
+      // Original eight-bar lullaby: C–G–Am–F / C–Em–F–G, music-box and arpeggios.
+      const theme=THEMES.refuge, bar=Math.floor(step/8)%8, slot=step%8, root=theme.roots[bar];
+      const third=[2,5].includes(bar)?3:4, answer=Math.floor(step/64)%2;
+      if (!slot) { this.note(root,at,beat*7.5,.16,'triangle'); for(const n of [12,12+third,19]) this.note(root+n,at,beat*7.6,.045,'sine'); }
+      if (slot%2===0) this.note(root+[12,19,24,12+third][slot/2],at,beat*1.5,.07,'triangle');
+      const pitch=theme.melody[step%64];
+      if(pitch!==null) this.note(pitch,at,beat*Math.min(1.7,7.9-slot),answer?.14:.18,'sine');
+      if(answer && slot===7 && bar%2===1) this.note(root+19,at,beat*.8,.07,'sine');
+      return;
+    }
     const theme = THEMES[this.key], bar = Math.floor(step / 8) % 4, slot = step % 8, root = theme.roots[bar];
     const tense = this.boss, intensity = this.enraged ? 1.2 : 1;
     // Harmony, bass and melody occupy different registers to leave room for SFX.

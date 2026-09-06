@@ -1,0 +1,20 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faísca · vida no refúgio</title><style>
+body{margin:0;background:#161524;color:#ecdbbc;font:16px monospace;display:grid;place-items:center;min-height:100svh}main{width:min(900px,94vw)}h1{font-size:20px}p{color:#a99ab4;font-size:12px;line-height:1.7}.stage{position:relative;height:330px;background:repeating-linear-gradient(90deg,#19182a 0 39px,#242136 40px),#1a192c;overflow:hidden;border:2px solid #796779}.floor{position:absolute;left:0;right:0;top:274px;border-top:2px solid #a39274}canvas{width:280px;height:280px;position:absolute;top:38px;left:0;image-rendering:pixelated;transform:translateX(-50%)}.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:20px}button,a{font:13px monospace;background:#55435b;border:2px solid #aa9277;color:#ffe3ab;padding:12px;cursor:pointer;text-decoration:none}input{accent-color:#bcdcc4}input[type=range]{flex:1;min-width:180px}output{color:#acd2bb;min-width:80px}label{font-size:12px}#contact-shadow{position:absolute;height:18px;background:#080b1670;border-radius:50%;transform:translate(-50%,-50%)}
+</style><main><h1>Faísca · vida no refúgio</h1><p>Passarinhos, livros e uma boa soneca. Veja a rotina completa ou escolha uma atividade para assistir agora. No refúgio, você também pode clicar no Faísca.</p><div class="stage"><div id="contact-shadow"></div><canvas id="actor" aria-label="Animação ampliada do personagem"></canvas></div><div class="controls"><button id="play">Pausar</button><input aria-label="Tempo da animação" id="time" type="range" min="0" max="26" step=".01" value="0"><output id="label">0,0 s</output><label><input id="slow" type="checkbox"> Câmera lenta</label><a href="/HUD-APROVACAO.html">Ver no refúgio</a></div><div class="controls"><button data-time="12">Passarinhos</button><button data-time="31">Ler um livro</button><button data-time="39">Soneca</button><button data-time="7">Regar</button><button data-time="27">Descansar</button></div><p id="phase" role="status"></p></main><script type="module">
+import{HeroWalk,sampleStroll,STROLL_DURATION,ACTIVITY_LABELS}from'./hero-walk.js';
+const canvas=document.querySelector('#actor'),hero=new HeroWalk(canvas),slider=document.querySelector('#time'),play=document.querySelector('#play'),stage=document.querySelector('.stage');await hero.ready;
+slider.max=STROLL_DURATION;
+let t=0,last=0,playing=true;
+function draw(){const state=sampleStroll(t),width=stage.clientWidth;
+// Same front/back route and whole-sprite animation as the refuge, enlarged.
+const phase=state.progress*3.8*Math.PI*2;
+canvas.style.left=(.25+(state.x-48)/12*.5)*width+'px';
+canvas.style.top=(22+(state.y-59)/11*35)+'px';
+const shadow=document.querySelector('#contact-shadow');shadow.style.left=canvas.style.left;shadow.style.top=(parseFloat(canvas.style.top)+280*108/128)+'px';shadow.style.width=(state.pose==='sleep'?202:129)+'px';
+hero.draw({phase,weight:state.pose==='walk'?1:0,facing:state.facing,pose:state.pose,time:t,activityTime:state.localTime||0,duration:state.duration||8});
+document.querySelector('#label').textContent=t.toFixed(1)+' s';
+document.querySelector('#phase').textContent=state.pose==='walk'?(state.facing==='front'?'IDA · de frente, até as flores':'VOLTA · de costas, até o descanso'):ACTIVITY_LABELS[state.pose]+' · '+state.thought;}
+play.onclick=()=>{playing=!playing;play.textContent=playing?'Pausar':'Reproduzir';};slider.oninput=()=>{playing=false;play.textContent='Reproduzir';t=+slider.value;draw();};
+document.querySelectorAll('[data-time]').forEach(button=>button.onclick=()=>{t=+button.dataset.time;slider.value=t;playing=true;play.textContent='Pausar';draw();});
+function tick(now){let dt=last?Math.min(.05,(now-last)/1000):0;last=now;if(playing&&!document.hidden){t=(t+dt*(document.querySelector('#slow').checked?.3:1))%STROLL_DURATION;slider.value=t;draw();}requestAnimationFrame(tick);}draw();requestAnimationFrame(tick);
+</script></html>

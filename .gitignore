@@ -6,3 +6,4 @@ dist/
 dist-cloudflare/
 bomb-rift-cloudflare.zip
 .wrangler/
+.npm-cache/

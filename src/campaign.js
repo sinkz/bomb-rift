@@ -32,7 +32,7 @@ const STAGES = [
 export function stageFor(number = 1) {
   number = Math.max(1, Math.floor(number));
   const index = (number - 1) % CAMPAIGN_LENGTH, worldIndex = Math.floor(index / STAGES_PER_WORLD), [name, width, height, layout, description, miniboss] = STAGES[index];
-  return { number, index, local: index % 3 + 1, worldIndex, world: WORLDS[worldIndex], cycle: Math.floor((number - 1) / CAMPAIGN_LENGTH), name, width, height, layout, description, miniboss,
+  return { number, index, local: index % 3 + 1, worldIndex, world: WORLDS[worldIndex], cycle: Math.floor((number - 1) / CAMPAIGN_LENGTH), name, width: width + 2, height: height + 2, layout, description, miniboss,
     reward: 8 + index * 2 + Math.floor((number - 1) / CAMPAIGN_LENGTH) * 6, musicKey: `${WORLDS[worldIndex].music}-${index % 3 + 1}` };
 }
 export const RELICS = [

@@ -180,16 +180,16 @@ test('charges stop when a bomb blocks the lane after the windup starts', () => {
   g.bombs = [{ id: 700, x: 3, z: 5, fuse: 10, range: 2, damage: 2 }];
   advance(g, 1.4); assert.equal(enemy.x, 2); assert.equal(enemy.chargeSteps, 0);
 });
-test('boss enrages once at half health and summons exactly two reinforcements', () => {
+test('boss enrages once at half health without adding reinforcements', () => {
   const g = arena(); g.spawnBoss(); g.boss.hp = g.boss.maxHp / 2; g.player.invincible = 100;
-  g.tick(.01); assert.equal(g.boss.enraged, true); assert.equal(g.enemies.length, 2);
-  g.tick(.01); assert.equal(g.enemies.length, 2);
+  g.tick(.01); assert.equal(g.boss.enraged, true); assert.equal(g.enemies.length, 0);
+  g.tick(.01); assert.equal(g.enemies.length, 0);
   assert.equal(g.drainEvents().filter(e => e.type === 'bossEnraged').length, 1);
 });
 test('boss alternates targeted ground attacks and a cross blocked by stone', () => {
   const g = arena(); g.spawnBoss(); g.bossAttack();
   assert(g.warnings[0].cells.some(c => c.x === g.player.x && c.z === g.player.z));
-  g.grid[5][8] = 1; g.bossAttack();
-  assert(g.warnings[1].cells.some(c => c.x === 7 && c.z === 5));
-  assert(!g.warnings[1].cells.some(c => c.x > 7));
+  const {x,z}=g.boss;g.grid[z][x+1] = 1; g.bossAttack();
+  assert(g.warnings[1].cells.some(c => c.x === x && c.z === z));
+  assert(!g.warnings[1].cells.some(c => c.x > x));
 });
