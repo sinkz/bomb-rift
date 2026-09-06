@@ -24,6 +24,8 @@ import { relicById, CAMPAIGN_LENGTH } from './campaign.js';
 import { normalizeMeta } from './legacy.js';
 import { Refuge, resourceCost } from './refuge.js';
 import { LocalRanking } from './ranking.js';
+import { GlobalRanking } from './global-ranking.js';
+import { resultMarkup, mountPublication, mountBoard } from './ranking-view.js';
 import { LaunchScreen } from './launch.js';
 import './style.css';
 import './game-hud.css';
@@ -41,6 +43,7 @@ try { meta = normalizeMeta(JSON.parse(localStorage.getItem('bomb-rift-v1') || '{
 const game = new Game({ meta }); const sound = new Sound({ refugeTracks: REFUGE_TRACKS }); const keys = new Set();
 let rankingStorage; try { rankingStorage = localStorage; } catch {}
 const ranking = new LocalRanking(rankingStorage); let lastRunScore = null;
+const globalRanking = new GlobalRanking();
 let scene, fatal = false, modalType = null, returnFocus = null, saveWarning = false;
 let highQuality = true, reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const avatar = portraitArt(meta.outfit);
@@ -81,6 +84,9 @@ const refuge = new Refuge(meta, { avatar, icon });
 const hud = new GameHud(game, { icon, icons, avatar });
 const atlas = new Atlas(game, { icon, icons, bossSources });
 const launch = new LaunchScreen(game, atlas, ranking, { icon, icons, avatar }); launch.show();
+launch.globalRanking = globalRanking;
+globalRanking.init().then(() => launch.refreshGlobal());
+document.addEventListener('guardian-taunt', () => { sound.init(); sound.play('boss'); });
 document.body.classList.toggle('reduced-motion', reducedMotion);
 insertHTML(document.body, 'beforeend', '<div class="relic-notice" id="relic-notice" role="status"></div>');
 icons();
@@ -88,7 +94,7 @@ icons();
 function saveMeta() { try { localStorage.setItem('bomb-rift-v1', JSON.stringify(meta)); } catch { saveWarning = true; toast('O navegador não permitiu salvar a evolução. Ela continuará disponível nesta sessão.'); } }
 function toast(text) { setText($('#toast'), text); $('#toast').classList.add('visible'); clearTimeout(toast.timer); toast.timer = setTimeout(() => $('#toast').classList.remove('visible'), 3300); }
 function announce(text, kind = '') { hud.notice(text, '', kind === 'danger' ? '#ff8e9c' : '#ffd39b'); }
-function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); saveMeta(); } }
+function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); globalRanking.finish(lastRunScore); saveMeta(); } }
 function scoreCard() { return lastRunScore ? `<div class="score-result"><div>${lastRunScore.place ? `${String(lastRunScore.place).padStart(2, '0')}º NO SEU RANKING` : 'RESULTADO DA EXPEDIÇÃO'}<small>${ranking.saved ? 'Salvo neste navegador' : 'Válido nesta sessão'} · abates, coleta e conquista</small></div><strong>${lastRunScore.score.toLocaleString(localeTag())} <small>PTS</small></strong></div>` : ''; }
 function legacyResultCard() {
   const result = game.result?.legacy; if (!result) return '';
@@ -99,15 +105,17 @@ function modal(type, content, { wide = false, closable = true } = {}) {
   touchMove = null;
   if (!modalType) returnFocus = document.activeElement;
   document.querySelectorAll('#app > main, #launch, #atlas').forEach(el => el.inert = true);
-  if (type === 'dead' || type === 'intermission') content = content.replace('<button class="primary-button', `${scoreCard()}${legacyResultCard()}<button class="primary-button`) + `<button class="text-button" data-action="home">${icon('Trophy')} Menu inicial e ranking</button>`;
+  if ((type === 'dead' || type === 'intermission') && lastRunScore?.report) { content = resultMarkup(lastRunScore, game, legacyResultCard()); wide = true; }
   keys.clear(); modalType = type;
   setHTML($('#modal-root'), `<section class="modal modal-${type} ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${closable ? `<button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('X')}</button>` : ''}${content}</section>`);
   $('#modal-root').classList.remove('hidden'); icons(); $('#modal-root button:not(:disabled)')?.focus();
+  if (type === 'dead' || type === 'intermission') mountPublication($('#result-publication'), lastRunScore, globalRanking);
 }
 function resume() { closeModal(); if (game.phase === 'paused') game.pause(); updateHud(); }
 function start() {
   if (fatal) return;
   if (!game.start(atlas.selected)) return;
+  globalRanking.begin(game.round);
   clearTimeout(toast.timer); $('#toast').classList.remove('visible');
   closeModal(); sound.init(); launch.hide(); atlas.hide(); keys.clear(); scene.preview?.clear(); lastRunScore = null;
   $('#start-banner').classList.add('hidden'); $('#in-game-bottom').classList.remove('hidden');
@@ -226,7 +234,7 @@ const actions = {
   workshop() { refuge.tab = 'talents'; showMeta(); },
   shop() { refuge.tab = 'gear'; showMeta(); },
   inventory() { refuge.tab = 'inventory'; showMeta(); },
-  ranking() { pauseForModal(); modal('ranking', `<span class="eyebrow orange">SEUS FEITOS · RANKING LOCAL</span><h2 id="modal-title">Salão das faíscas</h2>${launch.rows()}<p class="small-note">${ranking.saved ? 'Seus resultados, salvos neste navegador.' : 'Salvamento indisponível. Resultados desta sessão.'}</p><button class="primary-button full-width" data-action="close-modal">Voltar ao refúgio →</button>`); },
+  ranking() { pauseForModal(); modal('ranking', '<div id="global-ranking-body"></div>', { wide:true }); mountBoard($('#global-ranking-body'),globalRanking,()=>launch.rows()); },
   home() { if (game.active || game.phase === 'upgrade') return; claimRun(); closeModal(); game.returnToMap(); $('#mobile-controls').classList.remove('running'); updateHud(); launch.show(); },
   taunt() { atlas.bossPreview?.taunt(); sound.play('boss'); },
   music() { const wasReady = !!sound.ctx; sound.init(); if (wasReady) sound.musicEnabled = !sound.musicEnabled; sound.save(); },
@@ -280,7 +288,7 @@ const movement = { KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0,
 document.addEventListener('keydown', event => {
   if (['Enter', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code) && !event.target.closest('[data-action="music"]')) sound.init();
   if (event.code === 'Tab' && modalType) {
-    const list = [...document.querySelectorAll('#modal-root button:not(:disabled), #modal-root select:not(:disabled), #modal-root input:not(:disabled)')]; const first = list[0], last = list.at(-1);
+    const list = [...document.querySelectorAll('#modal-root button:not(:disabled), #modal-root select:not(:disabled), #modal-root input:not(:disabled), #modal-root textarea:not(:disabled), #modal-root a[href], #modal-root summary')].filter(el=>el.getClientRects().length); const first = list[0], last = list.at(-1);
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     return;

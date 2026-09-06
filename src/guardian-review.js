@@ -1,0 +1,34 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import '@fontsource/silkscreen/latin-400.css';
+import '@fontsource/oxanium/latin-500.css';
+import './guardian-review.css';
+import { GUARDIANS } from './guardian-review-data.js';
+const guardian=GUARDIANS.find(g=>g.id===new URLSearchParams(location.search).get('guardian'))||GUARDIANS[0];
+document.querySelector('#review').innerHTML=`<header><span>BOMB RIFT / ARTE → VOLUME</span><h1>${guardian.name}</h1><p>${guardian.world} · revisão baseada na pixel art</p><nav class="guardian-tabs" aria-label="Escolher guardião">${GUARDIANS.map(g=>`<a href="?guardian=${g.id}" ${g===guardian?'aria-current="page"':''}>${g.name}</a>`).join('')}</nav></header><main><section class="reference"><small>ARTE DE REFERÊNCIA</small><img class="${['briarok','fulgra','nivor'].includes(guardian.id)?'screen-portrait':''}" src="${guardian.art}" alt="Pixel art de ${guardian.name}"><p>${guardian.detail}</p><a href="${guardian.render}" target="_blank" rel="noopener">Abrir render do modelo ↗</a></section><section class="model-panel"><div id="model"></div><span class="model-note">Arraste para girar · scroll ou dois dedos para aproximar</span><div id="clips" aria-label="Animações do guardião"></div><div class="playback"><button data-motion-toggle>Pausar animação</button><button data-front>Ver de frente</button><button data-cycle aria-pressed="false">Ver ciclo completo</button></div></section></main><footer><span id="model-status" role="status">Carregando o modelo com rig…</span><p>Prévia para avaliação. Os modelos publicados no jogo continuam preservados.</p><a href="/">Abrir jogo e ranking →</a></footer>`;
+const host=document.querySelector('#model'),renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;host.append(renderer.domElement);
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(32,1,.1,100);camera.position.set(4,2.7,7);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.45,0);controls.enableDamping=true;controls.minDistance=3;controls.maxDistance=11;controls.maxPolarAngle=Math.PI*.49;
+scene.add(new THREE.HemisphereLight(0xe2d4ff,0x241a33,2));
+const key=new THREE.DirectionalLight(0xffe8d2,4);key.position.set(-3,6,5);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.camera.left=-4;key.shadow.camera.right=4;key.shadow.camera.top=5;key.shadow.camera.bottom=-4;key.shadow.bias=-.001;scene.add(key);
+const rim=new THREE.DirectionalLight(0x9b70ff,3);rim.position.set(4,3,-3);scene.add(rim);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(3.6,64),new THREE.MeshStandardMaterial({color:0x251a34,roughness:1}));floor.rotation.x=-Math.PI/2;floor.position.y=-.015;floor.receiveShadow=true;scene.add(floor);
+const ring=new THREE.Mesh(new THREE.RingGeometry(2,2.03,64),new THREE.MeshBasicMaterial({color:0x72538b,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.002;scene.add(ring);
+let mixer,active,paused=false,cycle=false,cycleClock=0,clipIndex=0,playClip,modelSize;const actions={};
+function fitModel(){if(!modelSize)return;const tan=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));const distance=Math.max(modelSize.y/(2*tan),Math.hypot(modelSize.x,modelSize.z)/(2*tan*camera.aspect))*1.1;controls.target.set(0,modelSize.y*.46,0);camera.position.copy(new THREE.Vector3(4,1.3,7).normalize().multiplyScalar(distance).add(controls.target));controls.maxDistance=distance*1.8;controls.update();}
+new GLTFLoader().load(guardian.model,gltf=>{
+  const model=gltf.scene;model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(model);
+  const box=new THREE.Box3().setFromObject(model);const size=box.getSize(new THREE.Vector3());model.scale.setScalar(Math.min(3.2/size.y,4.2/size.x,3.8/size.z));model.position.y=-box.min.y*model.scale.y;
+  modelSize=size.multiplyScalar(model.scale.y);fitModel();
+  mixer=new THREE.AnimationMixer(model);for(const clip of gltf.animations)actions[clip.name.replace(/\.\d+$/,'')]=mixer.clipAction(clip);
+  const names={Idle:'Repouso',Walk:guardian.id==='nyxara'?'Levitar':'Andar',Windup:'Preparação',BellSlam:'Impacto do sino',FurnaceBurst:'Erupção',VoidCast:'Conjurar',RootBloom:'Floração',Discharge:'Descarga',GlacierSlam:'Impacto glacial',Hurt:'Dano',Stagger:'Vulnerável',Spawn:'Entrada',Death:'Morte'};
+  const play=name=>{const next=actions[name];if(!next)return;active?.fadeOut(.15);next.reset().setLoop(['Idle','Walk','Stagger'].includes(name)?THREE.LoopRepeat:THREE.LoopOnce,Infinity);next.clampWhenFinished=true;next.fadeIn(.15).play();active=next;document.querySelectorAll('#clips button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.clip===name)));};
+  playClip=play;
+  document.querySelector('#clips').innerHTML=Object.keys(actions).sort((a,b)=>Object.keys(names).indexOf(a)-Object.keys(names).indexOf(b)).map(name=>`<button data-clip="${name}" aria-pressed="false">${names[name]||name}</button>`).join('');document.querySelector('#clips').addEventListener('click',e=>{if(e.target.dataset.clip)play(e.target.dataset.clip);});play('Idle');
+  document.querySelector('#model-status').textContent=`Rig com ${gltf.animations.length} animações · modelo 3D original baseado no retrato`;
+},undefined,()=>document.querySelector('#model-status').textContent='Não foi possível abrir o GLB. Os renders estão disponíveis ao lado.');
+document.querySelector('[data-motion-toggle]').addEventListener('click',e=>{paused=!paused;e.target.textContent=paused?'Retomar animação':'Pausar animação';});
+document.querySelector('[data-front]').addEventListener('click',()=>{camera.position.set(0,2.2,8);controls.target.set(0,1.45,0);controls.update();});
+document.querySelector('[data-cycle]').addEventListener('click',e=>{cycle=!cycle;cycleClock=0;clipIndex=0;e.target.setAttribute('aria-pressed',String(cycle));playClip?.('Idle');});
+const resize=()=>{renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();fitModel();};new ResizeObserver(resize).observe(host);resize();const clock=new THREE.Clock();renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),.05);if(!paused){mixer?.update(dt);if(cycle){cycleClock+=dt;if(cycleClock>3){const buttons=[...document.querySelectorAll('#clips button')];if(buttons.length){clipIndex=(clipIndex+1)%buttons.length;playClip?.(buttons[clipIndex].dataset.clip);}cycleClock=0;}}}controls.update();renderer.render(scene,camera);});

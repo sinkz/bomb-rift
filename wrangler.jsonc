@@ -1,0 +1,31 @@
+{
+  "name": "bomb-rift",
+  "compatibility_date": "2026-09-05",
+  "pages_build_output_dir": "./dist-cloudflare",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bomb-rift-ranking-preview",
+      "database_id": "c8ceb1f6-32ad-4c8c-a604-4a0d1fb26a80",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "env": {
+    "preview": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bomb-rift-ranking-preview",
+          "database_id": "c8ceb1f6-32ad-4c8c-a604-4a0d1fb26a80",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "TURNSTILE_SITE_KEY": "0x4AAAAAAEp1RjPDOlfz2DMC"
+      }
+    },
+    "production": {
+      "d1_databases": []
+    }
+  }
+}

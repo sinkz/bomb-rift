@@ -1,0 +1,155 @@
+[
+  {
+    "name": "morthos",
+    "bytes": 521660,
+    "clips": [
+      "BellSlam",
+      "Death",
+      "Hurt",
+      "Idle",
+      "Spawn",
+      "Stagger",
+      "Walk",
+      "Windup"
+    ],
+    "bones": 13,
+    "feet": 2,
+    "footHeightRange": [
+      0.15,
+      0.289
+    ],
+    "highestLowestFoot": 0.15,
+    "dimensions": [
+      2.89,
+      3.51,
+      1.56
+    ]
+  },
+  {
+    "name": "vulkar",
+    "bytes": 439560,
+    "clips": [
+      "Death",
+      "FurnaceBurst",
+      "Hurt",
+      "Idle",
+      "Spawn",
+      "Stagger",
+      "Walk",
+      "Windup"
+    ],
+    "bones": 13,
+    "feet": 2,
+    "footHeightRange": [
+      0.19,
+      0.329
+    ],
+    "highestLowestFoot": 0.19,
+    "dimensions": [
+      3.13,
+      3.58,
+      1.74
+    ]
+  },
+  {
+    "name": "nyxara",
+    "bytes": 307088,
+    "clips": [
+      "Death",
+      "Hurt",
+      "Idle",
+      "Spawn",
+      "Stagger",
+      "VoidCast",
+      "Walk",
+      "Windup"
+    ],
+    "bones": 5,
+    "feet": 0,
+    "footHeightRange": null,
+    "highestLowestFoot": null,
+    "dimensions": [
+      2.05,
+      3.76,
+      1.26
+    ]
+  },
+  {
+    "name": "briarok",
+    "bytes": 1252764,
+    "clips": [
+      "Death",
+      "Hurt",
+      "Idle",
+      "RootBloom",
+      "Spawn",
+      "Stagger",
+      "Walk",
+      "Windup"
+    ],
+    "bones": 21,
+    "feet": 4,
+    "footHeightRange": [
+      0.209,
+      0.35
+    ],
+    "highestLowestFoot": 0.22,
+    "dimensions": [
+      3.06,
+      3.2,
+      3.33
+    ]
+  },
+  {
+    "name": "fulgra",
+    "bytes": 595904,
+    "clips": [
+      "Death",
+      "Discharge",
+      "Hurt",
+      "Idle",
+      "Spawn",
+      "Stagger",
+      "Walk",
+      "Windup"
+    ],
+    "bones": 29,
+    "feet": 6,
+    "footHeightRange": [
+      0.13,
+      0.27
+    ],
+    "highestLowestFoot": 0.13,
+    "dimensions": [
+      3.99,
+      3.13,
+      3.14
+    ]
+  },
+  {
+    "name": "nivor",
+    "bytes": 786468,
+    "clips": [
+      "Death",
+      "GlacierSlam",
+      "Hurt",
+      "Idle",
+      "Spawn",
+      "Stagger",
+      "Walk",
+      "Windup"
+    ],
+    "bones": 21,
+    "feet": 4,
+    "footHeightRange": [
+      0.219,
+      0.36
+    ],
+    "highestLowestFoot": 0.238,
+    "dimensions": [
+      2.85,
+      3.83,
+      3.79
+    ]
+  }
+]

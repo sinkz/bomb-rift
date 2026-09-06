@@ -1,7 +1,8 @@
 import { PROGRESSION_EN } from './progression-en.js';
 import { REFUGE_EN } from './refuge-en.js';
+import { RANKING_EN } from './ranking-en.js';
 // Authored English copy. Portuguese source strings are stable catalog keys.
-export const EN = { ...PROGRESSION_EN, ...REFUGE_EN,
+export const EN = { ...PROGRESSION_EN, ...REFUGE_EN, ...RANKING_EN,
   "Esquivar": "Dash",
   "Arena tridimensional de BOMB RIFT": "BOMB RIFT 3D arena",
   "luz.": "light.",

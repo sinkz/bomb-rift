@@ -3,6 +3,7 @@ import { stageFor } from './campaign.js';
 import { rankInfo } from './legacy.js';
 import { refugeArt as art } from './refuge-art.js';
 import { refugeLife } from './refuge-life.js';
+import { boardRows } from './ranking-view.js';
 import './refuge-home.css';
 
 export class LaunchScreen {
@@ -22,6 +23,12 @@ export class LaunchScreen {
     this.render(); this.root.querySelector('.next-run button').focus({ preventScroll: true });
   }
   hide() { this.root.hidden = true; this.root.inert = true; document.body.classList.remove('in-launch'); }
+  async refreshGlobal() {
+    if(!this.globalRanking || this.root.hidden)return;
+    const panel=this.root.querySelector('.ranking');
+    try {const result=await this.globalRanking.leaderboard();if(!panel.isConnected)return;setHTML(panel,`<div class="panel-caption">${art('ui-Trophy')}<span>SALÃO DAS FAÍSCAS<small>RANKING GLOBAL · BETA</small></span></div>${boardRows(result.rows,true)}<button class="text-button" data-action="ranking">Conhecer as lendas <span>→</span></button>`);}
+    catch {if(panel.isConnected)setHTML(panel,`<div class="panel-caption">${art('ui-Trophy')}<span>SALÃO DAS FAÍSCAS<small>SEUS RECORDES LOCAIS</small></span></div>${this.rows(3)}<p class="global-ranking-note">Ranking global indisponível no momento.</p><button class="text-button" data-action="ranking">Abrir salão →</button>`);}
+  }
   frame(now, reduced) { if (!this.root.hidden) this.life?.frame(now, reduced); }
   render() {
     const m = this.game.meta, rank = rankInfo(m.legacyXp), stage = stageFor(Math.max(1,m.unlockedStage));
@@ -40,7 +47,7 @@ export class LaunchScreen {
       <section class="next-run"><span class="tiny">SUA PRÓXIMA AVENTURA</span><h1>${stage.world.name}</h1><p>Fase ${String(stage.number).padStart(2,'0')} · ${stage.name}</p><button class="pixel-button primary" data-action="atlas">${m.runs?'CONTINUAR EXPEDIÇÃO':'INICIAR EXPEDIÇÃO'} <span>→</span></button></section>
       <div class="peace"><span></span> Aqui, o pavio pode esperar.</div>
       <nav class="dock" aria-label="Menu do refúgio">${[['atlas','part-compass','MAPA','M'],['workshop','ui-Swords','BUILD','B'],['shop','gear-salvager','LOJA','L'],['inventory','skill-capacity','MOCHILA','I'],['ranking','ui-Trophy','RANKING','R']].map(([action,id,label,key],i)=>`<button data-action="${action}" class="${i===0?'dock-primary':''}">${art(id)}<span>${label}</span><kbd>${key}</kbd></button>`).join('')}</nav>
-      <footer class="prototype-label"><span>V2.4 · SEU LEGADO PERMANECE</span><button data-action="music" id="launch-music-state">TOQUE PARA OUVIR</button><button data-action="guide">COMO JOGAR</button></footer>
+      <footer class="prototype-label"><span>V2.5 BETA · SEU LEGADO PERMANECE</span><button data-action="music" id="launch-music-state">TOQUE PARA OUVIR</button><button data-action="guide">COMO JOGAR</button></footer>
     </div>`);
     if (previousHero) {
       this.root.querySelector('#hero').replaceWith(previousHero);
@@ -52,6 +59,7 @@ export class LaunchScreen {
     this.root.querySelector('.hero-walk-canvas').style.filter=colors[m.outfit]||'none';
     const embers = this.root.querySelector('#embers');
     for (let i=0;i<20;i++) { const dot=document.createElement('i'); dot.style.cssText=`left:${15+Math.random()*70}%;top:${25+Math.random()*53}%;--duration:${3+Math.random()*6}s;--delay:-${Math.random()*10}s`; embers.append(dot); }
+    this.refreshGlobal();
   }
   rows(limit = 10) {
     if (!this.ranking.records.length) return '<div class="home-ranking-empty"><b>Seu nome pertence aqui.</b><p>Conclua uma expedição para registrar seu primeiro resultado.</p></div>';

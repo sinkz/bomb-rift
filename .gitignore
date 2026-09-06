@@ -7,3 +7,6 @@ dist-cloudflare/
 bomb-rift-cloudflare.zip
 .wrangler/
 .npm-cache/
+.wrangler-logs/
+.dev.vars
+public/guardian-review/*.blend1

@@ -70,6 +70,7 @@ export function setAttr(element, name, value) {
   saved.set(name, { source, output }); return value;
 }
 function localizeNode(node) {
+  if ((node.nodeType === 3 ? node.parentElement : node)?.closest?.('[translate="no"]')) return;
   if (node.nodeType === 3) {
     if (/^(SCRIPT|STYLE|CODE|TEXTAREA)$/.test(node.parentElement?.tagName || '')) return;
     const previous = textSources.get(node), source = previous?.output === node.nodeValue ? previous.source : node.nodeValue;

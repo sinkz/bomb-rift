@@ -7,8 +7,10 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const out=resolve(root,'dist-cloudflare');
 const rel=relative(root,out);
 if(rel!=='dist-cloudflare'||isAbsolute(rel)||rel.startsWith('..'))throw Error('Unsafe build directory');
-await build({root,publicDir:false,build:{outDir:out,emptyOutDir:true}});
+const review=process.argv.includes('--review');
+await build({root,publicDir:false,build:{outDir:out,emptyOutDir:true,...(review?{rollupOptions:{input:{game:resolve(root,'index.html'),guardians:resolve(root,'GUARDIOES-APROVACAO.html')}}}:{})}});
 copyFileSync(resolve(root,'public/favicon.svg'),resolve(out,'favicon.svg'));
+writeFileSync(resolve(out,'_routes.json'),JSON.stringify({version:1,include:['/api/*'],exclude:[]}));
 writeFileSync(resolve(out,'_headers'),`/assets/*
   Cache-Control: public, max-age=31536000, immutable
 

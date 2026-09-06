@@ -1,5 +1,6 @@
 import { WORLDS, stageFor, RELICS, relicById } from './campaign.js';
 import { normalizeMeta, startingStats, settleLegacy } from './legacy.js';
+import { emptyMetrics } from '../shared/scoring.js';
 export const WIDTH = 17;
 export const HEIGHT = 15;
 export const ROUND_SECONDS = 120;
@@ -27,6 +28,7 @@ export class Game {
   reset(stage = 1) {
     this.round = stage; this.width = this.stage.width; this.height = this.stage.height;
     this.elapsed = 0; this.totalTime = 0; this.kills = 0; this.bosses = 0;
+    this.stats = { ...emptyMetrics(), bossStartedAt: null };
     this.crystals = 0; this.collected = 0; this.level = 1; this.xp = 0; this.nextXp = 36;
     this.forgeCount = 0; this.skillLevels = {}; this.masteries = []; this.wardTimer = 0; this.pendingLevels = 0; this.earnedShards = 0;
     this.combo = 0; this.comboTimer = 0; this.relics = []; this.echoes = []; this.miniSpawned = false;
@@ -106,6 +108,7 @@ export class Game {
       p.x += p.facing[0]; p.z += p.facing[1]; moved++;
     }
     if (!moved) return false;
+    this.stats.dashes++;
     p.dashCooldown = p.dashMax; p.invincible = Math.max(p.invincible, this.masteries.includes('speed') ? 1 : .5); p.slow = 0; p.moveCooldown = 0;
     this.emit('dash', { x: p.x, z: p.z, fromX, fromZ });
     const level = this.skillLevels.afterglow || 0;
@@ -122,6 +125,7 @@ export class Game {
     const p = this.player;
     if (this.bombs.some(b => b.x === p.x && b.z === p.z)) return false;
     this.bombs.push({ id: this.nextId++, x: p.x, z: p.z, fuse: p.fuse, maxFuse: p.fuse, range: p.range, damage: p.damage + (this.masteries.includes('capacity') && this.bombs.length === p.capacity-1 ? 4 : 0) + (this.masteries.includes('fuse') && !this.bombs.length ? 3 : 0) + (this.relics.includes('overdrive') && this.bombs.length === p.capacity - 1 ? 2 : 0) });
+    this.stats.bombsPlaced++;
     this.emit('bomb', { x: p.x, z: p.z }); return true;
   }
   blastCells(bomb) {
@@ -143,8 +147,9 @@ export class Game {
     }
     return cells;
   }
-  explode(bomb) {
+  explode(bomb, chained = false) {
     if (!this.bombs.includes(bomb)) return;
+    this.stats.bombsExploded++; if (chained) this.stats.chainExplosions++;
     this.bombs = this.bombs.filter(b => b !== bomb);
     const cells = this.blastCells(bomb);
     const flame = { id: this.nextId++, cells, life: this.player.fire === 'azure' ? 1.1 : .62, damage: bomb.damage, hit: new Set(), enemy: false, fire: this.player.fire };
@@ -159,7 +164,7 @@ export class Game {
         else this.addPickup(c.x, c.z, this.random() < .10 ? 'heart' : 'crystal', 2 + Math.floor(this.random() * 3));
       }
       const chained = this.bombs.find(b => b.x === c.x && b.z === c.z);
-      if (chained) this.explode(chained);
+      if (chained) this.explode(chained, true);
     }
     if (this.relics.includes('echo')) this.echoes.push({ id: this.nextId++, cells, timer: .85, damage: Math.max(1, Math.ceil(bomb.damage / 2)), fire: this.player.fire });
     this.emit('explosion', { cells, x: bomb.x, z: bomb.z, fire: this.player.fire });
@@ -180,7 +185,7 @@ export class Game {
     this.relics.push(id); const p = this.player;
     if (id === 'azure') { p.fire = 'azure'; p.damage++; }
     if (id === 'clock') { p.fuse += 1; p.damage += 2; p.range++; }
-    if (id === 'shell') { p.maxHp += 20; p.hp += 20; p.armor = Math.min(.6, p.armor + .2); }
+    if (id === 'shell') { p.maxHp += 20; this.restoreHealth(20); p.armor = Math.min(.6, p.armor + .2); }
     if (id === 'magnet') { p.magnet += 2; p.capacity++; }
     if (id === 'phoenix') p.revive = true;
     if (id === 'pierce') p.pierce = 1;
@@ -194,9 +199,9 @@ export class Game {
       if (!this.reachableWithin(this.player, pickup, Math.floor(this.player.magnet))) continue;
       this.pickups = this.pickups.filter(p => p !== pickup);
       if (pickup.type === 'relic') this.equipRelic(pickup.value);
-      else if (pickup.type === 'heart') { this.player.hp = Math.min(this.player.maxHp, this.player.hp + 20); if (this.relics.includes('mercy')) this.player.ward = 1; }
+      else if (pickup.type === 'heart') { this.restoreHealth(20); if (this.relics.includes('mercy')) this.player.ward = 1; }
       else if (pickup.type === 'scrap' || pickup.type === 'cores') this.materials[pickup.type] += pickup.value;
-      else { this.crystals += pickup.value; this.collected += pickup.value; this.xp += Math.round(pickup.value * 3 * (1 + (this.skillLevels.alchemy || 0) * .12)); if (this.masteries.includes('magnet')) this.player.hp = Math.min(this.player.maxHp, this.player.hp + pickup.value); }
+      else { this.crystals += pickup.value; this.collected += pickup.value; this.xp += Math.round(pickup.value * 3 * (1 + (this.skillLevels.alchemy || 0) * .12)); if (this.masteries.includes('magnet')) this.restoreHealth(pickup.value); }
       this.emit('pickup', pickup);
     }
     while (this.xp >= this.nextXp) {
@@ -304,14 +309,19 @@ export class Game {
     }
     return { dx, dz, cells };
   }
+  restoreHealth(amount) {
+    const actual = Math.max(0, Math.min(amount, this.player.maxHp - this.player.hp));
+    this.player.hp += actual; this.stats.healed += actual; return actual;
+  }
   hurt(amount) {
     if (!this.active || this.player.invincible > 0) return;
-    if (this.player.ward > 0) { this.player.ward--; this.player.invincible = .9; if (this.masteries.includes('ward')) this.player.hp = Math.min(this.player.maxHp, this.player.hp + 10); this.emit('blocked', { x: this.player.x, z: this.player.z }); return; }
+    if (this.player.ward > 0) { this.stats.blocked++; this.player.ward--; this.player.invincible = .9; if (this.masteries.includes('ward')) this.restoreHealth(10); this.emit('blocked', { x: this.player.x, z: this.player.z }); return; }
     amount = Math.ceil(amount * (1 - (this.player.armor || 0)));
+    const actual = Math.min(this.player.hp, amount); this.stats.damageTaken += actual; if (actual > 0) this.stats.hitsTaken++;
     this.player.hp = Math.max(0, this.player.hp - amount); this.player.invincible = 1.4;
     this.emit('hurt', { x: this.player.x, z: this.player.z, amount });
     if (!this.player.hp && this.player.revive) {
-      this.player.revive = false; this.player.hp = Math.ceil(this.player.maxHp / 2); this.player.invincible = 3;
+      this.stats.revives++; this.player.revive = false; this.restoreHealth(Math.ceil(this.player.maxHp / 2)); this.player.invincible = 3;
       this.emit('revive', { x: this.player.x, z: this.player.z });
     } else if (!this.player.hp) this.die();
   }
@@ -319,6 +329,7 @@ export class Game {
     if (!this.active || enemy.hp <= 0) return;
     if (enemy.type === 'boss' && enemy.stagger > 0) damage = Math.ceil(damage * 1.5);
     if (this.masteries.includes('frost') && enemy.frozen > 0) damage += 2;
+    const actual = Math.min(enemy.hp, damage); this.stats.damageDealt += actual; if (enemy.type === 'boss') this.stats.bossDamage += actual;
     enemy.hp -= damage; enemy.hitFlash = .18;
     if (enemy.type === 'mimic') { enemy.awake = true; enemy.intent = 'hunt'; }
     const cold = this.skillLevels.frost || 0;
@@ -329,8 +340,10 @@ export class Game {
         if (enemy.type === 'boss') this.defeatBoss();
         else {
           this.enemies = this.enemies.filter(e => e !== enemy); this.kills++;
+          this.stats[enemy.type === 'sentinel' ? 'miniKills' : 'normalKills']++;
           this.combo = this.comboTimer > 0 ? this.combo + 1 : 1; this.comboTimer = 4;
-          this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.vampire);
+          this.stats.maxCombo = Math.max(this.stats.maxCombo, this.combo);
+          this.restoreHealth(this.player.vampire);
           if (this.masteries.includes('dash')) this.player.dashCooldown = Math.max(0,this.player.dashCooldown-.6);
           if (this.masteries.includes('vampire') && this.player.hp === this.player.maxHp) this.player.ward = 1;
           this.addPickup(enemy.x, enemy.z, 'crystal', enemy.type === 'ember' ? 5 : 3);
@@ -368,6 +381,7 @@ export class Game {
       if (!this.active || !flame.cells.some(c=>c.x===anchor.x&&c.z===anchor.z)) continue;
       anchor.hp -= flame.damage;
       if (anchor.hp <= 0) {
+        this.stats.anchorsBroken++;
         this.anchors = this.anchors.filter(a=>a!==anchor);
         if (this.boss) { this.boss.stagger=4; this.boss.attackCooldown=Math.max(this.boss.attackCooldown,4); }
         this.addPickup(anchor.x,anchor.z,'crystal',3);
@@ -377,6 +391,7 @@ export class Game {
   }
   spawnBoss() {
     this.phase = 'boss';
+    this.stats.bossStartedAt = this.totalTime;
     const x = Math.floor(this.width / 2), z = Math.floor(this.height / 2) - 1;
     for (let zz = z - 1; zz <= z + 1; zz++) for (let xx = x - 1; xx <= x + 1; xx++) {
       this.grid[zz][xx] = 0; this.emit('clear', { x: xx, z: zz });
@@ -459,17 +474,18 @@ export class Game {
   chooseSkill(id) {
     if (this.phase !== 'upgrade' || !this.offers.some(s => s.id === id)) return false;
     this.skillLevels[id] = (this.skillLevels[id] || 0) + 1;
+    this.stats.choices++;
     const p = this.player;
     switch (id) {
       case 'power': p.damage++; break;
       case 'range': p.range++; break;
       case 'capacity': p.capacity++; break;
       case 'speed': p.step *= .9; break;
-      case 'health': p.maxHp += 25; p.hp = Math.min(p.maxHp, p.hp + 35); break;
+      case 'health': p.maxHp += 25; this.restoreHealth(35); break;
       case 'magnet': p.magnet++; break;
       case 'fuse': p.fuse *= .88; break;
       case 'dash': p.dashMax *= .82; break;
-      case 'heal': p.hp = Math.min(p.maxHp, p.hp + 50); break;
+      case 'heal': this.restoreHealth(50); break;
       case 'vampire': p.vampire += 2; break;
       case 'shrapnel': if (this.skillLevels.shrapnel % 2 === 0) p.damage++; break;
       case 'ward': p.ward = 1; this.wardTimer = Math.max(6,20-this.skillLevels.ward*2); break;
@@ -481,7 +497,7 @@ export class Game {
       this.masteries.push(id);
       if (id==='power') { p.fire='azure'; p.damage+=2; }
       if (id==='range') p.pierce=Math.max(1,p.pierce||0);
-      if (id==='health') { p.armor=Math.min(.6,(p.armor||0)+.2); p.hp=p.maxHp; }
+      if (id==='health') { p.armor=Math.min(.6,(p.armor||0)+.2); this.restoreHealth(p.maxHp); }
       if (id==='magnet') p.magnet+=3;
       if (id==='shrapnel') p.damage++;
       if (id==='ward') this.wardTimer=6;
@@ -578,6 +594,7 @@ export class Game {
     for (const echo of this.echoes) {
       echo.timer -= dt;
       if (echo.timer <= 0) {
+        this.stats.echoExplosions++;
         const flame = { ...echo, id: this.nextId++, life: .4, hit: new Set(), enemy: false };
         this.flames.push(flame); this.applyFlame(flame);
         this.emit('echo', { cells: echo.cells, x: echo.cells[0].x, z: echo.cells[0].z, fire: echo.fire });

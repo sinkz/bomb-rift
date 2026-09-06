@@ -3,7 +3,7 @@ import { refugeArt as art } from './refuge-art.js';
 import { setHTML, insertHTML } from './i18n.js';
 import { WORLDS, stageFor, relicById, CAMPAIGN_LENGTH } from './campaign.js';
 import { skillArt } from './skill-art.js';
-import { BossPreview } from './boss-preview.js';
+import './guardian-atlas.css';
 
 export const bossArt = world => pixelArt('guardian-' + world.id, 'boss-portrait ' + world.id);
 
@@ -12,10 +12,9 @@ export class Atlas {
     Object.assign(this, { game, icons }); this.selected=Math.max(1,game.meta.unlockedStage||1);
     insertHTML(document.querySelector('#app'),'beforeend','<section id="atlas" class="pixel-atlas" aria-label="Mapa dos mundos" hidden></section>');
     this.root=document.querySelector('#atlas');
-    if(bossSources) { try { this.bossPreview=new BossPreview(bossSources); } catch { /* Pixel portrait is available without WebGL. */ } }
     this.root.addEventListener('click',e=>{
       const b=e.target.closest('button'); if(!b||b.disabled)return;
-      if(b.hasAttribute('data-taunt')) { this.bossPreview?.taunt(); return; }
+      if(b.hasAttribute('data-taunt')) { const portrait=this.root.querySelector('.boss-preview'); portrait.classList.remove('taunting'); void portrait.offsetWidth; portrait.classList.add('taunting'); this.root.dispatchEvent(new CustomEvent('guardian-taunt',{bubbles:true})); return; }
       const kind=['stage','world','cycle'].find(key=>b.dataset[key]!==undefined); if(!kind)return;
       if(kind==='stage')this.selected=Number(b.dataset.stage);
       if(kind==='world') {const first=this.stage.cycle*CAMPAIGN_LENGTH+Number(b.dataset.world)*3+1;this.selected=Math.min(first+2,Math.max(first,game.meta.unlockedStage));}
@@ -24,7 +23,7 @@ export class Atlas {
     });
   }
   get stage(){return stageFor(this.selected);}
-  hide(){this.root.hidden=true;this.root.inert=true;this.bossPreview?.setVisible(false);document.body.classList.remove('in-atlas');}
+  hide(){this.root.hidden=true;this.root.inert=true;document.body.classList.remove('in-atlas');}
   show(stage=this.selected){this.selected=stage;this.root.hidden=false;this.root.inert=false;document.body.classList.add('in-atlas');this.render();this.root.querySelector('[data-action="home"]').focus({preventScroll:true});}
   render(){
     const s=this.stage,w=s.world,m=this.game.meta,unlocked=Math.max(1,m.unlockedStage),start=s.cycle*CAMPAIGN_LENGTH+s.worldIndex*3+1;
@@ -37,6 +36,6 @@ export class Atlas {
       <div class="mission-tactics"><p><b>COMO O GUARDIÃO ATACA</b>${w.bossAttack}</p><p><b>DESAFIO DO MUNDO</b>${w.mechanic}</p><div class="map-loot">${w.loot.map(id=>{const r=relicById(id);return `<span title="${r.name}: ${r.desc}">${skillArt('relic-'+id)}</span>`;}).join('')}</div></div>
       <div class="stage-summary"><div><small>FASE ${String(s.number).padStart(2,'0')} · ${locked?'BLOQUEADA':s.number<unlocked?'CONQUISTADA':'DISPONÍVEL'}</small><h3>${s.name}</h3><p>${s.description}</p><p class="map-reward">VITÓRIA · +${s.reward} ESSÊNCIAS + 1 NÚCLEO</p></div><button class="primary-button" data-action="start" ${locked?'disabled':''}>${locked?`CONQUISTE A FASE ${s.number-1}`:s.number<unlocked?'REVISITAR A FENDA':'ENTRAR NA FENDA'} →</button></div>
       <footer class="map-footer"><span>Skills e relíquias duram uma fase. Seu legado permanece.</span><div><button class="square" data-cycle="-1" aria-label="Ascensão anterior" ${s.cycle===0?'disabled':''}>←</button><small>CICLO ${s.cycle+1}</small><button class="square" data-cycle="1" aria-label="Próxima ascensão" ${(s.cycle+1)*CAMPAIGN_LENGTH+1>unlocked?'disabled':''}>→</button></div></footer></div>`);
-    this.icons(); this.bossPreview?.attach(this.root.querySelector('.boss-preview'),w);
+    this.icons();
   }
 }
