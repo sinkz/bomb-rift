@@ -1,4 +1,5 @@
 #atlas .boss-preview { isolation:isolate; }
+#atlas .boss-fallback[src*="-portrait"] { mix-blend-mode:screen; }
 #atlas .boss-preview>.boss-fallback { image-rendering:pixelated; object-fit:contain; padding:8px 20px; filter:drop-shadow(0 8px 0 #0b071e80) drop-shadow(0 0 14px color-mix(in srgb,var(--world-color) 25%,transparent)); }
 #atlas .boss-preview::after { content:''; position:absolute; bottom:0; left:22%; right:22%; height:10px; background:var(--world-color); opacity:.13; clip-path:polygon(8% 0,92% 0,100% 50%,92% 100%,8% 100%,0 50%); z-index:-1; }
 #atlas .boss-preview.taunting>.boss-fallback { animation:guardian-taunt .7s steps(8,end); }

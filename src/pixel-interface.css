@@ -11,7 +11,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 #launch .home-ranking-empty p{font-size:11px;color:#b6a7be;margin-top:8px}
 #launch .purse>span{min-width:63px}
 #launch.reduced-motion *,body.reduced-motion #launch *{animation:none!important;transition:none!important}
-.pixel-window,.modal{border:22px solid transparent;border-image:url('../mockups/refuge/assets/panel.png') 145 fill / 22px / 0 stretch;background:transparent;border-radius:0;box-shadow:0 16px 65px #0008;color:var(--paper)}
+.pixel-window,.modal{border:22px solid transparent;border-image:url('./assets/optimized/panel.webp') 145 fill / 22px / 0 stretch;background:transparent;border-radius:0;box-shadow:0 16px 65px #0008;color:var(--paper)}
 .modal{max-height:92dvh;padding:20px 24px;animation:pixel-open .18s steps(4)}
 #modal-root{z-index:100;background:#080b19b8;backdrop-filter:blur(4px)}
 .modal h2{font-family:var(--pixel);font-size:24px;line-height:1.5;letter-spacing:-1px;color:#eed6a9}
@@ -58,7 +58,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .skill-library .awakening b{color:var(--skill-color)}
 body.in-atlas{overflow:hidden!important}
 body.in-atlas #app>main,body.in-atlas #app>.site-header{display:none}
-#atlas{position:fixed;inset:0;z-index:45;overflow:auto;display:grid;place-items:center;padding:24px;background:linear-gradient(#090c19b8,#090c19d9),url('../mockups/refuge/assets/refuge.png') center/cover;image-rendering:auto;font-family:Oxanium,sans-serif}
+#atlas{position:fixed;inset:0;z-index:45;overflow:auto;display:grid;place-items:center;padding:24px;background:linear-gradient(#090c19b8,#090c19d9),url('./assets/optimized/refuge.webp') center/cover;image-rendering:auto;font-family:Oxanium,sans-serif}
 #atlas .atlas-window{width:min(1120px,100%);padding:10px 20px 16px;max-height:94dvh;overflow:auto}
 #atlas .window-heading h1{font:23px var(--pixel);color:#eed6a9;margin:9px 0;line-height:1.5}
 #atlas .window-heading small{font-size:8px;color:#b9aec4}
@@ -88,7 +88,7 @@ body.in-atlas #app>main,body.in-atlas #app>.site-header{display:none}
 #atlas .map-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:17px;color:#ac9cb5;font-size:10px}
 #atlas .map-footer>div{display:flex;gap:12px;align-items:center}
 #atlas .map-footer .square{width:36px;height:36px;cursor:pointer}
-.hero-hud,.in-run .round-timer,.in-run #boss-health,.ability-dock{border:15px solid transparent;border-image:url('../mockups/refuge/assets/panel.png') 145 fill / 15px / 0 stretch;border-radius:0;background:transparent;box-shadow:0 6px 16px #0003}
+.hero-hud,.in-run .round-timer,.in-run #boss-health,.ability-dock{border:15px solid transparent;border-image:url('./assets/optimized/panel.webp') 145 fill / 15px / 0 stretch;border-radius:0;background:transparent;box-shadow:0 6px 16px #0003}
 .hero-hud{padding:0 3px 2px;width:355px;gap:12px;left:20px;top:20px}
 .hero-hud .hero-portrait{width:68px;height:82px;border-radius:0;margin-left:-5px}
 .hero-hud .hero-vitals{flex:1;min-width:0}

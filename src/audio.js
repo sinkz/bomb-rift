@@ -44,6 +44,7 @@ export class Sound {
     notes.chainArc = [780, 150, .15, 'triangle'];
     notes.anchorBroken = [220, 1100, .7, 'sine'];
     notes.arenaShift = [90, 42, .55, 'triangle'];
+    notes.bossImpact = [95, 32, .32, 'triangle'];
     notes.wardReady = [420, 680, .16, 'sine'];
     if (name === 'explosion' || name === 'enemyExplosion') {
       const length = this.ctx.sampleRate * .35, buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate), data = buffer.getChannelData(0);

@@ -1,7 +1,7 @@
 // Complete front/back sprites; the original activity poses stay intact.
-const walkURL = new URL('./assets/faisca-front-back.png', import.meta.url).href;
-const activitiesURL = new URL('./assets/faisca-sprites.png', import.meta.url).href;
-const lifeURL = new URL('./assets/faisca-refuge-life.png', import.meta.url).href;
+const walkURL = new URL('../../src/assets/optimized/faisca-front-back.webp', import.meta.url).href;
+const activitiesURL = new URL('../../src/assets/optimized/faisca-sprites.webp', import.meta.url).href;
+const lifeURL = new URL('../../src/assets/optimized/faisca-refuge-life.webp', import.meta.url).href;
 const TAU = Math.PI * 2;
 const smooth = t => t * t * (3 - 2 * t);
 

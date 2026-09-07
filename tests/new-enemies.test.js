@@ -46,8 +46,8 @@ test('overdrive rewards filling the final bomb slot; mercy blocks one impact and
   g.player.invincible = 0; g.hurt(20); assert.equal(g.player.hp, 80);
   g.addPickup(g.player.x, g.player.z, 'heart', 1); g.collect(); assert.equal(g.player.hp, 100); assert.equal(g.player.ward, 1);
 });
-test('three new biomes have bounded warnings, safe escape space, and existing guardian rigs', () => {
-  for (const [n, rig] of [[10,'ruins'], [13,'forge'], [16,'abyss']]) {
+test('three new biomes have bounded warnings, safe escape space, and unique guardian rigs', () => {
+  for (const [n, rig] of [[10,'briarok'], [13,'fulgra'], [16,'nivor']]) {
     const g = arena(n); g.spawnBoss(); assert.equal(g.boss.variant, rig); g.bossAttack(); g.environmentAttack();
     assert.equal(g.warnings.length, 2); assert(g.warnings.every(w => w.cells.every(c => g.tile(c.x,c.z)===0)));
     const blast = g.warnings[0].cells; assert(blast.length > 3); assert(blast.length < 30 + g.height * 2);

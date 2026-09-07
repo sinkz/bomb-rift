@@ -1,4 +1,5 @@
 import { METRIC_KEYS } from '../shared/scoring.js';
+import { aggregateExpedition, DIFFICULTIES, CAMPAIGN_STAGES } from '../shared/expedition.js';
 import { SKILLS } from '../src/skills.js';
 import { RELICS } from '../src/campaign.js';
 export class ApiError extends Error { constructor(code, status = 400) { super(code); this.status = status; } }
@@ -25,13 +26,24 @@ export function promotionInput(body) {
 }
 
 export function validateRun(input, session, now = Date.now()) {
+  if (input?.kind === 'campaign') {
+    if (session.stage !== 1 || !Object.hasOwn(DIFFICULTIES,input.difficulty) || input.difficulty !== session.difficulty || !Array.isArray(input.stages) || !input.stages.length || input.stages.length > CAMPAIGN_STAGES) fail('invalid_campaign');
+    const stages = input.stages.map((stage,i) => {
+      if (stage.kind || stage.stage !== i+1 || i < input.stages.length-1 && !stage.victory) fail('invalid_campaign');
+      return validateRun(stage,{...session,stage:i+1,campaign:true},now);
+    });
+    if (stages.at(-1).victory && stages.length !== CAMPAIGN_STAGES) fail('unfinished_campaign');
+    const result = aggregateExpedition(stages, input.difficulty);
+    if (result.seconds > (now-session.started_at)/1000+3 || result.seconds > 14400) fail('invalid_duration');
+    return result;
+  }
   if (!input || typeof input !== 'object' || Array.isArray(input)) fail('invalid_run');
   const r = structuredClone(input), m = r.metrics;
   if (r.stage !== session.stage || typeof r.victory !== 'boolean' || typeof r.bossEncountered !== 'boolean') fail('invalid_run');
   for (const key of ['seconds','bossSeconds','hp','maxHp','bosses','crystals','crates','levels']) if (!integer(r[key])) fail('invalid_run');
   if (!m || METRIC_KEYS.some(k => !integer(m[k]))) fail('invalid_run');
   if (r.seconds > 7200 || r.seconds > (now - session.started_at) / 1000 + 3 || now > session.expires_at) fail('invalid_duration');
-  if (!r.maxHp || r.hp > r.maxHp || r.bossSeconds > r.seconds || r.bosses > 1 || m.miniKills > 1 || m.revives > 1) fail('invalid_run');
+  if (!r.maxHp || r.hp > r.maxHp || r.bossSeconds > r.seconds || r.bosses > 1 || m.miniKills > 1 || m.revives > (session.campaign ? 10 : 1)) fail('invalid_run');
   if (r.victory && (r.bosses !== 1 || !r.bossEncountered || r.seconds < 120 || r.hp === 0)) fail('invalid_run');
   if (!r.victory && (r.hp !== 0 || r.bosses !== 0)) fail('invalid_run');
   if (!r.bossEncountered && (r.bossSeconds || m.bossDamage) || r.bossEncountered && r.seconds - r.bossSeconds < 119) fail('invalid_run');

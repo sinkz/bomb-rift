@@ -1,0 +1,74 @@
+[
+  {
+    "source": "mockups/refuge/assets/refuge.png",
+    "output": "src/assets/optimized/refuge.webp",
+    "oldBytes": 2336188,
+    "newBytes": 319450,
+    "savedPercent": 86.3,
+    "visiblePixelsIdentical": false,
+    "psnrDb": 37.16
+  },
+  {
+    "source": "mockups/refuge/assets/panel.png",
+    "output": "src/assets/optimized/panel.webp",
+    "oldBytes": 1177660,
+    "newBytes": 940412,
+    "savedPercent": 20.1,
+    "visiblePixelsIdentical": true,
+    "psnrDb": null
+  },
+  {
+    "source": "mockups/refuge/assets/faisca-front-back.png",
+    "output": "src/assets/optimized/faisca-front-back.webp",
+    "oldBytes": 1417631,
+    "newBytes": 1134760,
+    "savedPercent": 20,
+    "visiblePixelsIdentical": true,
+    "psnrDb": null
+  },
+  {
+    "source": "mockups/refuge/assets/faisca-sprites.png",
+    "output": "src/assets/optimized/faisca-sprites.webp",
+    "oldBytes": 1129972,
+    "newBytes": 906910,
+    "savedPercent": 19.7,
+    "visiblePixelsIdentical": true,
+    "psnrDb": null
+  },
+  {
+    "source": "mockups/refuge/assets/faisca-refuge-life.png",
+    "output": "src/assets/optimized/faisca-refuge-life.webp",
+    "oldBytes": 1282332,
+    "newBytes": 1005818,
+    "savedPercent": 21.6,
+    "visiblePixelsIdentical": true,
+    "psnrDb": null
+  },
+  {
+    "source": "public/guardian-review/briarok-portrait.png",
+    "output": "src/assets/optimized/briarok-portrait.webp",
+    "oldBytes": 1537537,
+    "newBytes": 1188690,
+    "savedPercent": 22.7,
+    "visiblePixelsIdentical": true,
+    "psnrDb": null
+  },
+  {
+    "source": "public/guardian-review/fulgra-portrait.png",
+    "output": "src/assets/optimized/fulgra-portrait.webp",
+    "oldBytes": 1218302,
+    "newBytes": 927948,
+    "savedPercent": 23.8,
+    "visiblePixelsIdentical": true,
+    "psnrDb": null
+  },
+  {
+    "source": "public/guardian-review/nivor-portrait.png",
+    "output": "src/assets/optimized/nivor-portrait.webp",
+    "oldBytes": 1711600,
+    "newBytes": 1324816,
+    "savedPercent": 22.6,
+    "visiblePixelsIdentical": true,
+    "psnrDb": null
+  }
+]

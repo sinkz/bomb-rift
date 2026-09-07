@@ -55,6 +55,9 @@ export function normalizeMeta(value = {}) {
   const v = value && typeof value === 'object' ? value : {}, meta = {};
   for (const id of ['shards', 'scrap', 'cores', 'bestRound', 'bestKills', 'runs', 'legacyXp']) meta[id] = safe(v[id]);
   meta.health = safe(v.health, 10); meta.power = safe(v.power, 5); meta.unlockedStage = Math.max(1, safe(v.unlockedStage, 100000));
+  meta.bestStage = Math.max(safe(v.bestStage), meta.unlockedStage - 1);
+  meta.difficultyClears = ['easy','medium','hard'].filter((id,i,all) => all.slice(0,i+1).every(k => Array.isArray(v.difficultyClears) && v.difficultyClears.includes(k)));
+  meta.difficulty = ['easy', ...meta.difficultyClears.map(id => ({easy:'medium',medium:'hard',hard:'hard'})[id])].includes(v.difficulty) ? v.difficulty : 'easy';
   meta.talents = Object.fromEntries(TALENTS.filter(t => !['health', 'power'].includes(t.id)).map(t => [t.id, safe(v.talents?.[t.id], t.max)]));
   meta.gear = [...new Set(['pulse', 'traveler', 'compass', ...(Array.isArray(v.gear) ? v.gear.filter(id => GEAR.some(g => g.id === id)) : [])])];
   meta.loadout = Object.fromEntries(Object.keys(SLOTS).map(slot => [slot, GEAR.find(g => g.id === v.loadout?.[slot] && g.slot === slot && meta.gear.includes(g.id))?.id || GEAR.find(g => g.slot === slot).id]));
@@ -100,7 +103,7 @@ export function useOutfit(meta, id) {
   if (!meta.outfits.includes(id)) { if (!pay(meta, o.cost)) return false; meta.outfits.push(id); }
   meta.outfit = id; return true;
 }
-export const contractProgress = (meta, c) => c.stat === 'stages' ? Math.max(0, meta.unlockedStage - 1) : meta.totals[c.stat];
+export const contractProgress = (meta, c) => c.stat === 'stages' ? Math.max(0, meta.bestStage || 0, meta.unlockedStage - 1) : meta.totals[c.stat];
 export function claimContract(meta, id) {
   const c = CONTRACTS.find(c => c.id === id);
   if (!c || meta.contracts.includes(id) || contractProgress(meta, c) < c.goal) return false;

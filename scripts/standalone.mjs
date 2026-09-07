@@ -11,7 +11,7 @@ if (!scriptMatch || !styleMatch) throw new Error('Bundle Vite não encontrado. E
 const asset = name => join(dist, name.replace(/^\//, ''));
 let script = await readFile(asset(scriptMatch[1]), 'utf8');
 let style = await readFile(asset(styleMatch[1]), 'utf8');
-const mimeTypes = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.avif': 'image/avif', '.mp3': 'audio/mpeg' };
+const mimeTypes = { '.glb': 'model/gltf-binary', '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.avif': 'image/avif', '.mp3': 'audio/mpeg' };
 const dataUri = async url => {
   const mime = mimeTypes[extname(url)];
   if (!mime) throw new Error(`Tipo de asset offline não suportado: ${url}`);
@@ -29,6 +29,7 @@ for (const filename of await readdir(join(dist, 'assets'))) {
 }
 html = html.replace(scriptMatch[0], () => `<script type="module">${script.replace(/<\/script/gi, '<\\/script')}</script>`);
 html = html.replace(styleMatch[0], () => `<style>${style}</style>`);
+html = html.replace(/<link\b[^>]*rel="preload"[^>]*>/g, '');
 const favicon = await readFile(join(root, 'public', 'favicon.svg'), 'base64');
 html = html.replace('href="/favicon.svg"', `href="data:image/svg+xml;base64,${favicon}"`);
 await mkdir(join(root, 'standalone'), { recursive: true });

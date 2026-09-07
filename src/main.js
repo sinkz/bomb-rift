@@ -1,3 +1,5 @@
+import { lifeShop } from './expedition-ui.js';
+import { SCORE_VERSION } from '../shared/scoring.js';
 import { masteryProgress } from './skills.js';
 import './mastery.css';
 import { pixelIcon, applyPixelIcons, portraitArt } from './pixel-art.js';
@@ -33,6 +35,7 @@ import './juice.css';
 import './refuge.css';
 import './i18n.css';
 import './pixel-interface.css';
+import './expedition.css';
 
 const ICONS = { Bomb, Flame, Expand, Heart, Wind, Magnet, Timer, Zap, HeartPulse, Droplets, ArrowUpRight, ArrowRight, ChevronRight, Gem, Skull, Trophy, Swords, Shield, LockKeyhole, Plus, Volume2, VolumeX, Maximize, Minimize, Settings2, Pause, Play, X, RotateCcw, BookOpen, Sparkles, CircleHelp, MoveUp, MoveDown, MoveLeft, MoveRight, Check, Target, Infinity: InfinityIcon, Crosshair, Sprout };
 const icon = pixelIcon;
@@ -40,9 +43,11 @@ const icons = () => { createIcons({ icons: ICONS, attrs: { 'stroke-width': 1.7 }
 const $ = s => document.querySelector(s);
 let meta;
 try { meta = normalizeMeta(JSON.parse(localStorage.getItem('bomb-rift-v1') || '{}')); } catch { meta = normalizeMeta(); }
-const game = new Game({ meta }); const sound = new Sound({ refugeTracks: REFUGE_TRACKS }); const keys = new Set();
+const game = new Game({ meta, campaignMode: true }); const sound = new Sound({ refugeTracks: REFUGE_TRACKS }); const keys = new Set();
 let rankingStorage; try { rankingStorage = localStorage; } catch {}
 const ranking = new LocalRanking(rankingStorage); let lastRunScore = null;
+// Stage-only records remain stored under the old key; campaign scores have their own season.
+ranking.records = ranking.records.filter(row => row.version === SCORE_VERSION && row.report?.kind === 'campaign');
 const globalRanking = new GlobalRanking();
 let scene, fatal = false, modalType = null, returnFocus = null, saveWarning = false;
 let highQuality = true, reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -86,6 +91,7 @@ const atlas = new Atlas(game, { icon, icons, bossSources });
 const launch = new LaunchScreen(game, atlas, ranking, { icon, icons, avatar }); launch.show();
 launch.globalRanking = globalRanking;
 globalRanking.init().then(() => launch.refreshGlobal());
+document.addEventListener('difficulty-change', () => { saveMeta(); updateHud(); });
 document.addEventListener('guardian-taunt', () => { sound.init(); sound.play('boss'); });
 document.body.classList.toggle('reduced-motion', reducedMotion);
 insertHTML(document.body, 'beforeend', '<div class="relic-notice" id="relic-notice" role="status"></div>');
@@ -94,7 +100,7 @@ icons();
 function saveMeta() { try { localStorage.setItem('bomb-rift-v1', JSON.stringify(meta)); } catch { saveWarning = true; toast('O navegador não permitiu salvar a evolução. Ela continuará disponível nesta sessão.'); } }
 function toast(text) { setText($('#toast'), text); $('#toast').classList.add('visible'); clearTimeout(toast.timer); toast.timer = setTimeout(() => $('#toast').classList.remove('visible'), 3300); }
 function announce(text, kind = '') { hud.notice(text, '', kind === 'danger' ? '#ff8e9c' : '#ffd39b'); }
-function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); globalRanking.finish(lastRunScore); saveMeta(); } }
+function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); if (lastRunScore) globalRanking.finish(lastRunScore); saveMeta(); } }
 function scoreCard() { return lastRunScore ? `<div class="score-result"><div>${lastRunScore.place ? `${String(lastRunScore.place).padStart(2, '0')}º NO SEU RANKING` : 'RESULTADO DA EXPEDIÇÃO'}<small>${ranking.saved ? 'Salvo neste navegador' : 'Válido nesta sessão'} · abates, coleta e conquista</small></div><strong>${lastRunScore.score.toLocaleString(localeTag())} <small>PTS</small></strong></div>` : ''; }
 function legacyResultCard() {
   const result = game.result?.legacy; if (!result) return '';
@@ -109,13 +115,14 @@ function modal(type, content, { wide = false, closable = true } = {}) {
   keys.clear(); modalType = type;
   setHTML($('#modal-root'), `<section class="modal modal-${type} ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${closable ? `<button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('X')}</button>` : ''}${content}</section>`);
   $('#modal-root').classList.remove('hidden'); icons(); $('#modal-root button:not(:disabled)')?.focus();
-  if (type === 'dead' || type === 'intermission') mountPublication($('#result-publication'), lastRunScore, globalRanking);
+  if (lastRunScore && (type === 'dead' || type === 'intermission')) mountPublication($('#result-publication'), lastRunScore, globalRanking);
 }
 function resume() { closeModal(); if (game.phase === 'paused') game.pause(); updateHud(); }
 function start() {
   if (fatal) return;
-  if (!game.start(atlas.selected)) return;
-  globalRanking.begin(game.round);
+  const fresh = !game.expedition || game.expedition.ended;
+  if (!game.start(fresh ? 1 : atlas.selected)) return;
+  if (fresh) globalRanking.begin(1, game.difficulty);
   clearTimeout(toast.timer); $('#toast').classList.remove('visible');
   closeModal(); sound.init(); launch.hide(); atlas.hide(); keys.clear(); scene.preview?.clear(); lastRunScore = null;
   $('#start-banner').classList.add('hidden'); $('#in-game-bottom').classList.remove('hidden');
@@ -124,7 +131,7 @@ function start() {
 }
 function returnToMap() {
   claimRun(); closeModal(); keys.clear(); touchMove = null; launch.hide();
-  game.returnToMap(); atlas.show(Math.max(game.round, meta.unlockedStage || 1));
+  game.returnToMap(); atlas.show(meta.unlockedStage || 1);
   $('#mobile-controls').classList.remove('running'); $('#relic-notice').classList.remove('visible'); updateBuild(); updateHud();
 }
 function showRelic(id) {
@@ -132,7 +139,7 @@ function showRelic(id) {
 }
 function pauseForModal() { if (game.active) game.pause(); }
 function showPause() {
-  modal('pause', `<div class="modal-emblem">${icon('Pause')}</div><span class="eyebrow orange">RESPIRE. O CAOS PODE ESPERAR.</span><h2 id="modal-title">Pavio em pausa.</h2><p>A sua expedição está exatamente onde você deixou.</p><button class="primary-button full-width" data-action="resume">Continuar expedição ${icon('Play')}</button><button class="text-button" data-action="guide">Relembrar os controles</button><button class="text-button" data-action="abandon">Encerrar esta fase e voltar ao atlas</button>`, { closable: true });
+  modal('pause', `<div class="modal-emblem">${icon('Pause')}</div><span class="eyebrow orange">RESPIRE. O CAOS PODE ESPERAR.</span><h2 id="modal-title">Pavio em pausa.</h2><p>A sua expedição está exatamente onde você deixou.</p><button class="primary-button full-width" data-action="resume">Continuar expedição ${icon('Play')}</button>${lifeShop(game)}<button class="text-button" data-action="guide">Relembrar os controles</button><button class="text-button" data-action="abandon">Encerrar tentativa e ver pontuação</button>`, { closable: true });
 }
 function showGuide() {
   pauseForModal();
@@ -144,10 +151,10 @@ function showUpgrade() {
 function showBuild() {
   pauseForModal();
   const entries = SKILLS.filter(s => game.skillLevels[s.id]);
-  modal('build', `<span class="eyebrow orange">ARSENAL DA FASE ${game.round} · NÍVEL ${game.level}</span><h2 id="modal-title">Seu tipo de caos.</h2><div class="build-summary"><span>${icon('Flame')} ${game.player.damage} DANO</span><span>${icon('Expand')} ${game.player.range} ALCANCE</span><span>${icon('Bomb')} ${game.player.capacity} BOMBAS</span></div><div class="relic-codex">${game.relics.map(id => { const r = relicById(id); return `<div class="relic-entry" style="--skill-color:${r.color}">${skillArt('relic-' + r.id)}<div><h3>${r.name}${id === 'phoenix' && !game.player.revive ? ' · consumida' : ''}</h3><p>${r.desc}</p></div></div>`; }).join('')}</div><div class="equipped-skills">${entries.length ? entries.map(s => `<div class="equipped-skill" style="--skill-color:${s.color}">${skillArt(s.id)}<div><small>${s.branch} · NV. ${game.skillLevels[s.id]}</small><h3>${s.name}</h3><p>${s.desc}</p>${masteryProgress(game,s.id)}</div></div>`).join('') : '<p>Suba de nível ou colete cristais para forjar habilidades. Destrua o baú dourado e vença minichefes para encontrar relíquias.</p>'}</div><p class="small-note">Esta build dura só esta fase. Suas melhorias permanentes continuam na próxima.</p><button class="primary-button full-width" data-action="close-modal">Voltar ao combate ${icon('Swords')}</button>`, { wide: true });
+  modal('build', `<span class="eyebrow orange">ARSENAL DA FASE ${game.round} · NÍVEL ${game.level}</span><h2 id="modal-title">Seu tipo de caos.</h2>${lifeShop(game)}<div class="build-summary"><span>${icon('Flame')} ${game.player.damage} DANO</span><span>${icon('Expand')} ${game.player.range} ALCANCE</span><span>${icon('Bomb')} ${game.player.capacity} BOMBAS</span></div><div class="relic-codex">${game.relics.map(id => { const r = relicById(id); return `<div class="relic-entry" style="--skill-color:${r.color}">${skillArt('relic-' + r.id)}<div><h3>${r.name}${id === 'phoenix' && !game.player.revive ? ' · consumida' : ''}</h3><p>${r.desc}</p></div></div>`; }).join('')}</div><div class="equipped-skills">${entries.length ? entries.map(s => `<div class="equipped-skill" style="--skill-color:${s.color}">${skillArt(s.id)}<div><small>${s.branch} · NV. ${game.skillLevels[s.id]}</small><h3>${s.name}</h3><p>${s.desc}</p>${masteryProgress(game,s.id)}</div></div>`).join('') : '<p>Suba de nível ou colete cristais para forjar habilidades. Destrua o baú dourado e vença minichefes para encontrar relíquias.</p>'}</div><p class="small-note">Esta build dura só esta fase. Suas melhorias permanentes continuam na próxima.</p><button class="primary-button full-width" data-action="close-modal">Voltar ao combate ${icon('Swords')}</button>`, { wide: true });
 }
 function showIntermission() {
-  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU. SEU LEGADO CRESCE.</span><h2 id="modal-title">${game.round % CAMPAIGN_LENGTH === 0 ? 'O infinito se abre.' : game.stage.local === 3 ? 'Um mundo conquistado.' : 'Uma fenda a menos.'}</h2><p>${game.stage.name} concluída. ${game.round % CAMPAIGN_LENGTH === 0 ? 'Uma nova ascensão foi desbloqueada. Os seis mundos retornam com inimigos mais fortes.' : `A fase ${game.round + 1} está disponível no atlas.`}</p><div class="results-row"><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>${game.relics.length}</strong><span>RELÍQUIAS ENCONTRADAS</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS SALVAS</span></div></div><p class="victory-map-note">Sua build cumpriu seu destino. <b>Skills, relíquias e cristais reiniciam na próxima fase.</b> Suas essências e evoluções permanentes continuam com você.</p><button class="primary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowUpRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
+  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU.</span><h2 id="modal-title">Uma fenda a menos.</h2><p>${game.stage.name}</p><div class="campaign-score-note"><b>${formatNumber(game.expeditionScore)} PTS · ${game.challenge.label}</b><br><span>Pontuação acumulada da tentativa. O ranking abre no game over ou após concluir as 18 fases.</span></div>${legacyResultCard()}${lifeShop(game)}<p class="victory-map-note">Skills, relíquias e cristais reiniciam na próxima fase. Vidas extras e pontos continuam nesta tentativa.</p><button class="primary-button full-width" data-action="world-map">Continuar no atlas ${icon('ArrowRight')}</button><button class="secondary-button full-width" data-action="home">Voltar ao refúgio</button>`, { closable: false });
 }
 function showDead() {
   modal('dead', `<div class="modal-emblem">${icon('Skull')}</div><span class="eyebrow orange">TODA LENDA COMEÇA COM ALGUMAS EXPLOSÕES.</span><h2 id="modal-title">O pavio apagou.<br><span>A faísca continua.</span></h2><p>Sua build ficou na fenda. As essências e as evoluções permanentes vieram com você.</p><div class="results-row"><div><strong>${String(game.round).padStart(2, '0')}</strong><span>RODADA</span></div><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS</span></div></div><button class="primary-button full-width" data-action="start">Mais uma expedição ${icon('RotateCcw')}</button><button class="secondary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
@@ -158,7 +165,7 @@ function showMeta() {
   const scroll = sameTab ? previous.scrollTop : 0, modalScroll = sameTab ? document.querySelector('.modal-meta')?.scrollTop || 0 : 0;
   const focused = document.activeElement, key = ['talent','gear','outfit','contract','refugeTab','refugeSlot'].find(k => focused?.dataset?.[k]);
   const selector = key ? `[data-${key.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${focused.dataset[key]}"]` : null;
-  modal('meta', refuge.html(), { wide: true });
+  modal('meta', refuge.html() + lifeShop(game), { wide: true });
   if (previous) { document.querySelector('.modal-meta').style.animation = 'none'; document.querySelector('.refuge-content').scrollTop = scroll; document.querySelector('.modal-meta').scrollTop = modalScroll; }
   const nextFocus = selector && document.querySelector(`#modal-root ${selector}`);
   if (nextFocus && !nextFocus.disabled) nextFocus.focus({ preventScroll: true });
@@ -218,6 +225,7 @@ function handleEvents() {
     if (event.type === 'miniboss') announce('SENTINELA DA FENDA · RELÍQUIA GARANTIDA', 'danger');
     if (event.type === 'miniDefeated') announce('SENTINELA DERROTADO · COLETE A RELÍQUIA');
     if (event.type === 'relic') { showRelic(event.id); sound.play('skill'); }
+    if (event.type === 'extraLife') { announce('VIDA EXTRA · MAIS UMA CHANCE'); sound.play('skill'); }
     if (event.type === 'revive') { announce('ÚLTIMA FAÍSCA · VOCÊ RENASCEU'); sound.play('skill'); }
     if (event.type === 'hurt') { $('.arena-card').classList.add('hit'); setTimeout(() => $('.arena-card').classList.remove('hit'), 230); }
     if (event.type === 'dead') {
@@ -230,6 +238,7 @@ function handleEvents() {
 
 const actions = {
   start,
+  'buy-life'() { if (game.buyLife()) { if (modalType === 'meta') showMeta(); else if (modalType === 'intermission') showIntermission(); else if (modalType === 'build') showBuild(); else showPause(); } },
   atlas() { launch.hide(); atlas.show(); },
   workshop() { refuge.tab = 'talents'; showMeta(); },
   shop() { refuge.tab = 'gear'; showMeta(); },
@@ -239,7 +248,7 @@ const actions = {
   taunt() { atlas.bossPreview?.taunt(); sound.play('boss'); },
   music() { const wasReady = !!sound.ctx; sound.init(); if (wasReady) sound.musicEnabled = !sound.musicEnabled; sound.save(); },
   'world-map': returnToMap,
-  abandon() { game.die(); handleEvents(); returnToMap(); },
+  abandon() { game.die(); handleEvents(); },
   explore() { if (modalType === 'upgrade' || modalType === 'intermission') return; if (game.phase === 'dead') showDead(); else resume(); },
   guide: showGuide, settings: showSettings, meta: showMeta, build: showBuild,
   'zoom-in'() { scene?.adjustZoom(.12); },
@@ -363,4 +372,4 @@ requestAnimationFrame(frame);
 // Read-only diagnostics for browser verification; no gameplay shortcuts are shipped.
 window.bombRiftBosses = () => ({ status: scene?.bossStatus, preview: atlas.bossPreview?.inspect(), playerOriginal: !scene?.playerMesh.userData.actor, active: scene ? [...scene.objects.values()].filter(o => o.userData.actor).map(o => o.userData.actor.key) : [] });
 window.bombRiftAudio = () => sound.inspect();
-window.bombRift = { snapshot: () => ({ phase: game.phase, round: game.round, stage: game.stage, selectedStage: atlas.selected, intelligence: game.intelligence, relics: [...game.relics], materials: { ...game.materials }, cratesBroken: game.cratesBroken, elapsed: game.elapsed, totalTime: game.totalTime, player: { ...game.player }, kills: game.kills, crystals: game.crystals, level: game.level, bombs: game.bombs.map(b => ({ ...b })), enemyCount: game.enemies.length, enemyIntents: game.enemies.map(e => ({ id: e.id, type: e.type, intent: e.intent, x: e.x, z: e.z })), boss: game.boss ? { ...game.boss } : null, skillLevels: { ...game.skillLevels }, meta: { ...meta }, camera: scene ? { span: scene.cameraSpan, zoom: scene.zoom, targetSpan: scene.targetSpan } : null, renderer: scene ? { calls: scene.renderer.info.render.calls, triangles: scene.renderer.info.render.triangles } : null, fatal }) };
+window.bombRift = { snapshot: () => ({ phase: game.phase, difficulty: game.difficulty, lives: game.lives, expeditionScore: game.expeditionScore, expeditionEnded: game.expedition?.ended, round: game.round, stage: game.stage, selectedStage: atlas.selected, intelligence: game.intelligence, relics: [...game.relics], materials: { ...game.materials }, cratesBroken: game.cratesBroken, elapsed: game.elapsed, totalTime: game.totalTime, player: { ...game.player }, kills: game.kills, crystals: game.crystals, level: game.level, bombs: game.bombs.map(b => ({ ...b })), enemyCount: game.enemies.length, enemyIntents: game.enemies.map(e => ({ id: e.id, type: e.type, intent: e.intent, x: e.x, z: e.z })), boss: game.boss ? { ...game.boss } : null, skillLevels: { ...game.skillLevels }, meta: { ...meta }, camera: scene ? { span: scene.cameraSpan, zoom: scene.zoom, targetSpan: scene.targetSpan } : null, renderer: scene ? { calls: scene.renderer.info.render.calls, triangles: scene.renderer.info.render.triangles } : null, fatal }) };

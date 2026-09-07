@@ -1,0 +1,20 @@
+/* The dialog itself owns scrolling, including when a mobile keyboard opens. */
+.modal-root{padding:12px;min-height:0}
+.modal.modal-dead,.modal.modal-intermission,.modal.modal-ranking{max-height:calc(100dvh - 24px);min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#b692b7 #201627}
+.modal:has(.life-shop){max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain}
+.result-columns>*{min-width:0}.result-publication,.publish-form,.publish-form label{min-width:0;max-width:100%}
+.publish-form input,.publish-form textarea{box-sizing:border-box;min-width:0;font-size:16px}
+.publish-form .primary-button{white-space:normal;line-height:1.6;height:auto;min-height:48px;padding:12px;max-width:100%}
+.publication-preview{overflow-wrap:anywhere}.result-actions{flex-shrink:0}
+.life-shop{border:2px solid #68506f;background:#21192d;padding:14px;display:grid;gap:12px;margin:18px 0;text-align:left}
+.life-shop>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.life-shop .pixel-icon{width:26px;height:26px}.life-shop b{color:#b2f2c7}.life-shop small{font-size:11px!important;line-height:1.6;color:#cab5d0}.life-shop>div>small{flex-basis:100%}
+.life-shop button{justify-content:center;white-space:normal}.difficulty-picker{padding:14px 18px;border-bottom:2px solid #695174;background:#191421}
+.difficulty-picker>div:first-child{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}.difficulty-picker b{font-size:12px;color:#f8dc9f}.difficulty-picker small,.difficulty-picker p{font-size:11px;color:#c4aecb;line-height:1.6}
+.difficulty-picker p{margin:8px 0 0}.difficulty-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.difficulty-options button{border:2px solid #5b4269;background:#22182e;padding:10px;color:#d8c5df;text-align:left;display:grid;gap:5px;cursor:pointer}.difficulty-options button[aria-pressed=true]{border-color:#f3cd8e;background:#4b3445;opacity:1}.difficulty-options button:disabled{cursor:default;opacity:.55}.difficulty-options button[aria-pressed=true]:disabled{opacity:1}.difficulty-options b{display:flex;gap:6px;align-items:center}.difficulty-options span{font-size:10px}.difficulty-options .pixel-icon{width:16px;height:16px}
+.attempt-progress{padding:10px 18px;color:#f6d999;font-size:12px;border-bottom:1px solid #5b4269;display:flex;justify-content:space-between;gap:10px}
+.combat-lives{display:inline-flex;gap:6px;align-items:center;color:#b2f2c7;font:12px Oxanium;line-height:1.5;margin-top:4px;background:#191323e8;padding:3px 7px;border:1px solid #665075;pointer-events:auto;cursor:pointer}.combat-lives .pixel-icon{width:18px;height:18px}.combat-lives small{color:#f4d38c}
+.hero-hud .hero-vitals{position:relative}.hero-hud #combat-hp-state{display:none}.hero-hud .combat-lives{position:absolute;right:0;top:0;height:18px;min-height:0;font-size:10px;line-height:1;margin:0;padding:0 3px;gap:4px}.hero-hud .combat-lives .pixel-icon{width:14px;height:14px}
+.campaign-score-note{padding:14px;border:2px solid #795b7f;background:#21172d;color:#f5d59f;font-size:13px;line-height:1.7}
+@media(max-width:700px){.difficulty-picker{padding:12px}.difficulty-options{gap:6px}.difficulty-options button{padding:8px 5px}.difficulty-options span{font-size:9px}.difficulty-options small{font-size:10px}.attempt-progress{font-size:10px;padding:10px}.run-metric{min-width:0;grid-template-columns:18px minmax(0,1fr) auto}.combat-lives{font-size:10px}.result-trophy{display:block}.result-heading h2{font-size:22px}.modal.modal-dead,.modal.modal-intermission,.modal.modal-ranking{width:100%;max-width:100%}.result-actions .primary-button{white-space:normal}}
+@media(max-width:700px){.hero-hud .combat-lives{font-size:8px;height:13px;gap:3px}.hero-hud .combat-lives .pixel-icon{width:11px;height:11px}.hero-hud .combat-lives small{display:none}}

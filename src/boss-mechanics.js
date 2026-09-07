@@ -4,11 +4,11 @@ export const ARENA_RITES = {
   forge: { name: 'A FORNALHA SE ABRE', hint: 'Saia da faixa laranja. Exploda as válvulas para resfriar Vulkar!', color: '#ffac68', shape: 'row' },
   abyss: { name: 'O HORIZONTE SE PARTE', hint: 'Nyxara muda de posição. Exploda os espelhos e interrompa a rainha!', color: '#75e8eb', shape: 'diagonal', teleport: true },
   garden: { name: 'RAÍZES SOB A PEDRA', hint: 'As raízes rompem os pilares. Destrua os bulbos luminosos!', color: '#b3eb8d', shape: 'pillars' },
-  storm: { name: 'SOBRECARGA DO NÚCLEO', hint: 'Saia do circuito amarelo. Destrua os condutores para parar Vulkar!', color: '#ffe085', shape: 'column' },
+  storm: { name: 'SOBRECARGA DO NÚCLEO', hint: 'Saia do circuito amarelo. Destrua os condutores para parar Fulgra!', color: '#ffe085', shape: 'column' },
   frost: { name: 'O INVERNO SE ESTILHAÇA', hint: 'O gelo abre uma diagonal. Destrua os cristais e quebre a coroa!', color: '#a3dfff', shape: 'diagonal' },
 };
 
-export function queueArenaRite(game) {
+export function queueArenaRite(game, { entrance = false } = {}) {
   if (!game.boss || game.warnings.some(w => w.rite)) return false;
   const rite = ARENA_RITES[game.biome.id], b = game.boss, candidates = [];
   const cx = Math.floor(game.width / 2), cz = Math.floor(game.height / 2);
@@ -19,12 +19,27 @@ export function queueArenaRite(game) {
   }
   if (rite.shape === 'pillars') candidates.sort((a,c) => Math.abs(a.x-b.x)+Math.abs(a.z-b.z)-Math.abs(c.x-b.x)-Math.abs(c.z-b.z));
   const cells = candidates.slice(0, rite.shape === 'pillars' ? 4 : 10);
+  if (entrance) {
+    // Cut a connected escape/chase route through remaining crates and pillars.
+    let x=b.x,z=b.z;
+    while(x!==game.player.x || z!==game.player.z) {
+      if(x!==game.player.x)x+=Math.sign(game.player.x-x);else z+=Math.sign(game.player.z-z);
+      if(!cells.some(c=>c.x===x&&c.z===z))cells.push({x,z});
+    }
+  }
+  if (!cells.length && rite.shape === 'pillars') {
+    for(const dx of [-2,2])for(const dz of [-2,2]) {
+      const x=b.x+dx,z=b.z+dz;
+      if(x>0&&z>0&&x<game.width-1&&z<game.height-1)cells.push({x,z});
+    }
+  }
   if (!cells.length) return false;
   const duration = game.round <= 3 ? 2.4 : 2;
-  game.warnings.push({ id: game.nextId++, cells, duration, timer: duration, rite: game.biome.id, color: rite.color, damage: ['forge','storm'].includes(game.biome.id) ? 18 : 0 });
+  game.warnings.push({ id: game.nextId++, bossId:b.id, cells, duration, timer: duration, rite: game.biome.id, color: rite.color, damage: !entrance && ['forge','storm'].includes(game.biome.id) ? 18 : 0 });
+  b.castTimer=duration; b.intent='cast'; b.castTarget={x:game.player.x,z:game.player.z};
   b.cooldown = Math.max(b.cooldown, duration + .6);
-  b.attackCooldown = Math.max(b.attackCooldown, duration + 2);
-  game.emit('warning', { cells, duration, name: rite.name });
+  b.attackCooldown = 1.2;
+  game.emit('warning', { id:b.id, cells, duration, name: rite.name });
   game.emit('arenaRite', { ...rite, cells });
   return true;
 }

@@ -6,15 +6,15 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { BossLibrary } from '../src/boss-models.js';
 import { ArenaScene } from '../src/scene.js';
 
-const names = ['morthos', 'vulkar', 'nyxara'];
+const names = ['morthos', 'vulkar', 'nyxara', 'briarok', 'fulgra', 'nivor'];
 const models = new Map(await Promise.all(names.map(async (name, i) => {
-  const b = await readFile(new URL(`../src/assets/characters/0${i + 7}-${name}.glb`, import.meta.url));
+  const b = await readFile(new URL(`../public/guardian-review/${name}-manual-${name === 'morthos' ? 'v2' : 'v1'}.glb`, import.meta.url));
   return [name, await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '')];
 })));
 const library = new BossLibrary(models);
 const advance = (actor, seconds, options = {}) => { for (let t = 0; t < seconds - 1e-7; t += 1 / 120) actor.update(Math.min(1 / 120, seconds - t), options); };
 
-test('only the three bosses use Blender models; hero, enemies and miniboss stay procedural', () => {
+test('only the six bosses use Blender models; hero, enemies and miniboss stay procedural', () => {
   const factory = { bossModels: library, enemyModels: new Map(), mergeModel: ArenaScene.prototype.mergeModel };
   const player = ArenaScene.prototype.makePlayer.call(factory);
   assert(!player.userData.actor); assert(player.children.every(o => !o.isSkinnedMesh));
@@ -22,7 +22,7 @@ test('only the three bosses use Blender models; hero, enemies and miniboss stay 
     const enemy = ArenaScene.prototype.makeEnemy.call(factory, type);
     assert(!enemy.userData.actor, type); assert(enemy.children.every(o => !o.isSkinnedMesh));
   }
-  for (const [world, key] of [['ruins', 'morthos'], ['forge', 'vulkar'], ['abyss', 'nyxara']]) {
+  for (const [world, key] of [['ruins', 'morthos'], ['forge', 'vulkar'], ['abyss', 'nyxara'], ['garden', 'briarok'], ['storm', 'fulgra'], ['frost', 'nivor']]) {
     const boss = ArenaScene.prototype.makeEnemy.call(factory, 'boss', world);
     assert.equal(boss.userData.actor.key, key); boss.userData.actor.dispose();
   }
@@ -45,7 +45,7 @@ test('all bosses fit the arena and release attacks at the existing warning expir
     assert(bounds.max.y <= actor.definition.height + .001); assert(bounds.min.y >= -.025);
     actor.prepare(duration); assert.equal(actor.play('Hit', { priority: 60 }), false);
     advance(actor, duration); assert.equal(actor.current.getClip().name, actor.definition.attack);
-    assert(Math.abs(actor.current.time - .125) <= 1 / 60); actor.dispose();
+    assert(Math.abs(actor.current.time / actor.current.getEffectiveTimeScale() - .125) <= 1 / 60); actor.dispose();
   }
 });
 
@@ -55,5 +55,5 @@ test('pause holds the animation and a defeated boss plays its death outside the 
   const view = { objects: new Map([[7, actor.root]]), game: { boss: null }, retiredBoss: null };
   ArenaScene.prototype.animateBoss.call(view, { type: 'bossDefeated', id: 7 });
   assert.equal(view.objects.size, 0); assert.equal(view.retiredBoss, actor.root);
-  advance(actor, 2); assert.equal(actor.current.getClip().name, 'Death'); assert(actor.current.paused); actor.dispose();
+  advance(actor, actor.clips.get('Death').duration + .1); assert.equal(actor.current.getClip().name, 'Death'); assert(actor.current.paused); actor.dispose();
 });

@@ -1,0 +1,24 @@
+// Local UI fixture only. No network requests and no public scores.
+import '@fontsource/oxanium/latin-500.css';
+import '@fontsource/silkscreen/latin-400.css';
+import '../../src/style.css';
+import '../../src/ranking-view.css';
+import '../../src/pixel-interface.css';
+import '../../src/expedition.css';
+import { Game,seededRandom } from '../../src/game.js';
+import { LocalRanking } from '../../src/ranking.js';
+import { resultMarkup,mountPublication } from '../../src/ranking-view.js';
+import { setHTML,setLocale } from '../../src/i18n.js';
+const game=new Game({campaignMode:true,random:seededRandom(9)});
+game.start();game.totalTime=130;game.elapsed=120;game.spawnBoss();
+game.stats.damageDealt=85;game.stats.bossDamage=12;game.stats.normalKills=15;game.stats.bombsPlaced=24;game.stats.bombsExploded=23;game.stats.damageTaken=100;game.stats.hitsTaken=6;
+game.skillLevels={power:5,range:2,capacity:3,magnet:2};game.masteries=['power'];game.stats.choices=12;game.crystals=30;game.collected=45;game.level=7;game.cratesBroken=14;
+game.die();game.claimResult();const row=new LocalRanking().record(game);row.global={status:'ready',promise:Promise.resolve({id:'local-ui-fixture'})};
+const client={config:{},profile:{},async publish(){row.global.status='published';}};
+setLocale(new URLSearchParams(location.search).get('lang')==='en'?'en':'pt-BR');
+setHTML(document.querySelector('.modal'),resultMarkup(row,game));
+await mountPublication(document.querySelector('#result-publication'),row,client);
+document.querySelector('[data-action="start"]').addEventListener('click',()=>location.reload());
+const modal=document.querySelector('.modal');
+const checks=()=>{const bounds=modal.getBoundingClientRect();return {viewport:[innerWidth,innerHeight],modal:[bounds.top,bounds.bottom],scrollable:modal.scrollHeight>modal.clientHeight,horizontalOverflow:modal.scrollWidth>modal.clientWidth,documentOverflow:document.documentElement.scrollWidth>innerWidth};};
+window.rankingLayout=checks;

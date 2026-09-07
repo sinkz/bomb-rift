@@ -9,4 +9,11 @@ bomb-rift-cloudflare.zip
 .npm-cache/
 .wrangler-logs/
 .dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.public-audit.mjs
 public/guardian-review/*.blend1

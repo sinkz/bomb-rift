@@ -13,7 +13,7 @@ export class GameHud {
     insertHTML(document.querySelector('.arena-card'), 'beforeend', `
       <div class="combat-shade"></div><div class="hurt-vignette"></div>
       <div class="combat-hud">
-        <div class="hero-hud"><div class="hero-portrait"><span class="hero-face">${face}</span><b id="combat-level">1</b></div><div class="hero-vitals"><div class="hero-heading"><strong>FAÍSCA</strong><span id="combat-hp-state">VITALIDADE</span></div><div class="life-readout">${icon('Heart')}<strong id="combat-hp">100</strong><span id="combat-maxhp">/ 100</span></div><div class="life-gauge" role="progressbar" aria-label="Vida do personagem" aria-valuemin="0" id="combat-life-gauge"><span class="life-ghost" id="combat-life-ghost"></span><span id="combat-life"></span><div class="life-notches"></div></div><div class="combat-xp"><span id="combat-xp-fill"></span></div><div class="hero-subline"><span id="combat-xp-text">0 / 36 XP</span><span id="combat-status">EXPLORADOR DA FENDA</span></div></div></div>
+        <div class="hero-hud"><div class="hero-portrait"><span class="hero-face">${face}</span><b id="combat-level">1</b></div><div class="hero-vitals"><div class="hero-heading"><strong>FAÍSCA</strong><span id="combat-hp-state">VITALIDADE</span></div><div class="life-readout">${icon('Heart')}<strong id="combat-hp">100</strong><span id="combat-maxhp">/ 100</span></div><div class="life-gauge" role="progressbar" aria-label="Vida do personagem" aria-valuemin="0" id="combat-life-gauge"><span class="life-ghost" id="combat-life-ghost"></span><span id="combat-life"></span><div class="life-notches"></div></div><div class="combat-xp"><span id="combat-xp-fill"></span></div><div class="hero-subline"><span id="combat-xp-text">0 / 36 XP</span><span id="combat-status">EXPLORADOR DA FENDA</span></div><button class="combat-lives" data-action="build" aria-label="Vidas e compra de vida extra">${icon('HeartPulse')}<b id="combat-lives">1</b><span>VIDAS</span><small id="combat-difficulty">Easy</small></button></div></div>
         <div class="loot-hud"><div class="loot-token crystals">${icon('Gem')}<b id="combat-crystals">0</b><span>CRISTAIS</span></div><div class="loot-token">${icon('Skull')}<b id="combat-kills">0</b><span>ABATES</span></div></div>
         <div class="combat-location"><span id="combat-round">01</span><div><small id="combat-objective">SOBREVIVA À HORDA</small><strong id="combat-biome">RUÍNAS DO CREPÚSCULO</strong></div></div>
         <div class="combo-hud" id="combo-hud"><strong id="combat-combo">2×</strong><span>CAOS EM CADEIA</span><div><span id="combo-fill"></span></div></div>
@@ -40,9 +40,10 @@ export class GameHud {
     setText(document.querySelector('#boss-title'), g.biome.title.toUpperCase());
     setText(document.querySelector('#boss-phase'), g.boss?.enraged ? 'II · FÚRIA' : 'I · O DESPERTAR');
     document.body.classList.toggle('low-health', fighting && p.hp > 0 && p.hp / p.maxHp <= .3);
-    const state = [g.phase, p.hp, p.maxHp, g.xp, g.level, g.crystals, g.kills, g.round, g.relics.join(','), g.bombs.length, Math.ceil(p.dashCooldown * 10), g.forgeCost, g.combo, Math.ceil(g.comboTimer * 10), g.boss?.enraged, g.materials.scrap, g.materials.cores, p.ward, p.slow > 0, p.outfit, JSON.stringify(p.equipment)].join(':');
+    const state = [g.lives, g.difficulty, g.phase, p.hp, p.maxHp, g.xp, g.level, g.crystals, g.kills, g.round, g.relics.join(','), g.bombs.length, Math.ceil(p.dashCooldown * 10), g.forgeCost, g.combo, Math.ceil(g.comboTimer * 10), g.boss?.enraged, g.materials.scrap, g.materials.cores, p.ward, p.slow > 0, p.outfit, JSON.stringify(p.equipment)].join(':');
     if (state === this.last) return; this.last = state;
     const e = this.el, ratio = Math.max(0, p.hp / p.maxHp);
+    setText(e['combat-lives'], g.lives); setText(e['combat-difficulty'], g.challenge.label);
     setText(e['combat-level'], g.level); setText(e['combat-hp'], p.hp); setText(e['combat-maxhp'], `/ ${p.maxHp}`);
     setText(e['combat-hp-state'], ratio <= .3 ? 'VIDA CRÍTICA!' : 'VITALIDADE');
     e['combat-life'].style.width = `${ratio * 100}%`; e['combat-life-ghost'].style.width = `${ratio * 100}%`;
@@ -57,7 +58,7 @@ export class GameHud {
     e['combat-ward'].hidden = !p.ward; e['combat-slow'].hidden = !p.slow;
     setText(e['combat-crystals'], g.crystals); setText(e['combat-kills'], g.kills);
     setText(e['combat-round'], String(g.round).padStart(2, '0')); setText(e['combat-biome'], g.stage.name.toUpperCase());
-    setText(e['combat-objective'], g.boss ? (g.boss.enraged ? 'GUARDIÃO EM FÚRIA' : 'DERROTE O GUARDIÃO') : 'SOBREVIVA À HORDA');
+    setText(e['combat-objective'], g.boss ? (g.boss.stagger ? 'VULNERÁVEL · ATAQUE AGORA' : g.boss.castTimer ? 'GOLPE PREPARANDO · SAIA DA MARCA' : g.boss.recovery ? 'CONTRA-ATAQUE!' : g.boss.enraged ? 'GUARDIÃO EM FÚRIA' : 'O GUARDIÃO ESTÁ TE CAÇANDO') : 'SOBREVIVA À HORDA');
     setText(e['combat-bombs'], `${p.capacity - g.bombs.length}/${p.capacity}`);
     setHTML(e['combat-bomb-pips'], Array.from({ length: p.capacity }, (_, i) => `<span class="${i < p.capacity - g.bombs.length ? 'available' : ''}"></span>`).join(''));
     setText(e['combat-dash'], p.dashCooldown > 0 ? formatNumber(p.dashCooldown, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '');

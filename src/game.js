@@ -1,12 +1,14 @@
 import { WORLDS, stageFor, RELICS, relicById } from './campaign.js';
 import { normalizeMeta, startingStats, settleLegacy } from './legacy.js';
-import { emptyMetrics } from '../shared/scoring.js';
+import { emptyMetrics, captureRun, scoreReport } from '../shared/scoring.js';
+import { DIFFICULTIES, CAMPAIGN_STAGES, aggregateExpedition, difficultyUnlocked } from '../shared/expedition.js';
 export const WIDTH = 17;
 export const HEIGHT = 15;
 export const ROUND_SECONDS = 120;
 export const BIOMES = WORLDS;
 import { SKILLS, skillById } from './skills.js';
 import { queueArenaRite, resolveArenaRite } from './boss-mechanics.js';
+import { updateBossAI } from './boss-ai.js';
 export { SKILLS };
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
@@ -15,9 +17,13 @@ export function seededRandom(seed) {
 }
 
 export class Game {
-  constructor({ random = Math.random, meta = {} } = {}) {
+  constructor({ random = Math.random, meta = {}, campaignMode = false } = {}) {
     this.random = random;
     this.meta = Object.assign(meta, normalizeMeta(meta));
+    this.campaignMode = campaignMode;
+    this.difficulty = campaignMode ? this.meta.difficulty : 'easy';
+    this.expedition = null;
+    if (campaignMode) this.meta.unlockedStage = 1;
     this.events = [];
     this.nextId = 1;
     this.phase = 'menu';
@@ -42,9 +48,22 @@ export class Game {
   }
   get stage() { return stageFor(this.round); }
   get biome() { return this.stage.world; }
-  get intelligence() { return Math.min(.85, (this.round - 1) * .065 + this.elapsed / 120 * (this.round === 1 ? .04 : .08)); }
+  get challenge() { return DIFFICULTIES[this.difficulty]; }
+  get lives() { return this.expedition?.lives ?? 1; }
+  get lifeCost() { return 40 + (this.expedition?.purchases || 0) * 25; }
+  get expeditionScore() { return this.expedition?.stages.length ? scoreReport(aggregateExpedition(this.expedition.stages, this.difficulty)).total : 0; }
+  setDifficulty(id) {
+    if (!difficultyUnlocked(this.meta, id) || this.expedition && !this.expedition.ended || this.phase !== 'menu') return false;
+    this.difficulty = this.meta.difficulty = id; this.meta.unlockedStage = 1; return true;
+  }
+  buyLife() {
+    if (!this.expedition || this.expedition.ended || !['playing','boss','paused','intermission','menu'].includes(this.phase) || this.lives >= 3 || this.expedition.purchases >= 3 || this.crystals < this.lifeCost) return false;
+    this.crystals -= this.lifeCost; this.expedition.purchases++; this.expedition.lives++;
+    this.emit('extraLife'); return true;
+  }
+  get intelligence() { return Math.min(.9, this.challenge.intelligence + (this.round - 1) * .065 + this.elapsed / 120 * (this.round === 1 ? .04 : .08)); }
   get enemyLimit() { return 4 + Math.min(14, this.round) + Math.floor(this.elapsed / 60); }
-  get spawnInterval() { return Math.max(3, 11 - (this.round - 1) * .6 - this.elapsed / 90) + (this.boss ? 4 : 0); }
+  get spawnInterval() { return (Math.max(3, 11 - (this.round - 1) * .6 - this.elapsed / 90) + (this.boss ? 4 : 0)) * this.challenge.spawn; }
   get forgeCost() { return Math.floor((20 + this.forgeCount * 10) * (this.masteries.includes('alchemy') ? .75 : 1)); }
   get active() { return this.phase === 'playing' || this.phase === 'boss'; }
   generateArena() {
@@ -70,6 +89,16 @@ export class Game {
     this.emit('arena');
   }
   start(stage = 1) {
+    if (this.campaignMode) {
+      if (!['menu','dead','intermission'].includes(this.phase)) return false;
+      if (this.expedition && !this.expedition.ended) {
+        if (!this.resultClaimed || stage !== this.expedition.stages.length + 1 || stage > CAMPAIGN_STAGES) return false;
+      } else {
+        if (stage !== 1) return false;
+        this.expedition = { stages: [], lives: 1, purchases: 0, ended: false, report: null };
+        this.meta.unlockedStage = 1;
+      }
+    }
     if (!Number.isInteger(stage) || stage < 1 || stage > Math.max(1, this.meta.unlockedStage || 1)) return false;
     this.reset(stage); this.phase = 'playing'; this.emit('start'); return true;
   }
@@ -78,11 +107,25 @@ export class Game {
     if (this.resultClaimed || !this.result) return false;
     this.resultClaimed = true;
     this.meta.shards = (this.meta.shards || 0) + this.earnedShards;
-    this.meta.runs = (this.meta.runs || 0) + 1;
+    if (!this.campaignMode) this.meta.runs = (this.meta.runs || 0) + 1;
     this.meta.bestRound = Math.max(this.meta.bestRound || 0, this.round);
     this.meta.bestKills = Math.max(this.meta.bestKills || 0, this.kills);
     if (this.result.victory) this.meta.unlockedStage = Math.max(this.meta.unlockedStage || 1, this.round + 1);
+    this.meta.bestStage = Math.max(this.meta.bestStage || 0, this.result.victory ? this.round : this.round - 1);
     settleLegacy(this);
+    if (this.campaignMode && this.expedition && !this.expedition.ended) {
+      const run = this.expedition;
+      run.stages.push(captureRun(this));
+      run.ended = !this.result.victory || this.round === CAMPAIGN_STAGES;
+      if (run.ended) {
+        run.report = aggregateExpedition(run.stages, this.difficulty);
+        if (this.result.victory && !this.meta.difficultyClears.includes(this.difficulty)) this.meta.difficultyClears.push(this.difficulty);
+        if (!this.result.victory) run.lives = 0;
+        this.meta.unlockedStage = 1; this.meta.runs++;
+      } else if (this.round % 3 === 0 && run.lives < 3) {
+        run.lives++; this.emit('extraLife');
+      }
+    }
     return true;
   }
   tile(x, z) { return this.grid[z]?.[x] ?? 1; }
@@ -230,7 +273,7 @@ export class Game {
     const cell = candidates[Math.floor(this.random() * candidates.length)];
     const pool = this.round === 1 && this.elapsed < 65 ? ['slime'] : this.biome.enemies;
     const type = forcedType || pool[Math.floor(this.random() * pool.length)];
-    const hp = ({ slime: 2, ember: 3, beetle: 5, wisp: 3, sentinel: 12, spore: 3, weaver: 3, oracle: 4, mimic: 4 }[type] || 2) + Math.floor((this.round - 1) * .35);
+    const hp = Math.ceil((({ slime: 2, ember: 3, beetle: 5, wisp: 3, sentinel: 12, spore: 3, weaver: 3, oracle: 4, mimic: 4 }[type] || 2) + Math.floor((this.round - 1) * .35)) * this.challenge.hp);
     const enemy = { id: this.nextId++, ...cell, type, hp, maxHp: hp, cooldown: 1 + this.random(), hitFlash: 0, intent: 'hunt', awareness: this.random(), chargeCooldown: 3, castCooldown: 4, slow: 0, windup: 0, chargeSteps: 0 };
     if (type === 'mimic') { enemy.awake = false; enemy.intent = 'disguise'; }
     this.enemies.push(enemy); return enemy;
@@ -316,12 +359,16 @@ export class Game {
   hurt(amount) {
     if (!this.active || this.player.invincible > 0) return;
     if (this.player.ward > 0) { this.stats.blocked++; this.player.ward--; this.player.invincible = .9; if (this.masteries.includes('ward')) this.restoreHealth(10); this.emit('blocked', { x: this.player.x, z: this.player.z }); return; }
-    amount = Math.ceil(amount * (1 - (this.player.armor || 0)));
+    amount = Math.ceil(amount * this.challenge.damage * (1 - (this.player.armor || 0)));
     const actual = Math.min(this.player.hp, amount); this.stats.damageTaken += actual; if (actual > 0) this.stats.hitsTaken++;
     this.player.hp = Math.max(0, this.player.hp - amount); this.player.invincible = 1.4;
     this.emit('hurt', { x: this.player.x, z: this.player.z, amount });
     if (!this.player.hp && this.player.revive) {
       this.stats.revives++; this.player.revive = false; this.restoreHealth(Math.ceil(this.player.maxHp / 2)); this.player.invincible = 3;
+      this.emit('revive', { x: this.player.x, z: this.player.z });
+    } else if (!this.player.hp && this.campaignMode && this.lives > 1) {
+      this.expedition.lives--; this.stats.revives++; this.restoreHealth(this.player.maxHp);
+      this.player.invincible = 4; this.player.slow = 0;
       this.emit('revive', { x: this.player.x, z: this.player.z });
     } else if (!this.player.hp) this.die();
   }
@@ -383,9 +430,13 @@ export class Game {
       if (anchor.hp <= 0) {
         this.stats.anchorsBroken++;
         this.anchors = this.anchors.filter(a=>a!==anchor);
-        if (this.boss) { this.boss.stagger=4; this.boss.attackCooldown=Math.max(this.boss.attackCooldown,4); }
+        if (this.boss) {
+          this.boss.stagger=4; this.boss.castTimer=0; this.boss.attackCooldown=1.2;
+          this.warnings=this.warnings.filter(w=>w.bossId!==this.boss.id);
+          this.emit('bossStagger',{id:this.boss.id});
+        }
         this.addPickup(anchor.x,anchor.z,'crystal',3);
-        this.emit('anchorBroken', anchor);
+        this.emit('anchorBroken', {...anchor,target:this.boss?{x:this.boss.x,z:this.boss.z}:null});
       }
     }
   }
@@ -396,11 +447,13 @@ export class Game {
     for (let zz = z - 1; zz <= z + 1; zz++) for (let xx = x - 1; xx <= x + 1; xx++) {
       this.grid[zz][xx] = 0; this.emit('clear', { x: xx, z: zz });
     }
-    const hp = 14 + this.round * 4;
+    const hp = Math.ceil((14 + this.round * 4) * this.challenge.hp);
     this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.guardian || this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 3.2, attackCooldown: 4, hitFlash: 0, attackIndex: 0, enraged: false };
+    this.boss.entranceTimer = 1.2; this.boss.intent = 'spawn';
     this.spawnClock = this.spawnInterval;
     this.emit('boss');
   }
+  openBossArena() { queueArenaRite(this, { entrance: true }); }
   bossAttack() {
     if (!this.boss) return;
     const p = this.player, b = this.boss, cells = [], attack = b.attackIndex++;
@@ -418,8 +471,9 @@ export class Game {
       for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) if (Math.max(Math.abs(dx), Math.abs(dz)) === 2 && this.tile(p.x + dx, p.z + dz) === 0) cells.push({ x: p.x + dx, z: p.z + dz });
       if (this.enemies.length < 12) this.spawnEnemy('wisp');
     } else if (attack % 2 === 1) {
+      const origin = distance(b,p)>4 ? p : b;
       for (const [dx, dz] of DIRS) for (let i = 0; i <= (b.enraged ? 6 : 4); i++) {
-        const x = b.x + dx * i, z = b.z + dz * i;
+        const x = origin.x + dx * i, z = origin.z + dz * i;
         if (this.tile(x, z) !== 0) break;
         if (!cells.some(c => c.x === x && c.z === z)) cells.push({ x, z });
       }
@@ -430,8 +484,10 @@ export class Game {
     }
     const duration = (b.enraged ? 1 : 1.2) + (this.round <= 3 ? .5 : .15);
     const names = { ruins: ['DOBRAR DOS SINOS', 'CRUZ DO SILÊNCIO'], forge: ['FORNALHA VIVA', 'RUPTURA ÍGNEA'], abyss: ['MARÉ DAS ALMAS', 'FENDA ESPECTRAL'], garden: ['COROA DE SEMENTES', 'RAÍZES DO SILÊNCIO'], storm: ['COLUNAS DO TROVÃO', 'CIRCUITO PARTIDO'], frost: ['LANÇAS DA AURORA', 'COROA DO INVERNO'] };
-    this.warnings.push({ id: this.nextId++, cells, timer: duration, duration });
-    this.emit('warning', { cells, duration, name: names[this.biome.id][attack % 2] });
+    if (!cells.length) cells.push({x:p.x,z:p.z});
+    b.castTimer = duration; b.castTarget = {x:p.x,z:p.z}; b.intent = 'cast';
+    this.warnings.push({ id: this.nextId++, bossId:b.id, cells, timer: duration, duration });
+    this.emit('warning', { id:b.id, cells, duration, name: names[this.biome.id][attack % 2] });
   }
   defeatBoss() {
     if (!this.boss || !this.active) return;
@@ -444,7 +500,9 @@ export class Game {
   }
   nextRound() {
     if (this.phase !== 'intermission') return false;
-    this.claimResult(); const next = this.round + 1; this.reset(next); this.phase = 'playing'; this.emit('nextRound'); return true;
+    this.claimResult(); const next = this.round + 1;
+    if (this.campaignMode) return this.start(next);
+    this.reset(next); this.phase = 'playing'; this.emit('nextRound'); return true;
   }
   openUpgrade(paid = false) {
     if (!this.active || (paid && this.crystals < this.forgeCost)) return false;
@@ -511,6 +569,7 @@ export class Game {
   }
   die() {
     if (this.phase === 'dead') return;
+    this.player.hp = 0;
     this.phase = 'dead'; this.earnedShards += Math.floor(this.kills / 5);
     this.result = { victory: false, stage: this.round, shards: this.earnedShards }; this.emit('dead');
   }
@@ -607,7 +666,8 @@ export class Game {
     this.flames = this.flames.filter(f => f.life > 0);
     if (!this.active) return;
     const hazards = this.dangerMap();
-    for (const enemy of [...this.enemies, ...(this.boss ? [this.boss] : [])]) {
+    updateBossAI(this, dt);
+    for (const enemy of [...this.enemies]) {
       let chargedThisTick = false;
       enemy.cooldown -= dt; enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
       enemy.slow = Math.max(0, (enemy.slow || 0) - dt);
@@ -642,24 +702,32 @@ export class Game {
           } else {
             const pos = this.nextStep(enemy, hazards);
             if (pos && !this.occupied(pos.x, pos.z, enemy)) { enemy.x = pos.x; enemy.z = pos.z; }
-            enemy.cooldown = (enemy.intent === 'evade' ? .42 : enemy.type === 'boss' ? (enemy.enraged ? .75 : .95) : enemy.type === 'ember' ? .65 : enemy.type === 'beetle' ? 1.1 : .9) / (1 + Math.min(.5, (this.round - 1) * .035)) * (enemy.slow ? 1.8 : 1) * (this.round === 1 ? 1.35 : this.round === 2 ? 1.2 : 1);
+            enemy.cooldown = (enemy.intent === 'evade' ? .42 : enemy.type === 'boss' ? (enemy.enraged ? .75 : .95) : enemy.type === 'ember' ? .65 : enemy.type === 'beetle' ? 1.1 : .9) / (1 + Math.min(.5, (this.round - 1) * .035)) * (enemy.slow ? 1.8 : 1) * (this.round === 1 ? 1.35 : this.round === 2 ? 1.2 : 1) / this.challenge.speed;
           }
         }
       }
       if (enemy.x === p.x && enemy.z === p.z) this.hurt(enemy.type === 'boss' ? 30 : chargedThisTick || enemy.intent === 'charge' ? 20 : 12);
     }
     if (this.boss && this.active) {
-      if (this.boss.hp <= this.boss.maxHp / 2 && !this.boss.enraged) {
+      if (this.boss.hp <= this.boss.maxHp / 2 && !this.boss.enraged && !this.boss.stagger && !this.boss.frozen) {
         this.boss.enraged = true; this.boss.attackCooldown = 1.6;
         this.warnings = []; queueArenaRite(this);
         this.emit('bossEnraged', this.boss);
       }
-      if (!this.boss.stagger && !this.boss.frozen) this.boss.attackCooldown -= dt;
-      if (this.boss.attackCooldown <= 0) { this.bossAttack(); this.boss.attackCooldown = Math.max(2.2, 5.2 - this.round * .18) * (this.boss.enraged ? .8 : 1); }
+      if (!this.boss.stagger && !this.boss.frozen && !this.boss.entranceTimer && !this.boss.castTimer && !this.boss.recovery) {
+        this.boss.attackCooldown -= dt;
+        if (this.boss.attackCooldown <= 0) { this.bossAttack(); this.boss.attackCooldown = this.boss.enraged ? 1.3 : 2; }
+      }
     }
     for (const w of [...this.warnings]) {
       w.timer -= dt;
       if (w.timer <= 0) {
+        if (w.bossId) {
+          if (!this.boss || this.boss.id !== w.bossId) continue;
+          this.boss.castTimer=0; this.boss.recovery=.65; this.boss.cooldown=.65;
+          if(w.breach) for(const c of w.cells){this.grid[c.z][c.x]=0;this.emit('clear',c);}
+          this.emit('bossImpact',{id:this.boss.id,x:this.boss.x,z:this.boss.z,cells:w.cells,color:this.biome.color});
+        }
         if (w.rite) { resolveArenaRite(this,w); if (!w.damage) continue; }
         const flame = { id: this.nextId++, cells: w.cells, life: .65, damage: w.damage ?? 25, effect: w.effect, hit: new Set(), enemy: true, fire: this.stage.worldIndex >= 2 ? 'spectral' : 'normal' };
         this.flames.push(flame); this.applyFlame(flame);

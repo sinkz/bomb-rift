@@ -25,7 +25,17 @@
       }
     },
     "production": {
-      "d1_databases": []
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bomb-rift-ranking-production",
+          "database_id": "718c2a93-8caf-4501-b75e-cc35210eabad",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "TURNSTILE_SITE_KEY": "0x4AAAAAAEp1RjPDOlfz2DMC"
+      }
     }
   }
 }

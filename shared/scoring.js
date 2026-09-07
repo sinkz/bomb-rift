@@ -1,6 +1,7 @@
 // Shared by the browser and API. Scores are always derived from metrics.
-export const SCORE_VERSION = 'rift-1';
-export const SEASON = 'founders-1';
+import { DIFFICULTIES } from './expedition.js';
+export const SCORE_VERSION = 'campaign-2';
+export const SEASON = 'expeditions-2';
 export const METRIC_KEYS = ['bombsPlaced','bombsExploded','chainExplosions','echoExplosions','damageDealt','bossDamage','damageTaken','healed','hitsTaken','blocked','dashes','revives','normalKills','miniKills','maxCombo','anchorsBroken','choices'];
 export const emptyMetrics = () => Object.fromEntries(METRIC_KEYS.map(k => [k, 0]));
 const whole = value => Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
@@ -20,6 +21,11 @@ export function captureRun(game) {
 }
 
 export function scoreReport(run) {
+  if (run.kind === 'campaign') {
+    const stages = run.stages.map(stage => ({ stage: stage.stage, ...scoreReport(stage) }));
+    const subtotal = stages.reduce((n, s) => n + s.total, 0), multiplier = DIFFICULTIES[run.difficulty].score;
+    return { version: SCORE_VERSION, parts: [], stages, difficulty: run.difficulty, subtotal, multiplier, total: Math.floor(subtotal * multiplier / 100) };
+  }
   const m = run.metrics || {}, win = !!run.victory;
   const stage = Math.max(1, whole(run.stage)), index = (stage - 1) % 18;
   const multiplier = Math.min(200, 100 + Math.floor(index / 3) * 10 + index % 3 * 5 + Math.floor((stage - 1) / 18) * 10);

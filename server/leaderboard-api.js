@@ -1,4 +1,5 @@
 import { SCORE_VERSION, SEASON, scoreReport } from '../shared/scoring.js';
+import { DIFFICULTIES } from '../shared/expedition.js';
 import { ApiError, fail, promotionInput, validateRun, uuid } from './validation.js';
 const now = () => Date.now();
 const enc = new TextEncoder();
@@ -11,10 +12,10 @@ const publicRun = row => ({ id:row.id, stage:row.stage, score:row.score, victory
 
 async function body(request) {
   if (!request.headers.get('Content-Type')?.startsWith('application/json')) fail('json_required',415);
-  if (Number(request.headers.get('Content-Length')) > 16384) fail('payload_too_large',413);
+  if (Number(request.headers.get('Content-Length')) > 65536) fail('payload_too_large',413);
   const reader=request.body?.getReader(); if (!reader) fail('invalid_json');
   const decoder=new TextDecoder(); let text='',size=0;
-  while (true) { const {done,value}=await reader.read(); if(done)break; size+=value.length; if(size>16384){await reader.cancel();fail('payload_too_large',413);} text+=decoder.decode(value,{stream:true}); }
+  while (true) { const {done,value}=await reader.read(); if(done)break; size+=value.length; if(size>65536){await reader.cancel();fail('payload_too_large',413);} text+=decoder.decode(value,{stream:true}); }
   try { const input=JSON.parse(text+decoder.decode());if(!input||typeof input!=='object'||Array.isArray(input))fail('invalid_json');return input; } catch { fail('invalid_json'); }
 }
 async function owner(request, db, required=true) {
@@ -112,22 +113,26 @@ export async function onRequest(context) {
       await stmt(db,'UPDATE profiles SET name=?,tagline=?,link_id=? WHERE id=?',promo.name,promo.tagline,linkId,p.id).run();return json({saved:true});
     }
     if(route==='/api/runs/start') {
-      if(!Number.isInteger(input.stage)||input.stage<1||input.stage>10000||!uuid(input.id))fail('invalid_stage');
+      input.difficulty ??= 'easy';
+      if(input.stage!==1||!Object.hasOwn(DIFFICULTIES,input.difficulty)||!uuid(input.id))fail('invalid_stage');
       await limit(db,'start:'+p.id,15,3600);
       context.waitUntil(db.batch([
         stmt(db,'DELETE FROM rate_limits WHERE id IN (SELECT id FROM rate_limits WHERE expires_at<? LIMIT 100)',now()-3600000),
         stmt(db,'DELETE FROM click_events WHERE id IN (SELECT id FROM click_events WHERE created_at<? LIMIT 100)',now()-172800000),
       ]).catch(()=>{}));
-      const time=now();await stmt(db,'INSERT OR IGNORE INTO game_sessions(id,profile_id,stage,version,started_at,expires_at) VALUES(?,?,?,?,?,?)',input.id,p.id,input.stage,SCORE_VERSION,time,time+7800000).run();
+      const version=SCORE_VERSION+':'+input.difficulty;
+      const time=now();await stmt(db,'INSERT OR IGNORE INTO game_sessions(id,profile_id,stage,version,started_at,expires_at) VALUES(?,?,?,?,?,?)',input.id,p.id,input.stage,version,time,time+14400000).run();
       const session=await first(db,'SELECT * FROM game_sessions WHERE id=? AND profile_id=?',input.id,p.id);
-      if(!session||session.stage!==input.stage)fail('session_conflict',409);
+      if(!session||session.stage!==input.stage||session.version!==version)fail('session_conflict',409);
       return json({id:session.id,expiresAt:session.expires_at,version:session.version});
     }
     if(route==='/api/runs/finish') {
       if(!uuid(input.id))fail('invalid_session');
       const session=await first(db,'SELECT * FROM game_sessions WHERE id=? AND profile_id=?',input.id,p.id);if(!session)fail('not_found',404);
       const existing=await first(db,'SELECT * FROM runs WHERE id=?',input.id);if(existing)return json(publicRun(existing));
-      if(session.version!==SCORE_VERSION)fail('outdated_session',409);
+      if(session.version.split(':')[0]!==SCORE_VERSION)fail('outdated_session',409);
+      if(input.report?.kind!=='campaign')fail('unfinished_campaign');
+      session.difficulty=session.version.split(':')[1];
       const report=validateRun(input.report,session), breakdown=scoreReport(report);
       await db.batch([
         stmt(db,'INSERT OR IGNORE INTO runs(id,profile_id,season,version,stage,score,victory,minis,seconds,finished_at,data,breakdown) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',input.id,p.id,SEASON,SCORE_VERSION,report.stage,breakdown.total,Number(report.victory),report.metrics.miniKills,report.seconds,now(),JSON.stringify(report),JSON.stringify(breakdown)),
@@ -137,6 +142,8 @@ export async function onRequest(context) {
     if(route==='/api/runs/publish') {
       if(!uuid(input.id))fail('invalid_session');
       const row=await first(db,'SELECT * FROM runs WHERE id=? AND profile_id=? AND hidden=0',input.id,p.id);if(!row)fail('not_found',404);
+      const report=JSON.parse(row.data);
+      if(row.version!==SCORE_VERSION||report.kind!=='campaign'||report.victory&&report.stages?.length!==18)fail('unfinished_campaign');
       const promo=promotionInput(input);await verifyTurnstile(request,env,input.turnstileToken);
       await limit(db,'publish:'+p.id,30,3600);
       let linkId=null;

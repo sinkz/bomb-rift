@@ -30,7 +30,7 @@ const rites = {
   forge:['THE FURNACE OPENS','Leave the orange lane. Blast the valves to cool Vulkar down!'],
   abyss:['THE HORIZON SHATTERS','Nyxara is moving. Blast the mirrors to interrupt the queen!'],
   garden:['ROOTS BENEATH THE STONE','Roots break through pillars. Destroy the glowing bulbs!'],
-  storm:['CORE OVERLOAD','Leave the yellow circuit. Destroy the conductors to stop Vulkar!'],
+  storm:['CORE OVERLOAD','Leave the yellow circuit. Destroy the conductors to stop Fulgra!'],
   frost:['WINTER SHATTERS','Ice opens a diagonal. Destroy the crystals to break the crown!'],
 };
 export const PROGRESSION_EN = {

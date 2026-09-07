@@ -21,7 +21,7 @@ test('ranking keeps the ten highest results and rejects malformed stored rows', 
   const disk = storage(), board = new LocalRanking(disk);
   for (let i = 0; i < 15; i++) { const g = run(); g.kills = i; board.record(g); }
   assert.equal(board.records.length, 10); assert.equal(board.records[0].kills, 14); assert.equal(board.records.at(-1).kills, 5);
-  const good = board.records[0]; disk.setItem('bomb-rift-ranking-v1', JSON.stringify([good, { ...good, id: '<script>' }, { ...good, score: -1 }, { ...good, stage: 0 }, null]));
+  const good = board.records[0]; disk.setItem('bomb-rift-ranking-v2', JSON.stringify([good, { ...good, id: '<script>' }, { ...good, score: -1 }, { ...good, stage: 0 }, null]));
   assert.deepEqual(new LocalRanking(disk).records, [good]);
 });
 test('unavailable storage preserves this session and unfinished runs are not ranked', () => {

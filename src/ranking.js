@@ -1,8 +1,9 @@
 import { captureRun, scoreReport, SCORE_VERSION } from '../shared/scoring.js';
-const KEY = 'bomb-rift-ranking-v1';
+const KEY = 'bomb-rift-ranking-v2';
 const integer = (n, max = 1e8) => Number.isInteger(n) && n >= 0 && n <= max;
 
 export function scoreRun(game) {
+  if (game.expedition?.report) return scoreReport(game.expedition.report).total;
   if (game.stats) return scoreReport(captureRun(game)).total;
   const combat = game.kills * 100 + game.collected * 10 + (game.level - 1) * 80;
   const survival = Math.floor(Math.min(120, game.totalTime)) * 2;
@@ -18,10 +19,11 @@ export class LocalRanking {
     } catch { this.saved = false; }
   }
   record(game) {
+    if (game.campaignMode && !game.expedition?.ended) return null;
     if (!game.result || this.recorded.has(game.result)) return null;
     this.recorded.add(game.result);
     const row = { id: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`, score: scoreRun(game), stage: game.round, kills: game.kills, seconds: Math.floor(game.totalTime), victory: game.result.victory, date: Date.now() };
-    if (game.stats) { row.report = captureRun(game); row.breakdown = scoreReport(row.report); row.version = SCORE_VERSION; }
+    if (game.stats) { row.report = game.expedition?.report || captureRun(game); row.breakdown = scoreReport(row.report); row.version = SCORE_VERSION; row.seconds = row.report.seconds; row.kills = row.report.metrics.normalKills + row.report.metrics.miniKills; }
     this.records = [...this.records, row].sort((a, b) => b.score - a.score || b.date - a.date).slice(0, 10);
     try { if (!this.storage) throw new Error('Storage unavailable'); this.storage.setItem(KEY, JSON.stringify(this.records)); this.saved = true; } catch { this.saved = false; }
     return { ...row, place: this.records.findIndex(r => r.id === row.id) + 1 };

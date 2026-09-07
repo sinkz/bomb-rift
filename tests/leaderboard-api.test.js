@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { onRequest } from '../server/leaderboard-api.js';
 import { emptyMetrics } from '../shared/scoring.js';
+import { aggregateExpedition } from '../shared/expedition.js';
 import { promotionInput } from '../server/validation.js';
 import { validateRun } from '../server/validation.js';
 
@@ -53,7 +54,22 @@ test('public submissions require a successful Turnstile token for this hostname 
   assert.equal((await api.call('runs/publish',values,p.cookie)).status,200);
   assert.equal((await api.call('profile/update',{name:'Changed'},p.cookie)).status,403);
 });
-async function finish(api,p){const id=crypto.randomUUID();assert.equal((await api.call('runs/start',{id,stage:1},p.cookie)).status,200);api.DB.db.prepare('UPDATE game_sessions SET started_at=? WHERE id=?').run(Date.now()-180000,id);const r=await api.call('runs/finish',{id,report:report()},p.cookie);assert.equal(r.status,200,JSON.stringify(r.body));return {id,row:r.body};}
+const campaignReport=()=>aggregateExpedition([{...report(),victory:false,hp:0,bosses:0}],'easy');
+test('API accepts a full campaign, rejects intermediate victory and pins difficulty at session start',async()=>{
+  const a=setup(),p=await profile(a),id=crypto.randomUUID();
+  assert.equal((await a.call('runs/start',{id,stage:2},p.cookie)).status,400);
+  assert.equal((await a.call('runs/start',{id,stage:1,difficulty:'medium'},p.cookie)).status,200);
+  assert.equal((await a.call('runs/start',{id,stage:1,difficulty:'hard'},p.cookie)).status,409);
+  a.DB.db.prepare('UPDATE game_sessions SET started_at=? WHERE id=?').run(Date.now()-3200000,id);
+  assert.equal((await a.call('runs/finish',{id,report:report()},p.cookie)).body.error,'unfinished_campaign');
+  assert.equal((await a.call('runs/finish',{id,report:aggregateExpedition([report()],'medium')},p.cookie)).body.error,'unfinished_campaign');
+  assert.equal((await a.call('runs/finish',{id,report:campaignReport()},p.cookie)).body.error,'invalid_campaign');
+  const full=aggregateExpedition(Array.from({length:18},(_,i)=>({...report(),stage:i+1})),'medium');
+  const finish=await a.call('runs/finish',{id,report:full},p.cookie);assert.equal(finish.status,200,JSON.stringify(finish.body));assert.equal(finish.body.report.bosses,18);assert.equal(finish.body.report.seconds,2970);
+  assert.equal((await a.call('runs/publish',{id,name:'Campaign winner'},p.cookie)).status,200);
+  const board=(await a.call('leaderboard')).body;assert.equal(board.rows[0].report.difficulty,'medium');assert.equal(board.rows[0].victory,true);
+});
+async function finish(api,p){const id=crypto.randomUUID();assert.equal((await api.call('runs/start',{id,stage:1},p.cookie)).status,200);api.DB.db.prepare('UPDATE game_sessions SET started_at=? WHERE id=?').run(Date.now()-180000,id);const r=await api.call('runs/finish',{id,report:campaignReport()},p.cookie);assert.equal(r.status,200,JSON.stringify(r.body));return {id,row:r.body};}
 test('a run is private until publishing, computes its score and is idempotent',async()=>{
   const a=setup(),p=await profile(a),f=await finish(a,p);
   assert.equal((await a.call('leaderboard')).body.rows.length,0);
@@ -69,7 +85,7 @@ test('ownership, origin, unsupported URLs and impossible runs are rejected',asyn
   assert.equal((await a.call('profile',{},'','https://evil.example')).status,403);
   assert.equal((await a.call('runs/publish',{id:f.id,name:'Diego',url:'javascript:alert(1)'},p.cookie)).status,400);
   const id=crypto.randomUUID();await a.call('runs/start',{id,stage:1},p.cookie);
-  assert.equal((await a.call('runs/finish',{id,report:report()},p.cookie)).body.error,'invalid_duration');
+  assert.equal((await a.call('runs/finish',{id,report:campaignReport()},p.cookie)).body.error,'invalid_duration');
   assert.throws(()=>promotionInput({name:'A',url:'https://trusted.example@evil.example'}));
 });
 test('outbound clicks deduplicate events, ignore owners and count approximate visitors',async()=>{

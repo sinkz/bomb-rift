@@ -189,7 +189,7 @@ test('boss enrages once at half health without adding reinforcements', () => {
 test('boss alternates targeted ground attacks and a cross blocked by stone', () => {
   const g = arena(); g.spawnBoss(); g.bossAttack();
   assert(g.warnings[0].cells.some(c => c.x === g.player.x && c.z === g.player.z));
-  const {x,z}=g.boss;g.grid[z][x+1] = 1; g.bossAttack();
+  const {x,z}=g.boss;g.player.x=x;g.player.z=z+2;g.grid[z][x+1] = 1; g.bossAttack();
   assert(g.warnings[1].cells.some(c => c.x === x && c.z === z));
   assert(!g.warnings[1].cells.some(c => c.x > x));
 });

@@ -13,9 +13,9 @@ export class GlobalRanking {
     if(!this.profilePromise)this.profilePromise=this.request('profile',{}).then(async()=>{this.profile=await this.request('me');return this.profile;}).catch(e=>{this.profilePromise=null;throw e;});
     return this.profilePromise;
   }
-  begin(stage) {
-    const session={id:crypto.randomUUID(),stage};this.current=session;
-    session.promise=this.ensureProfile().then(()=>this.request('runs/start',{id:session.id,stage})).catch(()=>null);
+  begin(stage, difficulty = 'easy') {
+    const session={id:crypto.randomUUID(),stage,difficulty};this.current=session;
+    session.promise=this.ensureProfile().then(()=>this.request('runs/start',{id:session.id,stage,difficulty})).catch(()=>null);
   }
   finish(row) {
     if(!row?.report||!this.current)return;

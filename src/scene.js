@@ -9,7 +9,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { relicById } from './campaign.js';
 import { skillById } from './skills.js';
 import { OUTFITS } from './legacy.js';
-import { loadBossLibrary } from './boss-models.js';
+import { loadBossLibrary, bossKeyFor } from './boss-models.js';
 
 const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
@@ -40,7 +40,7 @@ export class ArenaScene {
     this.objects = new Map(); this.blocks = new Map(); this.particles = []; this.pulses = [];
     this.cameraSpan = 10.7; this.targetSpan = 10.7; this.zoom = 1; this.cameraFocus = new THREE.Vector3();
     this.staticSlots = new Map(); this.enemyModels = new Map();
-    this.retiredBoss = null; this.bossStatus = bossSources ? 'loading' : 'procedural';
+    this.retiredBoss = null; this.bossSources = bossSources; this.bossStatus = bossSources ? 'deferred' : 'procedural';
     this.bombWarningMaterial = new THREE.MeshBasicMaterial({ color: 0xffb452, transparent: true, opacity: .14, depthWrite: false, blending: THREE.AdditiveBlending });
     this.chargeWarningMaterial = new THREE.MeshBasicMaterial({ color: 0xff945e, transparent: true, opacity: .36, depthWrite: false, blending: THREE.AdditiveBlending });
     this.echoWarningMaterial = new THREE.MeshBasicMaterial({ color: 0xb99aff, transparent: true, opacity: .4, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -72,15 +72,24 @@ export class ArenaScene {
     this.playerMesh = this.makePlayer(); this.dynamic.add(this.playerMesh);
     this.addAtmosphere(); this.buildArena();
     this.resizeObserver = new ResizeObserver(() => this.resize()); this.resizeObserver.observe(container); this.resize();
-    this.bossesReady = bossSources ? loadBossLibrary(bossSources).then(library => {
+    this.bossesReady = Promise.resolve();
+    if (game.active) this.prepareBoss();
+  }
+  prepareBoss() {
+    if (!this.bossSources) return this.bossesReady;
+    const key = bossKeyFor(this.game.biome.id);
+    this.bossStatus = 'loading';
+    this.bossesReady = loadBossLibrary(this.bossSources, [key]).then(library => {
+      if (key !== bossKeyFor(this.game.biome.id)) return;
       this.bossModels = library; this.bossStatus = 'ready';
-      const boss = game.boss, previous = boss && this.objects.get(boss.id);
-      if (previous) {
+      const boss = this.game.boss, previous = boss && this.objects.get(boss.id);
+      if (previous && !previous.userData.actor) {
         const next = this.makeEnemy('boss', boss.variant);
         next.position.copy(previous.position); next.quaternion.copy(previous.quaternion);
         this.dynamic.remove(previous); this.dynamic.add(next); this.objects.set(boss.id, next);
       }
-    }).catch(error => { this.bossStatus = 'fallback'; console.error('Falha ao carregar os guardiões:', error); }) : Promise.resolve();
+    }).catch(error => { if (key === bossKeyFor(this.game.biome.id)) this.bossStatus = 'fallback'; console.error('Falha ao carregar os guardiões:', error); });
+    return this.bossesReady;
   }
   at(x, z) { return [x - (this.game.width - 1) / 2, z - (this.game.height - 1) / 2]; }
   resize() {
@@ -298,9 +307,9 @@ export class ArenaScene {
     return group;
   }
   makeEnemy(type, variant = 'ruins') {
-    if (type === 'boss' && this.bossModels) {
+    if (type === 'boss' && this.bossModels?.has(variant)) {
       const actor = this.bossModels.create(variant);
-      actor.play('Spawn', { priority: 20, next: 'Taunt' });
+      actor.play('Spawn', { priority: 20 });
       return actor.root;
     }
     const key = type + ':' + variant;
@@ -438,6 +447,7 @@ export class ArenaScene {
     return group;
   }
   handle(event) {
+    if (['start','nextRound','boss'].includes(event.type)) this.prepareBoss();
     if (event.type === 'arena') this.buildArena();
     this.animateBoss(event);
     if (['bomb', 'dash', 'hurt', 'skill'].includes(event.type)) this.heroAction = { kind: event.type, age: 0, duration: event.type === 'skill' ? .65 : .3 };
@@ -487,7 +497,26 @@ export class ArenaScene {
       for(const c of event.cells) {this.burst(c.x,c.z,event.color,6,2);this.pulse(c.x,c.z,event.color,.8,.9);}
       this.shake=this.reducedMotion?0:.2;
     }
-    if (event.type === 'anchorBroken') {this.pulse(event.x,event.z,0xaaffe0,2.4,1);this.burst(event.x,event.z,0xe6ffe9,28,3);}
+    if(event.type==='bossStep' && !this.reducedMotion) {
+      this.burst(event.x,event.z,this.game.biome.color,4,.65);
+      this.pulse(event.x,event.z,this.game.biome.color,.55,.22);
+    }
+    if(event.type==='bossImpact') {
+      this.pulse(event.x,event.z,event.color,2.4,.5);
+      this.burst(event.x,event.z,event.color,24,3);
+      for(const c of event.cells.slice(0,18))this.burst(c.x,c.z,event.color,3,1.2);
+      this.shake=this.reducedMotion?0:.16;
+    }
+    if (event.type === 'anchorBroken') {
+      this.pulse(event.x,event.z,0xaaffe0,2.4,1);this.burst(event.x,event.z,0xe6ffe9,28,3);
+      if(event.target) {
+        for(let i=0;i<=12;i++) {
+          const k=i/12;
+          this.burst(event.x+(event.target.x-event.x)*k,event.z+(event.target.z-event.z)*k,0xaaffe0,2,.3);
+        }
+        this.pulse(event.target.x,event.target.z,0xaaffe0,2.8,1);
+      }
+    }
     if (event.type === 'wardReady') this.pulse(event.x,event.z,0xb3e5d4,.8,.7);
     if (event.type === 'bossTeleport') for(const c of [event.from,event]) {this.pulse(c.x,c.z,event.color,1.6,1);this.burst(c.x,c.z,event.color,20,2);}
   }
@@ -534,14 +563,19 @@ export class ArenaScene {
     for(const anchor of game.anchors || []) {
       live.add(anchor.id);
       const obj=this.ensureObject(anchor.id,()=>{
-        const group=new THREE.Group(), material=mat(anchor.color,anchor.color,.85);
-        mesh(group,'cylinder',mat(0x343142),0,.1,0,.32,.16,.32);
-        mesh(group,'crystal',material,0,.6,0,.26,.38,.26);
-        mesh(group,'ring',material,0,.08,0,.5,.5,.5,false).rotation.x=Math.PI/2;
+        const group=new THREE.Group(), material=mat(anchor.color,anchor.color,1.2);
+        mesh(group,'cylinder',mat(0x242033),0,.12,0,.46,.2,.46);
+        const crystal=mesh(group,'crystal',material,0,.76,0,.36,.52,.36);crystal.name='rune-core';
+        const ring=mesh(group,'ring',mat(0xe3ffe9,0x9dffd3,.9),0,.08,0,.65,.65,.65,false);
+        ring.rotation.x=Math.PI/2;ring.name='rune-ring';
+        for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          mesh(group,'crystal',material,dx*.52,.18,dz*.52,.09,.13,.09,false);
+        }
         return group;
       },anchor);
-      obj.children[1].rotation.y=this.reducedMotion?0:t;
-      obj.children[1].position.y=.6+(this.reducedMotion?0:Math.sin(t*3)*.04);
+      obj.getObjectByName('rune-core').rotation.y=this.reducedMotion?0:t;
+      obj.getObjectByName('rune-core').position.y=.76+(this.reducedMotion?0:Math.sin(t*3)*.04);
+      obj.getObjectByName('rune-ring').scale.setScalar(.65*(this.reducedMotion?1:1+Math.sin(t*3)*.06));
     }
     for (const entity of [...game.enemies, ...(game.boss ? [game.boss] : [])]) {
       live.add(entity.id); const obj = this.ensureObject(entity.id, () => this.makeEnemy(entity.type, entity.variant || game.biome.guardian || game.biome.id), entity); const [x, z] = this.at(entity.x, entity.z);
@@ -550,7 +584,7 @@ export class ArenaScene {
       obj.position.x = THREE.MathUtils.damp(obj.position.x, x, damping, dt); obj.position.z = THREE.MathUtils.damp(obj.position.z, z, damping, dt);
       const actor = obj.userData.actor;
       obj.position.y = actor ? 0 : Math.abs(Math.sin(t * (entity.type === 'slime' ? 5 : 9) + entity.id)) * (moving ? .12 : .035);
-      actor?.update(['paused', 'upgrade', 'menu'].includes(game.phase) ? 0 : dt, { moving: game.active && moving, slow: entity.slow > 0 });
+      actor?.update(['paused', 'upgrade', 'menu'].includes(game.phase) ? 0 : dt, { moving: game.active && moving, slow: entity.slow > 0, casting:entity.castTimer>0, reducedMotion:this.reducedMotion });
       obj.scale.setScalar((entity.hitFlash > 0 ? 1.15 : 1) * (entity.type === 'sentinel' ? .8 : 1));
       if (entity.type === 'slime' && !this.reducedMotion) { const squash = Math.sin(t * (moving ? 10 : 4) + entity.id) * (moving ? .12 : .045); const hit = entity.hitFlash > 0 ? .16 : 0; obj.scale.set(1 + squash + hit, 1 - squash - hit * .5, 1 + squash + hit); }
       if (entity.type === 'spore' && !this.reducedMotion) { obj.scale.y=1+Math.sin(t*4+entity.id)*.035;obj.rotation.z=moving?Math.sin(t*11+entity.id)*.07:0; }
@@ -561,7 +595,15 @@ export class ArenaScene {
       if (entity.type === 'wisp') obj.position.y += .17 + Math.sin(t*3+entity.id)*.1;
       if (entity.slow > 0 && Math.sin(t*15+entity.id) > .94 && dt > 0 && !this.reducedMotion) this.burst(entity.x,entity.z,0x86f5ff,1,.3);
       if (entity.stagger > 0) {const id=`stagger-${entity.id}`;live.add(id);const stars=this.ensureObject(id,()=>{const g=new THREE.Group();for(let i=0;i<3;i++){const a=i*Math.PI*2/3;mesh(g,'crystal',mat(0xaaffe0,0x65efc7,.8),Math.sin(a)*.6,2,Math.cos(a)*.6,.08,.12,.08,false);}return g;},entity);const [sx,sz]=this.at(entity.x,entity.z);stars.position.set(sx,0,sz);stars.rotation.y=this.reducedMotion?0:t*2;}
-      if (moving) obj.rotation.y = Math.atan2(x - obj.position.x, z - obj.position.z);
+      if (actor && game.active) {
+        const target=entity.castTimer>0 && entity.castTarget ? entity.castTarget : game.player;
+        const dir=moving&&entity.facing ? entity.facing : [target.x-entity.x,target.z-entity.z];
+        if(dir[0]||dir[1]) {
+          const angle=Math.atan2(dir[0],dir[1]);
+          const delta=Math.atan2(Math.sin(angle-obj.rotation.y),Math.cos(angle-obj.rotation.y));
+          obj.rotation.y+=delta*(1-Math.exp(-dt*10));
+        }
+      } else if (moving) obj.rotation.y = Math.atan2(x - obj.position.x, z - obj.position.z);
       if (entity.windup > 0) {
         obj.scale.set(1.12, .84 + Math.sin(t * 30) * .04, 1.12); obj.rotation.y = Math.atan2(entity.chargeDir[0], entity.chargeDir[1]);
         const id = `charge-${entity.id}`; live.add(id);
@@ -667,6 +709,8 @@ export class ArenaScene {
     if (event.type === 'enemyHit') actor.play('Hit', { priority: 60 });
     if (event.type === 'warning') actor.prepare(event.duration);
     if (event.type === 'bossEnraged') actor.play('Enrage', { priority: 70 });
+    if (event.type === 'bossStagger') actor.stagger();
+    if (event.type === 'bossImpact') actor.impact();
     if (event.type === 'bossDefeated') {
       actor.play('Death', { priority: 100, hold: true });
       obj.userData.retireTime = actor.clips.get('Death').duration;
