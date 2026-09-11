@@ -161,13 +161,13 @@ export class ParticleField {
       const k = q.age / q.life;
       const c = sample(q.ramp, k);
       const fadeIn = q.swell ? Math.min(1, q.age / (q.life * .22)) : 1;
-      const grow = q.swell ? .5 + .5 * Math.sin(k * Math.PI) ** .55 : 1 - k * .42;
+      const grow = q.swell ? .5 + .5 * Math.sin(k * Math.PI) ** .55 : 1 - k * .26;
 
       this.pos[n * 3] = q.x; this.pos[n * 3 + 1] = q.y; this.pos[n * 3 + 2] = q.z;
       this.col[n * 3] = c.r; this.col[n * 3 + 1] = c.g; this.col[n * 3 + 2] = c.b;
       this.size[n] = q.size * grow;
       this.sprite[n] = q.sprite;
-      this.alpha[n] = Math.max(0, Math.min(1, (1 - k) * 2.4)) * fadeIn * q.gain;
+      this.alpha[n] = Math.max(0, Math.min(1, (1 - k) * 2.9)) * fadeIn * q.gain;
       this.rot[n] = q.rot;
       live[n] = q;
       n++;
