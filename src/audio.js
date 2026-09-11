@@ -71,6 +71,12 @@ export class Sound {
     notes.champion = [140, 300, .9, 'sawtooth'];
     notes.bossFlee = [420, 70, 1.1, 'sine'];
     notes.arenaReshape = [70, 190, 1.5, 'triangle'];
+    // Entrada do guardiao: um grave que cresce e quatro batidas por cima.
+    notes.bossEntrance = [92, 54, 2.2, 'sine'];
+    notes.entranceRumble = [46, 32, 1.9, 'triangle'];
+    notes.entranceFissure = [190, 58, .95, 'sawtooth'];
+    notes.entranceSummon = [280, 640, .5, 'square'];
+    notes.entranceSlam = [150, 26, .75, 'triangle'];
     if (name === 'explosion' || name === 'enemyExplosion') {
       const length = this.ctx.sampleRate * .35, buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate), data = buffer.getChannelData(0);
       for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 2;

@@ -12,6 +12,21 @@ export const STAGES_PER_WORLD = 3;
 // e duelo (luta real, com a arena se transformando). Derivado da posicao, nunca
 // informado: o servidor recalcula a partir do numero da fase e nao confia no cliente.
 export const STAGE_KINDS = ['hunt', 'chase', 'duel'];
+// A entrada cinematica do guardiao e opt-in por mundo. So o primeiro tem, de
+// proposito: queremos avaliar o ritmo numa luta antes de espalhar para os seis.
+// Os tempos sao em segundos desde o inicio da transicao.
+export const BOSS_ENTRANCES = {
+  ruins: {
+    duration: 4.4,
+    beats: [
+      { at: 0, kind: 'rumble' },
+      { at: 1.15, kind: 'fissure' },
+      { at: 2.1, kind: 'summon', count: 3 },
+      { at: 3.35, kind: 'slam' },
+    ],
+  },
+};
+export const entranceFor = biome => BOSS_ENTRANCES[biome?.id] || null;
 export const CAMPAIGN_LENGTH = WORLDS.length * STAGES_PER_WORLD;
 const STAGES = [
   ['O primeiro eco', 15, 13, 'classic', 'Inimigos distraídos. Um campeão fecha a caçada.'],

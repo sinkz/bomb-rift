@@ -95,3 +95,54 @@ test('wisp telegraphs a ranged attack without needing an open charge lane', () =
   const w={id:999,type:'wisp',x:7,z:3,hp:5,maxHp:5,cooldown:5,castCooldown:0,hitFlash:0};g.enemies=[w];g.tick(.01);
   assert.equal(w.intent,'cast');assert(g.warnings.some(w=>w.cells.some(c=>c.x===3&&c.z===3)));assert(g.drainEvents().some(e=>e.type==='enemyCast'));
 });
+
+// A entrada cinematica do primeiro guardiao. So o duelo tem, e so em 'ruins':
+// e um teste de ritmo antes de espalhar a coreografia para os seis mundos.
+test('a entrada do primeiro guardiao congela a arena, invoca escolta e so entao cria o chefe', () => {
+  const g = game(3);
+  assert.equal(g.stage.kind, 'duel');
+  assert.equal(g.biome.id, 'ruins');
+
+  g.spawnBoss();
+  // Primeiro a arena se parte; o chefe ainda nao existe.
+  assert.equal(g.phase, 'transition');
+  assert.equal(g.transition.kind, 'duel');
+  assert.equal(g.boss, null);
+
+  tick(g, 2.7);
+  // Terminada a remodelagem, encadeia na entrada em vez de criar o chefe.
+  assert.equal(g.phase, 'transition');
+  assert.equal(g.transition.kind, 'entrance');
+  assert.equal(g.boss, null);
+
+  const batidas = [];
+  const hpInicial = g.player.hp;
+  for (let i = 0; i < 5 * 60 && g.phase === 'transition'; i++) {
+    g.tick(1 / 60);
+    for (const event of g.drainEvents()) if (event.type === 'bossEntranceBeat') batidas.push(event);
+  }
+
+  assert.deepEqual(batidas.map(b => b.kind), ['rumble', 'fissure', 'summon', 'slam']);
+  // I2 vale de graca aqui: o jogo nao simula nada durante a transicao.
+  assert.equal(g.player.hp, hpInicial);
+
+  const escolta = batidas.find(b => b.kind === 'summon').escort;
+  assert.equal(escolta.length, 3);
+  for (const unit of escolta) {
+    assert(g.walkable(unit.x, unit.z), 'escolta nasceu em parede');
+    assert(Math.abs(unit.x - g.player.x) + Math.abs(unit.z - g.player.z) > 5, 'escolta nasceu perto demais do jogador');
+  }
+  assert.equal(new Set(escolta.map(u => `${u.x},${u.z}`)).size, 3, 'escolta empilhada na mesma casa');
+
+  assert.equal(g.phase, 'boss');
+  assert(g.boss, 'o guardiao nao chegou ao fim da entrada');
+  assert.deepEqual({ x: g.boss.x, z: g.boss.z }, g.bossSeat);
+});
+
+test('perseguicao e cacada nao ganham entrada cinematica', () => {
+  const chase = game(2);
+  assert.equal(chase.stage.kind, 'chase');
+  chase.spawnBoss();
+  assert.equal(chase.phase, 'boss');
+  assert(chase.boss, 'a perseguicao deve trazer o guardiao na hora');
+});

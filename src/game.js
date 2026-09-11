@@ -1,4 +1,4 @@
-import { WORLDS, stageFor, RELICS, relicById } from './campaign.js';
+import { WORLDS, stageFor, RELICS, relicById, entranceFor } from './campaign.js';
 import { normalizeMeta, startingStats, settleLegacy } from './legacy.js';
 import { emptyMetrics, captureRun, scoreReport } from '../shared/scoring.js';
 import { DIFFICULTIES, CAMPAIGN_STAGES, aggregateExpedition, difficultyUnlocked } from '../shared/expedition.js';
@@ -469,6 +469,49 @@ export class Game {
     this.phase = 'boss';
     this.createBoss();
   }
+  // Onde o guardiao sempre pousa. A mesma conta de createBoss, num lugar so,
+  // para a coreografia da entrada mirar exatamente a casa que ele vai ocupar.
+  get bossSeat() { return { x: Math.floor(this.width / 2), z: Math.floor(this.height / 2) - 1 }; }
+  // So o duelo ganha entrada: na perseguicao o guardiao te caca, nao se
+  // apresenta. Devolve false quando o mundo nao tem entrada autorada.
+  beginEntrance() {
+    const plan = entranceFor(this.biome);
+    if (!plan) return false;
+    const seat = this.bossSeat;
+    this.transition = { kind: 'entrance', timer: plan.duration, duration: plan.duration, beats: plan.beats, fired: 0 };
+    this.phase = 'transition';
+    this.emit('bossEntrance', { ...seat, name: this.biome.boss, line: this.biome.quote, color: this.biome.color, duration: plan.duration });
+    return true;
+  }
+  runEntranceBeats() {
+    const t = this.transition, elapsed = t.duration - t.timer, seat = this.bossSeat;
+    while (t.fired < t.beats.length && t.beats[t.fired].at <= elapsed) {
+      const beat = t.beats[t.fired++];
+      const escort = beat.kind === 'summon' ? this.summonEscort(beat.count ?? 3, seat) : [];
+      this.emit('bossEntranceBeat', { kind: beat.kind, ...seat, color: this.biome.color, escort });
+    }
+  }
+  // A escolta nasce pelo mesmo spawnEnemy de sempre — andavel, longe do jogador,
+  // desocupada — e so entao e puxada para perto do trono, e apenas para uma casa
+  // que passaria no mesmo teste. Nenhum invariante de posicionamento afrouxa.
+  summonEscort(count, seat) {
+    const escort = [];
+    for (let i = 0; i < count; i++) {
+      const enemy = this.spawnEnemy();
+      if (!enemy) break;
+      const near = [];
+      for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+        const x = seat.x + dx, z = seat.z + dz;
+        if (!this.walkable(x, z)) continue;
+        if (distance({ x, z }, this.player) <= 5) continue;
+        if (this.enemies.some(e => e !== enemy && e.x === x && e.z === z)) continue;
+        near.push({ x, z });
+      }
+      if (near.length) Object.assign(enemy, near[Math.floor(this.random() * near.length)]);
+      escort.push({ x: enemy.x, z: enemy.z, type: enemy.type });
+    }
+    return escort;
+  }
   // A arena do duelo. Regra dura: o plano so e aplicado se TODA casa de chao
   // continuar alcancavel a pe a partir de onde o jogador esta. Parede que
   // desconecta e descartada, e no pior caso o plano degenera para so remocoes,
@@ -619,7 +662,8 @@ export class Game {
       this.emit('bossRouted', boss || {});
       return;
     }
-    if (done?.kind === 'duel') { this.phase = 'boss'; this.createBoss(); }
+    if (done?.kind === 'duel' && this.beginEntrance()) return;
+    if (done?.kind === 'duel' || done?.kind === 'entrance') { this.phase = 'boss'; this.createBoss(); }
   }
   nextRound() {
     if (this.phase !== 'intermission') return false;
@@ -749,6 +793,7 @@ export class Game {
   tick(dt) {
     if (this.phase === 'transition') {
       this.transition.timer -= dt;
+      if (this.transition.kind === 'entrance') this.runEntranceBeats();
       if (this.transition.timer <= 0) this.finishTransition();
       return;
     }

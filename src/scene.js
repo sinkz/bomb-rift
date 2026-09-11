@@ -42,7 +42,7 @@ export class ArenaScene {
     this.objects = new Map(); this.blocks = new Map(); this.pulses = [];
     this.cameraSpan = 10.7; this.targetSpan = 10.7; this.zoom = 1; this.cameraFocus = new THREE.Vector3();
     this.staticSlots = new Map(); this.enemyModels = new Map();
-    this.quality = true; this.hitStop = 0; this.bossEntry = null; this.scorches = []; this.scorchCursor = 0; this.arenaSize = { width: 21, height: 19 };
+    this.quality = true; this.hitStop = 0; this.bossEntry = null; this.timers = []; this.scorches = []; this.scorchCursor = 0; this.arenaSize = { width: 21, height: 19 };
     this.style = fxFor('ruins'); this.eventColor = new THREE.Color(0xffffff); this.heroSpark = 0;
     this.dummy = new THREE.Object3D(); this.zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
     this.retiredBoss = null; this.bossSources = bossSources; this.bossStatus = bossSources ? 'deferred' : 'procedural';
@@ -179,6 +179,7 @@ export class ArenaScene {
     for (const pulse of this.pulses) pulse.mesh.material.dispose();
     this.fx.clear(); this.field.clear(); this.pulses = [];
     const biome = this.game.biome, WIDTH = this.game.width, HEIGHT = this.game.height;
+    this.timers = [];
     this.arenaSize = { width: WIDTH, height: HEIGHT }; this.bossEntry = null; this.signatureCharge = null; this.hitStop = 0;
     for (const scorch of this.scorches) this.scorchMarks.setMatrixAt(scorch.slot, this.zeroMatrix);
     this.scorches = []; this.scorchMarks.instanceMatrix.needsUpdate = true;
@@ -521,6 +522,16 @@ export class ArenaScene {
   }
   // Freeze-frame curto: só o tempo da cena para, a simulação segue no seu passo fixo.
   hit(seconds) { if (!this.reducedMotion) this.hitStop = Math.min(.13, Math.max(this.hitStop, seconds)); }
+  // Agenda um efeito para daqui a alguns segundos. O relogio e o da cena, entao
+  // pausa e hitStop seguram a coreografia junto com o resto.
+  later(delay, fn) { this.timers.push({ delay, fn }); }
+  runTimers(dt) {
+    if (!this.timers.length) return;
+    const due = [];
+    for (const timer of this.timers) if ((timer.delay -= dt) <= 0) due.push(timer);
+    if (due.length) this.timers = this.timers.filter(timer => timer.delay > 0);
+    for (const timer of due) timer.fn();
+  }
   impactLight(x, z, color, intensity, distance = 6, height = 1.2) {
     const [wx, wz] = this.at(x, z);
     this.flashLight.position.set(wx, height, wz); this.flashLight.color.set(color);
@@ -599,6 +610,63 @@ export class ArenaScene {
       this.pulse(p.x, p.z, color, 1.8, .75); this.pulse(p.x, p.z, color, .9, 1.1); this.burst(p.x, p.z, color, 24, 2.5);
     }
     if (event.type === 'bossEnraged') { const b = this.game.boss; if (b) { const color = new THREE.Color(this.game.biome.color); this.pulse(b.x, b.z, color, 4, 1.4); this.pulse(b.x, b.z, color, 2.5, .8); this.burst(b.x, b.z, color, 35, 4); this.shake = this.reducedMotion ? 0 : .25; this.hit(.04); } }
+    // A entrada do primeiro guardiao e uma coreografia de quatro batidas. O jogo
+    // esta congelado em phase 'transition', entao nada disso pode ferir ninguem.
+    if (event.type === 'bossEntrance') {
+      this.bossEntry = { age: 0, duration: event.duration + .4, depth: .9 };
+      this.shake = this.reducedMotion ? 0 : .12;
+    }
+    if (event.type === 'bossEntranceBeat') {
+      const color = new THREE.Color(event.color), { x, z } = event, soft = this.reducedMotion;
+      if (event.kind === 'rumble') {
+        // O chao acorda: poeira sobe num anel largo e a luz implode no trono.
+        this.shake = soft ? 0 : .2;
+        this.pulse(x, z, color, 1.3, 1.7, 0, true);
+        for (let i = 0; i < (soft ? 5 : 16); i++) {
+          const a = i / (soft ? 5 : 16) * Math.PI * 2, r = 3 + Math.random() * 2.2;
+          this.burst(x + Math.cos(a) * r, z + Math.sin(a) * r, 0xb9a6c8, soft ? 1 : 3, 1,
+            { geo: 'sphere', size: 1.3, gravity: -1.5, lift: .5, spread: .9 });
+        }
+      }
+      if (event.kind === 'fissure') {
+        // Quatro fendas correm para fora, uma casa por vez.
+        this.shake = soft ? 0 : .28;
+        this.pulse(x, z, color, 5.2, .95);
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          for (let step = 1; step <= 6; step++) {
+            const cx = x + dx * step, cz = z + dz * step;
+            this.later(step * .055, () => {
+              this.burst(cx, cz, color, soft ? 1 : 4, 1.5, { geo: 'crystal', size: 1.1, spread: .35 });
+              if (!soft) this.burst(cx, cz, 0xffffff, 2, .8, { size: .7, gravity: 3, spread: .3 });
+              if (!soft && step % 2 === 0) this.scorch(cx, cz, .65);
+            });
+          }
+        }
+      }
+      if (event.kind === 'summon') {
+        // A escolta e puxada para dentro: anel que implode e depois estoura.
+        this.shake = soft ? 0 : .18;
+        for (const unit of event.escort || []) {
+          this.pulse(unit.x, unit.z, color, 1.7, .75, 0, true);
+          this.later(.28, () => {
+            this.burst(unit.x, unit.z, color, soft ? 3 : 12, 2.2, { geo: 'crystal', size: 1 });
+            this.impactLight(unit.x, unit.z, color, 22, 5, 1);
+          });
+        }
+      }
+      if (event.kind === 'slam') {
+        // Ele pousa. E a unica batida que tem direito a hitStop.
+        this.shake = soft ? 0 : .6;
+        this.hit(.13);
+        this.shock(x, z, color, 6.2, 2);
+        this.burst(x, z, color, soft ? 8 : 54, 5.2, { geo: 'crystal', size: 1.5, spread: .9 });
+        this.burst(x, z, 0xffffff, soft ? 6 : 28, 3.4, { size: 1.9, gravity: 5, spread: .5 });
+        this.burst(x, z, 0xf6ecff, soft ? 4 : 20, 2.4, { geo: 'sphere', size: 2.3, gravity: -2.2, lift: .5, y: .6, spread: 1.5 });
+        this.pulse(x, z, 0xffffff, 3.2, .4);
+        this.impactLight(x, z, color, 62, 16, 1.5);
+        for (let i = 1; i <= 2; i++) this.later(i * .1, () => this.pulse(x, z, color, 4.5 + i * 3.6, .9 + i * .2));
+      }
+    }
     if (event.type === 'boss') {
       // Entrada do guardião: a arena escurece, o holofote acende nele e três ondas varrem o chão.
       const b = this.game.boss;
@@ -662,7 +730,10 @@ export class ArenaScene {
       this.buildArena();
       const cx = (this.game.width - 1) / 2, cz = (this.game.height - 1) / 2;
       for (const size of [3, 6, 10]) this.pulse(cx, cz, event.color, size, 1.1);
-      for (const cell of event.cells.slice(0, 40)) this.burst(cell.x, cell.z, event.color, this.reducedMotion ? 1 : 4, 2.2);
+      for (const cell of event.cells.slice(0, 40)) {
+        if (cell.to) this.burst(cell.x, cell.z, 0xb9a6c8, this.reducedMotion ? 1 : 6, 1.5, { geo: 'sphere', size: 1.5, gravity: -1.6, lift: .6, spread: .7 });
+        else this.burst(cell.x, cell.z, event.color, this.reducedMotion ? 1 : 5, 2.4, { geo: 'crystal', size: 1.1, spread: .4 });
+      }
       this.shake = this.reducedMotion ? 0 : .5; this.hit(.12);
       this.impactLight?.(cx, cz, event.color, 46, 14, 1.8);
     }
@@ -708,6 +779,7 @@ export class ArenaScene {
     if (['paused', 'upgrade'].includes(this.game.phase)) dt = 0;
     if (this.hitStop > 0) { this.hitStop = Math.max(0, this.hitStop - dt); dt *= .16; }
     if (this.atmosphere.reduced !== this.reducedMotion) this.applyAtmosphere();
+    this.runTimers(dt);
     this.time += dt; const t = this.time, game = this.game;
     const p = game.player, [px, pz] = this.at(p.x, p.z);
     this.playerMesh.position.x = THREE.MathUtils.damp(this.playerMesh.position.x, px, 25, dt);
