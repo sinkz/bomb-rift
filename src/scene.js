@@ -834,14 +834,30 @@ export class ArenaScene {
     for (const warning of game.warnings) {
       live.add(warning.id);
       const obj = this.ensureObject(warning.id, () => {
-        // O golpe assinatura ganha magenta e espinhos: precisa ser lido de relance como "esse é diferente".
+        // Uma marca de chão diz TRÊS coisas: onde bate, que tipo de golpe é, e
+        // quanto falta. A terceira era a que faltava — o tempo vivia só na barra
+        // do chefe, no topo da tela, longe de onde o olho do jogador está.
         const group = new THREE.Group(), signature = warning.signature;
         const color = warning.color || (warning.effect === 'snare' ? 0x9cddff : signature ? 0xff5fd2 : 0xf65a69);
+        const fills = [], rims = [];
         for (const [i, c] of warning.cells.entries()) {
           const [x, z] = this.at(c.x, c.z);
-          mesh(group, 'box', mat(color, color, signature ? 1.3 : .8), x, .035, z, .89, signature ? .035 : .025, .89, false);
+          // Friso erguido na aresta: casas vizinhas formam um contorno contínuo,
+          // então dá para ler o FORMATO do golpe, não só casas soltas.
+          for (const [ox, oz, sx, sz] of [[-.44, 0, .055, .89], [.44, 0, .055, .89], [0, -.44, .89, .055], [0, .44, .89, .055]])
+            rims.push(mesh(group, 'box', mat(color, color, signature ? 2.1 : 1.5), x + ox, .045, z + oz, sx, .075, sz, false));
+          // Miolo que cresce do centro até estourar: é o relógio no chão.
+          const fill = mesh(group, 'box', mat(color, color, signature ? 1.1 : .55), x, .03, z, .84, .02, .84, false);
+          fill.material.transparent = true; fill.material.opacity = .5;
+          fills.push(fill);
           if (warning.rite || (signature && i % 4 === 0)) mesh(group, 'crystal', mat(color, color, .5), x, signature ? .42 : 1.05, z, .09, signature ? .5 : .15, .09, false);
+          // Forma por tipo, não só cor: a teia cruza fios, o rito crava runas nas quinas.
+          if (warning.effect === 'snare') for (const rot of [Math.PI / 4, -Math.PI / 4])
+            mesh(group, 'box', mat(color, color, 1.2), x, .05, z, 1.15, .03, .055, false).rotation.y = rot;
+          if (warning.rite) for (const [ox, oz] of [[-.36, -.36], [.36, .36]])
+            mesh(group, 'box', mat(color, color, 1.8), x + ox, .06, z + oz, .12, .05, .12, false);
         }
+        group.userData.fills = fills; group.userData.rims = rims; group.userData.tint = color;
         // Destino do salto e fim da investida ganham um marco alto: o chão diz onde o guardião vai parar.
         for (const spot of [warning.landing, warning.path?.[warning.path.length - 1]]) {
           if (!spot) continue; const [x, z] = this.at(spot.x, spot.z);
@@ -850,7 +866,29 @@ export class ArenaScene {
         return group;
       }, { x: (game.width - 1) / 2, z: (game.height - 1) / 2 });
       obj.visible = true;
-      obj.scale.y = 1 + (this.reducedMotion ? 0 : Math.sin(t * (warning.signature ? 13 : 8)) * (warning.signature ? .32 : .2));
+      // Progresso real do telégrafo. Sem duração conhecida, trata como iminente.
+      const done = warning.duration ? Math.min(1, Math.max(0, 1 - warning.timer / warning.duration)) : 1;
+      const grow = done ** .72;
+      for (const fill of obj.userData.fills || []) {
+        fill.scale.set(.84 * grow, .02, .84 * grow);
+        fill.material.opacity = .32 + done * .55;
+      }
+      // O friso acende no fim: nos últimos 25% o contorno pulsa forte, e esse é
+      // o sinal de "agora". Sem movimento, ele ainda sobe de brilho.
+      const urgent = done > .75 ? (done - .75) / .25 : 0;
+      const beat = this.reducedMotion ? urgent : urgent * (.55 + .45 * Math.sin(t * 26));
+      for (const rim of obj.userData.rims || []) rim.scale.y = .075 * (1 + beat * 2.6);
+      obj.scale.y = 1 + (this.reducedMotion ? 0 : Math.sin(t * (warning.signature ? 13 : 8)) * (warning.signature ? .06 : .04));
+      // Fagulhas convergindo marcam a contagem sem depender de cor: uma leva na
+      // metade do tempo, outra pouco antes de estourar.
+      if (!this.reducedMotion && this.quality) {
+        const stage = done > .88 ? 2 : done > .5 ? 1 : 0;
+        if (stage > (warning.pulsed || 0)) {
+          warning.pulsed = stage;
+          for (const c of warning.cells.slice(0, stage === 2 ? 8 : 4))
+            this.burst(c.x, c.z, obj.userData.tint, stage === 2 ? 4 : 2, stage === 2 ? 1.5 : .8);
+        }
+      }
     }
     for (const [id, obj] of this.objects) if (!live.has(id)) { obj.userData.actor?.dispose(); this.dynamic.remove(obj); this.objects.delete(id); }
     if (this.retiredBoss) {
