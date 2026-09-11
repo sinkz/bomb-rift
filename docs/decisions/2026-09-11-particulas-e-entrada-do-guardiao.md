@@ -57,11 +57,15 @@ A coreografia reusa a fase `'transition'` que já existia: o jogo **não simula 
 | tempo | batida | o que acontece |
 |---|---|---|
 | 0,00 s | `rumble` | o chão treme, poeira sobe num anel largo, a luz implode no trono |
-| 1,15 s | `fissure` | quatro fendas correm para fora, uma casa por vez |
-| 2,10 s | `summon` | o guardião invoca três lacaios |
-| 3,35 s | `slam` | ele pousa: onda de choque, clarão branco, `hitStop` |
+| 0,60 s | `fissure` | quatro fendas correm para fora, uma casa por vez |
+| 1,15 s | `summon` | o guardião invoca três lacaios |
+| 1,80 s | `slam` | **ele chega aqui** (`arrive: true`): pousa, o letreiro sobe com ele e a animação de entrada roda |
 
-Duelo encadeia: remodelagem da arena (2,6 s) → entrada (4,4 s) → `createBoss()`.
+**Orçamento de abertura: 5,0 s.** Remodelagem 1,6 s → coreografia 2,9 s → `entranceTimer` 0,5 s.
+
+A primeira versão gastava 8,2 s, com 7,0 s de jogo **totalmente congelado** — `move()` e `plantBomb()` guardam em `!active` (`game.js:144`), então o jogador era espectador. O corte veio de três lugares: remodelagem 2,6 → 1,6, coreografia 4,4 → 2,9, trégua 1,2 → 0,5.
+
+O guardião chega **antes** do fim da transição, na batida do pouso. É o que lhe dá tempo de tela para rodar a animação de entrada enquanto o jogo ainda está parado, e faz o letreiro aparecer junto com ele em vez de tapar o centro de uma arena vazia.
 
 ### 6. A escolta não afrouxa nenhum invariante de posicionamento
 
@@ -71,10 +75,22 @@ Duelo encadeia: remodelagem da arena (2,6 s) → entrada (4,4 s) → `createBoss
 
 `scene.later(delay, fn)` existe porque coreografia com batidas precisa de atraso e `burst()` não tem o parâmetro que `pulse()` tem. Roda no relógio da cena, então pausa e `hitStop` seguram a coreografia junto com o resto.
 
+### 8. As duas lacunas de cobertura, fechadas
+
+Uma auditoria do que passava pelo campo novo encontrou dois buracos.
+
+**`pulse()` — 39 chamadas — ainda desenhava `TorusGeometry` com `MeshBasicMaterial`.** Borda dura, cor fixa, sem gradiente: a mesma doença que as partículas tinham, em quase metade dos efeitos do jogo. Virou um plano texturizado com o sprite de anel, com a mesma rampa de cor.
+
+**Não virou `Points`** porque o anel deita no chão (`rotation.x = π/2`) e um ponto sempre encara a câmera — viraria um disco flutuante. `RING_FIT = 2.78` compensa a troca de geometria: o toro tinha raio 1, e no sprite o anel fica em .72 do meio-lado, então o plano precisa de 1/.36 para as 39 chamadas manterem o tamanho que já esperavam.
+
+**O evento `hazard` não tinha handler nenhum na cena.** O ataque aleatório do mapa (`environmentAttack`, a cada 5–12 s pelo `hazardClock`) anunciava-se só pelo telégrafo no chão, sem nada dizendo que a ameaça vinha do cenário e não de um inimigo. Agora a brasa sobe do chão em **duas respiradas** ao longo do telégrafo, não num flash só — um flash no anúncio se perde no meio da partida.
+
+> Nota de campo: `environmentAttack()` retorna cedo quando `worldIndex` é 0. **O mundo 1 não tem ataque aleatório de mapa** — para ver o efeito é preciso a fase 4 ou adiante.
+
 ## O que ficou de fora conscientemente
 
-- **As ondas de choque (`pulse`) ainda usam `TorusGeometry`.** Trocar pelo sprite de anel macio melhoraria os impactos; não foi feito nesta rodada.
 - **O teto de partículas ficou em 1200** (era 220). Poderia subir mais agora que é uma draw call só, mas sem medição não há motivo.
+- **As chamas, o telégrafo, as marcas de queimado e as motas de ambiente** continuam fora do campo, por desenho: são volume de dano, marcação de chão, decalque instanciado e ambiência de fundo — nenhum é destroço.
 - **Cinco mundos sem entrada.** Por decisão do jogador: avaliar `ruins` primeiro.
 
 ## Verificação
