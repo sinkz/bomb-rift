@@ -16,6 +16,7 @@ import { createIcons, Bomb, Flame, Expand, Heart, Wind, Magnet, Timer, Zap, Hear
 import { Game, SKILLS, ROUND_SECONDS } from './game.js';
 import { ArenaScene } from './scene.js';
 import { bossSources } from './boss-sources.js';
+import { particleSources } from './particle-sources.js';
 import { Sound } from './audio.js';
 import { REFUGE_TRACKS } from './refuge-tracks.js';
 import '@fontsource/silkscreen/latin-400.css';
@@ -380,7 +381,7 @@ function warmAudio() { sound.prefetch(); sound.init(); updateSound(); }
 if (document.readyState === 'complete') (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio);
 else addEventListener('load', () => (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio), { once: true });
 
-try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources }); game.drainEvents(); updateHud(); }
+try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources, particleSources }); game.drainEvents(); updateHud(); }
 catch (error) { fatal = true; console.error(error); modal('error', `<div class="modal-emblem">${icon('CircleHelp')}</div><h2 id="modal-title">A fenda não conseguiu abrir.</h2><p>Este jogo precisa de WebGL 2. Ative a aceleração de hardware e tente um navegador atualizado, como Chrome ou Edge.</p><p class="small-note">Detalhe: ${String(error.message).replace(/[<>&]/g, '')}</p>`, { closable: false }); }
 
 let lastTime = performance.now(); let accumulator = 0;
