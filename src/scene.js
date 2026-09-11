@@ -11,6 +11,7 @@ import { skillById } from './skills.js';
 import { OUTFITS } from './legacy.js';
 import { loadBossLibrary, bossKeyFor } from './boss-models.js';
 import { BiomeAtmosphere, fxFor, deathFx, PICKUP_FX, rarityFx } from './biome-fx.js';
+import { ParticleField, SPRITE, SPRITE_FOR_GEO, rampFor } from './particles.js';
 
 const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
@@ -36,9 +37,9 @@ function mesh(parent, geometry, material, x, y, z, sx = 1, sy = sx, sz = sx, sha
 
 
 export class ArenaScene {
-  constructor(container, game, { reducedMotion = false, bossSources } = {}) {
+  constructor(container, game, { reducedMotion = false, bossSources, particleSources } = {}) {
     this.container = container; this.game = game; this.reducedMotion = reducedMotion; this.time = 0; this.shake = 0;
-    this.objects = new Map(); this.blocks = new Map(); this.particles = []; this.pulses = [];
+    this.objects = new Map(); this.blocks = new Map(); this.pulses = [];
     this.cameraSpan = 10.7; this.targetSpan = 10.7; this.zoom = 1; this.cameraFocus = new THREE.Vector3();
     this.staticSlots = new Map(); this.enemyModels = new Map();
     this.quality = true; this.hitStop = 0; this.bossEntry = null; this.scorches = []; this.scorchCursor = 0; this.arenaSize = { width: 21, height: 19 };
@@ -75,6 +76,8 @@ export class ArenaScene {
     this.flashLight = new THREE.PointLight(0xffa04a, 0, 6, 2); this.scene.add(this.flashLight);
     this.static = new THREE.Group(); this.dynamic = new THREE.Group(); this.fx = new THREE.Group();
     this.scene.add(this.static, this.dynamic, this.fx);
+    // Fica fora de this.fx de proposito: buildArena limpa aquele grupo inteiro.
+    this.field = new ParticleField(this.scene, particleSources?.atlas);
     this.playerMesh = this.makePlayer(); this.dynamic.add(this.playerMesh);
     this.addAtmosphere(); this.buildArena();
     this.resizeObserver = new ResizeObserver(() => this.resize()); this.resizeObserver.observe(container); this.resize();
@@ -132,6 +135,7 @@ export class ArenaScene {
     this.camera.top = unit * (safeH / 2 + top); this.camera.bottom = -unit * (safeH / 2 + bottom);
     this.camera.left = -unit * (safeW / 2 + left); this.camera.right = unit * (safeW / 2 + right);
     this.camera.updateProjectionMatrix();
+    this.field?.setScale(this.camera, h, this.renderer.getPixelRatio());
   }
   adjustZoom(change) { this.zoom = THREE.MathUtils.clamp(this.zoom + change, .82, 1.48); }
   projectWorld(x, z, y = 1.5) {
@@ -173,7 +177,7 @@ export class ArenaScene {
     this.objects.forEach(o => { o.userData.actor?.dispose(); this.dynamic.remove(o); }); this.objects.clear(); this.blocks.clear();
     if (this.retiredBoss) { this.retiredBoss.userData.actor.dispose(); this.retiredBoss = null; }
     for (const pulse of this.pulses) pulse.mesh.material.dispose();
-    this.fx.clear(); this.particles = []; this.pulses = [];
+    this.fx.clear(); this.field.clear(); this.pulses = [];
     const biome = this.game.biome, WIDTH = this.game.width, HEIGHT = this.game.height;
     this.arenaSize = { width: WIDTH, height: HEIGHT }; this.bossEntry = null; this.signatureCharge = null; this.hitStop = 0;
     for (const scorch of this.scorches) this.scorchMarks.setMatrixAt(scorch.slot, this.zeroMatrix);
@@ -481,11 +485,20 @@ export class ArenaScene {
     if (this.reducedMotion) count = Math.min(4, count);
     else if (!this.quality) count = Math.max(2, Math.round(count * .6));
     const [px, pz] = this.at(x, z), { geo = 'box', size = 1, y = .35, gravity = 7, lift = 1, spread = 0 } = options || {};
+    // A cor que a chamada ja passava vira o meio de uma rampa: branco-quente na
+    // largada, a cor no meio, quase preto no fim. Nenhuma chamada existente muda.
+    const ramp = rampFor(color?.isColor ? color.getHex() : color);
+    const sprite = SPRITE_FOR_GEO[geo] ?? SPRITE.glow;
+    const puff = geo === 'sphere';
     for (let i = 0; i < count; i++) {
-      if (this.particles.length > 220) break;
-      const scale = (.065 + Math.random() * .07) * size;
-      const particle = mesh(this.fx, geo, mat(color, color, .45), px + (Math.random() - .5) * spread, y, pz + (Math.random() - .5) * spread, scale, undefined, undefined, false);
-      this.particles.push({ mesh: particle, vx: (Math.random() - .5) * force, vy: lift * (1 + Math.random() * force), vz: (Math.random() - .5) * force, life: .5 + Math.random() * .5, g: gravity });
+      this.field.spawn({
+        x: px + (Math.random() - .5) * spread, y, z: pz + (Math.random() - .5) * spread,
+        vx: (Math.random() - .5) * force, vy: lift * (1 + Math.random() * force), vz: (Math.random() - .5) * force,
+        g: gravity, drag: puff ? .95 : .3, age: 0, life: .5 + Math.random() * .5,
+        size: (.17 + Math.random() * .14) * size * (puff ? 2.6 : 1),
+        sprite, ramp, rot: Math.random() * 6.283, spin: (Math.random() - .5) * 7,
+        gain: puff ? .5 : 1, swell: puff,
+      });
     }
   }
   pulse(x, z, color, size = 2.1, duration = .5, delay = 0, implode = false) {
@@ -896,13 +909,7 @@ export class ArenaScene {
       obj.userData.actor.update(elapsed); obj.userData.retireTime -= elapsed;
       if (obj.userData.retireTime <= 0) { obj.userData.actor.dispose(); this.retiredBoss = null; }
     }
-    for (const particle of this.particles) {
-      particle.life -= dt; particle.vy -= dt * particle.g;
-      particle.mesh.position.x += particle.vx * dt; particle.mesh.position.y += particle.vy * dt; particle.mesh.position.z += particle.vz * dt;
-      particle.mesh.rotation.x += dt * 3; particle.mesh.scale.multiplyScalar(Math.exp(-dt * 1.3));
-      if (particle.life <= 0) this.fx.remove(particle.mesh);
-    }
-    this.particles = this.particles.filter(particle => particle.life > 0);
+    this.field.update(dt);
     for (const pulse of this.pulses) {
       if (pulse.delay > 0) { pulse.delay -= dt; if (pulse.delay <= 0) pulse.mesh.visible = true; continue; }
       pulse.age += dt; const progress = Math.min(1, pulse.age / pulse.duration);
