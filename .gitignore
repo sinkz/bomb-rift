@@ -17,3 +17,8 @@ bomb-rift-cloudflare.zip
 *.key
 .public-audit.mjs
 public/guardian-review/*.blend1
+
+# Screenshots de verificacao sao artefatos de sessao (68MB). Mantemos so os
+# que a documentacao referencia; o resto se regenera com bombRiftDev.audit().
+shots/*
+!shots/hud-390x844-antes.png

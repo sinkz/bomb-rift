@@ -18,3 +18,36 @@
 .campaign-score-note{padding:14px;border:2px solid #795b7f;background:#21172d;color:#f5d59f;font-size:13px;line-height:1.7}
 @media(max-width:700px){.difficulty-picker{padding:12px}.difficulty-options{gap:6px}.difficulty-options button{padding:8px 5px}.difficulty-options span{font-size:9px}.difficulty-options small{font-size:10px}.attempt-progress{font-size:10px;padding:10px}.run-metric{min-width:0;grid-template-columns:18px minmax(0,1fr) auto}.combat-lives{font-size:10px}.result-trophy{display:block}.result-heading h2{font-size:22px}.modal.modal-dead,.modal.modal-intermission,.modal.modal-ranking{width:100%;max-width:100%}.result-actions .primary-button{white-space:normal}}
 @media(max-width:700px){.hero-hud .combat-lives{font-size:8px;height:13px;gap:3px}.hero-hud .combat-lives .pixel-icon{width:11px;height:11px}.hero-hud .combat-lives small{display:none}}
+
+/* Fase concluída: progresso e prévia da próxima fenda, no lugar do antigo placar. */
+.stage-progress{margin:14px 0 6px;padding:12px 14px;border:2px solid #4b3f63;background:#1b1526}
+.stage-progress-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font:600 9px Oxanium;letter-spacing:2px;color:#b3a3c7}
+.stage-progress-heading b{color:#ffcf8e;letter-spacing:1.5px}
+.stage-progress-track{height:7px;margin:10px 0 9px;background:#120d1b;border:1px solid #3a3050;overflow:hidden}
+.stage-progress-track span{display:block;height:100%;background:linear-gradient(90deg,#ffb56b,#ffe0a8);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.reduced-motion .stage-progress-track span{transition:none}
+.stage-progress-pips{display:flex;gap:3px}
+.stage-progress-pips i{flex:1;height:4px;background:#2c2440;border:1px solid #392f52}
+.stage-progress-pips i.done{background:#ffb56b;border-color:#ffd9a6}
+.next-stage{--world-color:#bfa2ff;margin:12px 0;padding:12px 14px;border:2px solid color-mix(in srgb,var(--world-color) 45%,#3a3050);background:linear-gradient(115deg,color-mix(in srgb,var(--world-color) 10%,transparent),#17121f 60%)}
+.next-stage .micro{font:600 8px Oxanium;letter-spacing:2.4px;color:var(--world-color)}
+.next-stage strong{display:block;margin:5px 0 3px;font:600 18px Oxanium;color:#f1e7f6}
+.next-stage small{display:block;font-size:11px;line-height:1.6;color:#a89eb8}
+/* A celebração de fase tem de caber em 900px de altura sem esconder o botão secundário. */
+.modal-intermission .modal-emblem{margin-bottom:10px;transform:scale(.85);transform-origin:left center}
+.modal-intermission .life-shop small:last-child{display:none}
+.modal-intermission .life-shop{margin:12px 0}
+.modal-intermission .victory-map-note{margin:12px 0;font-size:11px}
+.modal-intermission .legacy-result{margin:12px 0}
+
+/* Seletor de dificuldade travado (tentativa em andamento): vira uma linha. */
+.difficulty-picker.locked{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:8px 14px}
+.difficulty-picker.locked>div:first-child small{display:none}
+.difficulty-picker.locked>div:first-child b{white-space:nowrap}
+.difficulty-picker.locked .difficulty-options{display:flex;gap:8px;margin:0}
+.difficulty-picker.locked .difficulty-options button{display:none}
+.difficulty-picker.locked .difficulty-options button[aria-pressed="true"]{display:flex;align-items:center;gap:8px;padding:5px 12px;opacity:1}
+.difficulty-picker.locked .difficulty-options button[aria-pressed="true"] span{display:none}
+.difficulty-picker.locked .difficulty-options button[aria-pressed="true"] small{margin:0}
+.difficulty-picker.locked>p{margin:0;font-size:10px}
+.difficulty-picker.locked>small{display:none}

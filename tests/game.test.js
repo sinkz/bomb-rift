@@ -186,10 +186,18 @@ test('boss enrages once at half health without adding reinforcements', () => {
   g.tick(.01); assert.equal(g.enemies.length, 0);
   assert.equal(g.drainEvents().filter(e => e.type === 'bossEnraged').length, 1);
 });
-test('boss alternates targeted ground attacks and a cross blocked by stone', () => {
-  const g = arena(); g.spawnBoss(); g.bossAttack();
-  assert(g.warnings[0].cells.some(c => c.x === g.player.x && c.z === g.player.z));
-  const {x,z}=g.boss;g.player.x=x;g.player.z=z+2;g.grid[z][x+1] = 1; g.bossAttack();
-  assert(g.warnings[1].cells.some(c => c.x === x && c.z === z));
-  assert(!g.warnings[1].cells.some(c => c.x > x));
+// The old boss alternated two patterns with attackIndex % 2. It now draws from a
+// per-guardian repertoire, so the contract is "never the same pattern twice in a
+// row" instead of a fixed alternation; the cross still stops at stone.
+test('boss draws patterns without repeating and keeps the cross blocked by stone', () => {
+  const g = arena(); g.spawnBoss(); const ids = [];
+  for (let i = 0; i < 10; i++) { g.warnings = []; const chosen = g.bossAttack(); if (chosen) ids.push(chosen.id); }
+  assert(ids.length >= 6); assert(new Set(ids).size > 1);
+  assert(ids.every((id, i) => !i || id !== ids[i - 1]), `repeated a pattern: ${ids.join(',')}`);
+  const h = arena(); h.spawnBoss(); const b = h.boss, {x,z} = b;
+  h.player.x = x; h.player.z = z + 2; h.grid[z][x+1] = 1; b.lastMove = 'toque'; h.warnings = [];
+  assert.equal(h.bossAttack().id, 'cruz');
+  const cells = h.warnings.at(-1).cells;
+  assert(cells.some(c => c.x === x && c.z === z));
+  assert(!cells.some(c => c.x > x));
 });

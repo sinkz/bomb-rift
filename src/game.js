@@ -7,7 +7,7 @@ export const HEIGHT = 15;
 export const ROUND_SECONDS = 120;
 export const BIOMES = WORLDS;
 import { SKILLS, skillById } from './skills.js';
-import { queueArenaRite, resolveArenaRite } from './boss-mechanics.js';
+import { queueArenaRite, resolveArenaRite, resolveBossMove, chooseBossMove, carveSafeHouse, bossTelegraph, bossRhythm, bossPhaseFor, movesFor, landingSite, PHASE_LABELS } from './boss-mechanics.js';
 import { updateBossAI } from './boss-ai.js';
 export { SKILLS };
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -432,6 +432,8 @@ export class Game {
         this.anchors = this.anchors.filter(a=>a!==anchor);
         if (this.boss) {
           this.boss.stagger=4; this.boss.castTimer=0; this.boss.attackCooldown=1.2;
+          // Anchors stay the strongest counter-play: they also break the combo.
+          this.boss.comboQueue=[]; this.boss.retreat=0;
           this.warnings=this.warnings.filter(w=>w.bossId!==this.boss.id);
           this.emit('bossStagger',{id:this.boss.id});
         }
@@ -449,45 +451,40 @@ export class Game {
     }
     const hp = Math.ceil((14 + this.round * 4) * this.challenge.hp);
     this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.guardian || this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 3.2, attackCooldown: 4, hitFlash: 0, attackIndex: 0, enraged: false };
+    Object.assign(this.boss, { phase: 1, lastMove: null, comboQueue: [], signatureBeat: 0, riteCounter: 3, retreat: 0, dodgeCooldown: 0 });
     this.boss.entranceTimer = 1.2; this.boss.intent = 'spawn';
     this.spawnClock = this.spawnInterval;
     this.emit('boss');
   }
   openBossArena() { queueArenaRite(this, { entrance: true }); }
   bossAttack() {
-    if (!this.boss) return;
-    const p = this.player, b = this.boss, cells = [], attack = b.attackIndex++;
-    if (attack % 3 === 2 && queueArenaRite(this)) return;
-    if (this.biome.id === 'garden' && attack % 2 === 0) {
-      for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) if (Math.max(Math.abs(dx), Math.abs(dz)) === 2 && this.tile(p.x + dx, p.z + dz) === 0) cells.push({ x: p.x + dx, z: p.z + dz });
-    } else if (this.biome.id === 'storm' && attack % 2 === 0) {
-      for (const x of [p.x - 1, p.x + 1]) for (let z = 1; z < this.height - 1; z++) if (this.tile(x, z) === 0) cells.push({ x, z });
-    } else if (this.biome.id === 'frost' && attack % 2 === 0) {
-      for (let d = -3; d <= 3; d++) for (const sign of [-1, 1]) if (this.tile(p.x + d, p.z + d * sign) === 0) cells.push({ x: p.x + d, z: p.z + d * sign });
-    } else if (this.stage.worldIndex === 1 && attack % 2 === 0) {
-      for (let x = 1; x < this.width - 1; x++) if (this.tile(x, p.z) === 0) cells.push({ x, z: p.z });
-      if (b.enraged) for (let z = 1; z < this.height - 1; z++) if (this.tile(p.x, z) === 0) cells.push({ x: p.x, z });
-    } else if (this.stage.worldIndex === 2 && attack % 2 === 0) {
-      for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) if (Math.max(Math.abs(dx), Math.abs(dz)) === 2 && this.tile(p.x + dx, p.z + dz) === 0) cells.push({ x: p.x + dx, z: p.z + dz });
-      if (this.enemies.length < 12) this.spawnEnemy('wisp');
-    } else if (attack % 2 === 1) {
-      const origin = distance(b,p)>4 ? p : b;
-      for (const [dx, dz] of DIRS) for (let i = 0; i <= (b.enraged ? 6 : 4); i++) {
-        const x = origin.x + dx * i, z = origin.z + dz * i;
-        if (this.tile(x, z) !== 0) break;
-        if (!cells.some(c => c.x === x && c.z === z)) cells.push({ x, z });
-      }
-    } else {
-      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
-        if (this.tile(p.x + dx, p.z + dz) === 0) cells.push({ x: p.x + dx, z: p.z + dz });
-      }
-    }
-    const duration = (b.enraged ? 1 : 1.2) + (this.round <= 3 ? .5 : .15);
-    const names = { ruins: ['DOBRAR DOS SINOS', 'CRUZ DO SILÊNCIO'], forge: ['FORNALHA VIVA', 'RUPTURA ÍGNEA'], abyss: ['MARÉ DAS ALMAS', 'FENDA ESPECTRAL'], garden: ['COROA DE SEMENTES', 'RAÍZES DO SILÊNCIO'], storm: ['COLUNAS DO TROVÃO', 'CIRCUITO PARTIDO'], frost: ['LANÇAS DA AURORA', 'COROA DO INVERNO'] };
-    if (!cells.length) cells.push({x:p.x,z:p.z});
-    b.castTimer = duration; b.castTarget = {x:p.x,z:p.z}; b.intent = 'cast';
-    this.warnings.push({ id: this.nextId++, bossId:b.id, cells, timer: duration, duration });
-    this.emit('warning', { id:b.id, cells, duration, name: names[this.biome.id][attack % 2] });
+    if (!this.boss) return null;
+    const p = this.player, b = this.boss;
+    // Rites stay on their own clock so the arena keeps opening routes and
+    // replanting anchors between the guardian's own patterns.
+    if (--b.riteCounter <= 0 && queueArenaRite(this)) { b.riteCounter = b.phase >= 3 ? 2 : 3; return null; }
+    const repertoire = movesFor(this.biome.id);
+    let chosen = chooseBossMove(this, b), at = chosen.teleport ? landingSite(this, b) : null, cells = chosen.build(this, b, p, at);
+    // A dash with no room and a rift with no landing fall back to the opening
+    // pattern instead of firing an empty, unreadable warning.
+    if (cells.length < (chosen.dash ? 2 : 1)) { chosen = repertoire[0]; at = null; cells = chosen.build(this, b, p, null); }
+    if (!cells.length) cells = [{ x: p.x, z: p.z }];
+    const duration = bossTelegraph(this, b, chosen);
+    const path = chosen.dash ? cells.slice() : null;
+    cells = carveSafeHouse(this, cells, duration);
+    b.attackIndex++; b.lastMove = chosen.id;
+    if (chosen.combo && b.phase >= 2 && this.round >= 4) b.comboQueue = [chosen.combo];
+    // Self-centred finishers need room: the guardian backs off right after casting.
+    if (chosen.keepAway && Math.abs(b.x - p.x) + Math.abs(b.z - p.z) < 4) b.retreat = 1.2;
+    b.castTimer = duration; b.castTarget = { x: p.x, z: p.z }; b.intent = 'cast';
+    const warning = { id: this.nextId++, bossId: b.id, cells, timer: duration, duration, move: chosen.id, origin: { x: p.x, z: p.z } };
+    if (path) warning.path = path;
+    if (chosen.teleport && at) warning.landing = { ...at };
+    if (chosen.signature) warning.signature = true;
+    this.warnings.push(warning);
+    this.emit('warning', { id: b.id, cells, duration, name: chosen.name, move: chosen.id, phase: b.phase, signature: !!chosen.signature });
+    if (chosen.signature) this.emit('bossSignature', { id: b.id, x: b.x, z: b.z, move: chosen.id, name: chosen.name, duration, color: this.biome.color });
+    return chosen;
   }
   defeatBoss() {
     if (!this.boss || !this.active) return;
@@ -666,7 +663,7 @@ export class Game {
     this.flames = this.flames.filter(f => f.life > 0);
     if (!this.active) return;
     const hazards = this.dangerMap();
-    updateBossAI(this, dt);
+    updateBossAI(this, dt, hazards);
     for (const enemy of [...this.enemies]) {
       let chargedThisTick = false;
       enemy.cooldown -= dt; enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
@@ -709,14 +706,21 @@ export class Game {
       if (enemy.x === p.x && enemy.z === p.z) this.hurt(enemy.type === 'boss' ? 30 : chargedThisTick || enemy.intent === 'charge' ? 20 : 12);
     }
     if (this.boss && this.active) {
-      if (this.boss.hp <= this.boss.maxHp / 2 && !this.boss.enraged && !this.boss.stagger && !this.boss.frozen) {
-        this.boss.enraged = true; this.boss.attackCooldown = 1.6;
+      const b = this.boss, phase = bossPhaseFor(b);
+      // Three real acts instead of one fury flip: each threshold wipes the
+      // pending marks, reopens the arena (fresh anchors) and resets the rhythm.
+      if (phase > b.phase && !b.stagger && !b.frozen) {
+        b.phase = phase; b.comboQueue = []; b.lastMove = null; b.signatureBeat = 0; b.retreat = 0;
+        b.castTimer = 0; b.recovery = 0; b.attackCooldown = phase >= 3 ? 1.1 : 1.6;
         this.warnings = []; queueArenaRite(this);
-        this.emit('bossEnraged', this.boss);
+        if (!b.enraged) { b.enraged = true; this.emit('bossEnraged', b); }
+        this.emit('bossPhase', { id: b.id, x: b.x, z: b.z, phase, label: PHASE_LABELS[phase], name: b.name, hp: b.hp, maxHp: b.maxHp, color: this.biome.color });
       }
-      if (!this.boss.stagger && !this.boss.frozen && !this.boss.entranceTimer && !this.boss.castTimer && !this.boss.recovery) {
-        this.boss.attackCooldown -= dt;
-        if (this.boss.attackCooldown <= 0) { this.bossAttack(); this.boss.attackCooldown = this.boss.enraged ? 1.3 : 2; }
+      if (!b.stagger && !b.frozen && !b.entranceTimer && !b.castTimer && !b.recovery) {
+        b.attackCooldown -= dt;
+        // The beat is read after the attack, so a pattern that just linked a
+        // follow-up gets the fast second half of its combo.
+        if (b.attackCooldown <= 0) { this.bossAttack(); b.attackCooldown = bossRhythm(this, b); }
       }
     }
     for (const w of [...this.warnings]) {
@@ -724,9 +728,12 @@ export class Game {
       if (w.timer <= 0) {
         if (w.bossId) {
           if (!this.boss || this.boss.id !== w.bossId) continue;
-          this.boss.castTimer=0; this.boss.recovery=.65; this.boss.cooldown=.65;
+          // Desperation buys a longer counter-attack window: the bigger the
+          // telegraph the player just read, the wider the opening it earns.
+          this.boss.castTimer=0; this.boss.recovery = w.signature ? 1.5 : this.boss.phase >= 3 ? .95 : .65; this.boss.cooldown=this.boss.recovery;
           if(w.breach) for(const c of w.cells){this.grid[c.z][c.x]=0;this.emit('clear',c);}
           this.emit('bossImpact',{id:this.boss.id,x:this.boss.x,z:this.boss.z,cells:w.cells,color:this.biome.color});
+          resolveBossMove(this, w);
         }
         if (w.rite) { resolveArenaRite(this,w); if (!w.damage) continue; }
         const flame = { id: this.nextId++, cells: w.cells, life: .65, damage: w.damage ?? 25, effect: w.effect, hit: new Set(), enemy: true, fire: this.stage.worldIndex >= 2 ? 'spectral' : 'normal' };

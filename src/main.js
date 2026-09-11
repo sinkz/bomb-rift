@@ -22,7 +22,7 @@ import '@fontsource/silkscreen/latin-400.css';
 import { GameHud } from './hud.js';
 import { skillArt, skillPreview } from './skill-art.js';
 import { Atlas } from './atlas.js';
-import { relicById, CAMPAIGN_LENGTH } from './campaign.js';
+import { relicById, CAMPAIGN_LENGTH, STAGES_PER_WORLD, stageFor } from './campaign.js';
 import { normalizeMeta } from './legacy.js';
 import { Refuge, resourceCost } from './refuge.js';
 import { LocalRanking } from './ranking.js';
@@ -36,6 +36,7 @@ import './refuge.css';
 import './i18n.css';
 import './pixel-interface.css';
 import './expedition.css';
+import './ranking-view.css';
 
 const ICONS = { Bomb, Flame, Expand, Heart, Wind, Magnet, Timer, Zap, HeartPulse, Droplets, ArrowUpRight, ArrowRight, ChevronRight, Gem, Skull, Trophy, Swords, Shield, LockKeyhole, Plus, Volume2, VolumeX, Maximize, Minimize, Settings2, Pause, Play, X, RotateCcw, BookOpen, Sparkles, CircleHelp, MoveUp, MoveDown, MoveLeft, MoveRight, Check, Target, Infinity: InfinityIcon, Crosshair, Sprout };
 const icon = pixelIcon;
@@ -63,7 +64,7 @@ setHTML($('#app'), `
     <section class="page-heading"><div><div class="eyebrow"><span class="little-line"></span> A MASMORRA NUNCA É A MESMA</div><h1>Uma nova run. <span>Infinitas possibilidades.</span></h1></div><div class="record"><span class="record-icon">${icon('Trophy')}</span><div><span class="micro">SEU RECORDE</span><strong id="record-round">${meta.bestRound ? `RODADA ${String(meta.bestRound).padStart(2, '0')}` : 'A HISTÓRIA É SUA'}</strong></div></div></section>
     <div class="game-layout">
       <section class="arena-card" aria-label="Arena do jogo">
-        <div id="scene"></div><div class="arena-vignette"></div>
+        <div id="scene"></div><div id="safe-area" aria-hidden="true"></div><div class="arena-vignette"></div>
         <div class="arena-top"><div class="arena-location"><span class="location-icon">${icon('Swords')}</span><div><span class="micro" id="round-label">EXPEDIÇÃO · RODADA 01</span><h2 id="biome-name">Ruínas do crepúsculo</h2></div></div><div class="arena-controls"><span class="live-label" id="live-label"><span class="status-dot"></span> PRONTO PARA ENTRAR</span><button class="scene-control" id="pause-button" data-action="pause" aria-label="Pausar jogo" disabled>${icon('Pause')}</button><button class="scene-control" data-action="fullscreen" aria-label="Tela cheia">${icon('Maximize')}</button></div></div>
         <div class="round-timer"><span class="micro" id="timer-caption">O CHEFE DESPERTA EM</span><div id="timer">02<span>:</span>00</div><div class="timer-track"><span id="timer-fill"></span></div></div>
         <div class="boss-health hidden" id="boss-health"><div>${icon('Skull')}<span id="boss-name"></span><b id="boss-hp"></b></div><div class="boss-track"><span id="boss-fill"></span></div></div>
@@ -101,6 +102,8 @@ function saveMeta() { try { localStorage.setItem('bomb-rift-v1', JSON.stringify(
 function toast(text) { setText($('#toast'), text); $('#toast').classList.add('visible'); clearTimeout(toast.timer); toast.timer = setTimeout(() => $('#toast').classList.remove('visible'), 3300); }
 function announce(text, kind = '') { hud.notice(text, '', kind === 'danger' ? '#ff8e9c' : '#ffd39b'); }
 function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); if (lastRunScore) globalRanking.finish(lastRunScore); saveMeta(); } }
+// A scored row only exists once the whole expedition is closed: a death, or stage 18 cleared.
+function runEnded() { return !!lastRunScore?.report; }
 function scoreCard() { return lastRunScore ? `<div class="score-result"><div>${lastRunScore.place ? `${String(lastRunScore.place).padStart(2, '0')}º NO SEU RANKING` : 'RESULTADO DA EXPEDIÇÃO'}<small>${ranking.saved ? 'Salvo neste navegador' : 'Válido nesta sessão'} · abates, coleta e conquista</small></div><strong>${lastRunScore.score.toLocaleString(localeTag())} <small>PTS</small></strong></div>` : ''; }
 function legacyResultCard() {
   const result = game.result?.legacy; if (!result) return '';
@@ -111,11 +114,16 @@ function modal(type, content, { wide = false, closable = true } = {}) {
   touchMove = null;
   if (!modalType) returnFocus = document.activeElement;
   document.querySelectorAll('#app > main, #launch, #atlas').forEach(el => el.inert = true);
-  if ((type === 'dead' || type === 'intermission') && lastRunScore?.report) { content = resultMarkup(lastRunScore, game, legacyResultCard()); wide = true; }
+  // The full scorecard belongs to an expedition that is over — a death, or the
+  // eighteenth guardian. Clearing a stage mid-run gets its own short celebration.
+  if (runEnded() && ['dead', 'intermission'].includes(type)) { content = resultMarkup(lastRunScore, game, legacyResultCard()); wide = true; }
   keys.clear(); modalType = type;
   setHTML($('#modal-root'), `<section class="modal modal-${type} ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${closable ? `<button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('X')}</button>` : ''}${content}</section>`);
-  $('#modal-root').classList.remove('hidden'); icons(); $('#modal-root button:not(:disabled)')?.focus();
-  if (lastRunScore && (type === 'dead' || type === 'intermission')) mountPublication($('#result-publication'), lastRunScore, globalRanking);
+  $('#modal-root').classList.remove('hidden'); icons();
+  // Focusing without preventScroll used to scroll the panel and clip its own heading.
+  const panel = $('#modal-root .modal'); if (panel) panel.scrollTop = 0;
+  ($('#modal-root .primary-button:not(:disabled)') || $('#modal-root button:not(:disabled)'))?.focus({ preventScroll: true });
+  if (runEnded() && ['dead', 'intermission'].includes(type)) mountPublication($('#result-publication'), lastRunScore, globalRanking);
 }
 function resume() { closeModal(); if (game.phase === 'paused') game.pause(); updateHud(); }
 function start() {
@@ -154,7 +162,13 @@ function showBuild() {
   modal('build', `<span class="eyebrow orange">ARSENAL DA FASE ${game.round} · NÍVEL ${game.level}</span><h2 id="modal-title">Seu tipo de caos.</h2>${lifeShop(game)}<div class="build-summary"><span>${icon('Flame')} ${game.player.damage} DANO</span><span>${icon('Expand')} ${game.player.range} ALCANCE</span><span>${icon('Bomb')} ${game.player.capacity} BOMBAS</span></div><div class="relic-codex">${game.relics.map(id => { const r = relicById(id); return `<div class="relic-entry" style="--skill-color:${r.color}">${skillArt('relic-' + r.id)}<div><h3>${r.name}${id === 'phoenix' && !game.player.revive ? ' · consumida' : ''}</h3><p>${r.desc}</p></div></div>`; }).join('')}</div><div class="equipped-skills">${entries.length ? entries.map(s => `<div class="equipped-skill" style="--skill-color:${s.color}">${skillArt(s.id)}<div><small>${s.branch} · NV. ${game.skillLevels[s.id]}</small><h3>${s.name}</h3><p>${s.desc}</p>${masteryProgress(game,s.id)}</div></div>`).join('') : '<p>Suba de nível ou colete cristais para forjar habilidades. Destrua o baú dourado e vença minichefes para encontrar relíquias.</p>'}</div><p class="small-note">Esta build dura só esta fase. Suas melhorias permanentes continuam na próxima.</p><button class="primary-button full-width" data-action="close-modal">Voltar ao combate ${icon('Swords')}</button>`, { wide: true });
 }
 function showIntermission() {
-  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU.</span><h2 id="modal-title">Uma fenda a menos.</h2><p>${game.stage.name}</p><div class="campaign-score-note"><b>${formatNumber(game.expeditionScore)} PTS · ${game.challenge.label}</b><br><span>Pontuação acumulada da tentativa. O ranking abre no game over ou após concluir as 18 fases.</span></div>${legacyResultCard()}${lifeShop(game)}<p class="victory-map-note">Skills, relíquias e cristais reiniciam na próxima fase. Vidas extras e pontos continuam nesta tentativa.</p><button class="primary-button full-width" data-action="world-map">Continuar no atlas ${icon('ArrowRight')}</button><button class="secondary-button full-width" data-action="home">Voltar ao refúgio</button>`, { closable: false });
+  // Mid-run this is a victory lap, not a scoreboard: the expedition is still open,
+  // so it shows progress and what comes next instead of a ranking-shaped screen.
+  const cleared = game.round, next = cleared + 1, nextStage = next <= CAMPAIGN_LENGTH ? stageFor(next) : null;
+  const worldStep = game.stage.local, worldDone = worldStep === STAGES_PER_WORLD;
+  const progress = `<div class="stage-progress" role="group" aria-label="Progresso da campanha"><div class="stage-progress-heading"><span>FASE ${String(cleared).padStart(2, '0')} DE ${CAMPAIGN_LENGTH}</span><b>${game.challenge.label.toUpperCase()}</b></div><div class="stage-progress-track"><span style="width:${cleared / CAMPAIGN_LENGTH * 100}%"></span></div><div class="stage-progress-pips">${Array.from({ length: CAMPAIGN_LENGTH }, (_, i) => `<i class="${i < cleared ? 'done' : ''}"></i>`).join('')}</div></div>`;
+  const teaser = nextStage ? `<div class="next-stage" style="--world-color:${nextStage.world.color}"><span class="micro">A PRÓXIMA FENDA</span><strong>${nextStage.name}</strong><small>${nextStage.world.name} · ${nextStage.world.boss} · ${nextStage.description}</small></div>` : '';
+  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU.</span><h2 id="modal-title">Uma fenda a menos.</h2><p>${game.stage.name}${worldDone ? ` · ${game.biome.name} concluído` : ''}</p>${progress}${legacyResultCard()}${teaser}${lifeShop(game)}<p class="victory-map-note">Skills, relíquias e cristais reiniciam na próxima fase. Vidas extras continuam nesta tentativa.</p><button class="primary-button full-width" data-action="world-map">Continuar no atlas ${icon('ArrowRight')}</button><button class="secondary-button full-width" data-action="home">Voltar ao refúgio</button>`, { closable: false });
 }
 function showDead() {
   modal('dead', `<div class="modal-emblem">${icon('Skull')}</div><span class="eyebrow orange">TODA LENDA COMEÇA COM ALGUMAS EXPLOSÕES.</span><h2 id="modal-title">O pavio apagou.<br><span>A faísca continua.</span></h2><p>Sua build ficou na fenda. As essências e as evoluções permanentes vieram com você.</p><div class="results-row"><div><strong>${String(game.round).padStart(2, '0')}</strong><span>RODADA</span></div><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS</span></div></div><button class="primary-button full-width" data-action="start">Mais uma expedição ${icon('RotateCcw')}</button><button class="secondary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
@@ -223,6 +237,9 @@ function handleEvents() {
     if (event.type === 'skill') { closeModal(); updateBuild(); }
     if (event.type === 'bossDefeated') { claimRun(); showIntermission(); }
     if (event.type === 'miniboss') announce('SENTINELA DA FENDA · RELÍQUIA GARANTIDA', 'danger');
+    // Act two already speaks through 'bossEnraged'; only the desperation turn
+    // needs its own voice, or the same threshold would announce itself twice.
+    if (event.type === 'bossPhase' && event.phase >= 3) { sound.play('bossDesperation'); announce(`${game.biome.boss} · ${event.label}`, 'danger'); }
     if (event.type === 'miniDefeated') announce('SENTINELA DERROTADO · COLETE A RELÍQUIA');
     if (event.type === 'relic') { showRelic(event.id); sound.play('skill'); }
     if (event.type === 'extraLife') { announce('VIDA EXTRA · MAIS UMA CHANCE'); sound.play('skill'); }
@@ -246,7 +263,7 @@ const actions = {
   ranking() { pauseForModal(); modal('ranking', '<div id="global-ranking-body"></div>', { wide:true }); mountBoard($('#global-ranking-body'),globalRanking,()=>launch.rows()); },
   home() { if (game.active || game.phase === 'upgrade') return; claimRun(); closeModal(); game.returnToMap(); $('#mobile-controls').classList.remove('running'); updateHud(); launch.show(); },
   taunt() { atlas.bossPreview?.taunt(); sound.play('boss'); },
-  music() { const wasReady = !!sound.ctx; sound.init(); if (wasReady) sound.musicEnabled = !sound.musicEnabled; sound.save(); },
+  music() { const wasReady = sound.ready; sound.init(); if (wasReady) sound.musicEnabled = !sound.musicEnabled; sound.save(); },
   'world-map': returnToMap,
   abandon() { game.die(); handleEvents(); },
   explore() { if (modalType === 'upgrade' || modalType === 'intermission') return; if (game.phase === 'dead') showDead(); else resume(); },
@@ -344,6 +361,16 @@ function blurPause() { keys.clear(); touchMove = null; if (game.active) { game.p
 window.addEventListener('blur', blurPause); document.addEventListener('visibilitychange', () => { if (document.hidden) blurPause(); });
 document.querySelector('.brand').addEventListener('click', event => { event.preventDefault(); actions.explore(); });
 
+// The refuge used to open in silence: audio only woke on a button click, and only then
+// began downloading a three-megabyte master. Now the graph is built and decoded right
+// after the first paint, and any gesture anywhere resumes it — instantly, from cache.
+const WAKE_EVENTS = ['pointerdown', 'pointerup', 'keydown', 'touchend', 'wheel'];
+function wakeAudio() { sound.init(); updateSound(); if (sound.ready) for (const type of WAKE_EVENTS) removeEventListener(type, wakeAudio, true); }
+for (const type of WAKE_EVENTS) addEventListener(type, wakeAudio, { capture: true, passive: true });
+function warmAudio() { sound.prefetch(); sound.init(); updateSound(); }
+if (document.readyState === 'complete') (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio);
+else addEventListener('load', () => (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio), { once: true });
+
 try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources }); game.drainEvents(); updateHud(); }
 catch (error) { fatal = true; console.error(error); modal('error', `<div class="modal-emblem">${icon('CircleHelp')}</div><h2 id="modal-title">A fenda não conseguiu abrir.</h2><p>Este jogo precisa de WebGL 2. Ative a aceleração de hardware e tente um navegador atualizado, como Chrome ou Edge.</p><p class="small-note">Detalhe: ${String(error.message).replace(/[<>&]/g, '')}</p>`, { closable: false }); }
 
@@ -362,7 +389,7 @@ function frame(now) {
     if (game.phase !== 'menu') { scene.update(dt); hud.frame(dt, scene); } updateHud(); updateSound();
     if (!modalType && !document.hidden) launch.frame(now, reducedMotion);
     const musicState = $('#launch-music-state');
-    const musicLabel = !sound.ctx ? 'TOQUE PARA OUVIR' : sound.musicEnabled && !sound.muted ? 'TOCANDO · PAUSAR' : 'PAUSADA · ATIVAR';
+    const musicLabel = !sound.ready ? 'TOQUE PARA OUVIR' : !sound.musicEnabled || sound.muted ? 'PAUSADA · ATIVAR' : sound.refugeTrack && sound.recorded?.state === 'loading' ? 'CARREGANDO A TRILHA…' : 'TOCANDO · PAUSAR';
     if (musicState && musicState.textContent !== t(musicLabel)) setText(musicState, musicLabel);
   }
   requestAnimationFrame(frame);
@@ -373,3 +400,59 @@ requestAnimationFrame(frame);
 window.bombRiftBosses = () => ({ status: scene?.bossStatus, preview: atlas.bossPreview?.inspect(), playerOriginal: !scene?.playerMesh.userData.actor, active: scene ? [...scene.objects.values()].filter(o => o.userData.actor).map(o => o.userData.actor.key) : [] });
 window.bombRiftAudio = () => sound.inspect();
 window.bombRift = { snapshot: () => ({ phase: game.phase, difficulty: game.difficulty, lives: game.lives, expeditionScore: game.expeditionScore, expeditionEnded: game.expedition?.ended, round: game.round, stage: game.stage, selectedStage: atlas.selected, intelligence: game.intelligence, relics: [...game.relics], materials: { ...game.materials }, cratesBroken: game.cratesBroken, elapsed: game.elapsed, totalTime: game.totalTime, player: { ...game.player }, kills: game.kills, crystals: game.crystals, level: game.level, bombs: game.bombs.map(b => ({ ...b })), enemyCount: game.enemies.length, enemyIntents: game.enemies.map(e => ({ id: e.id, type: e.type, intent: e.intent, x: e.x, z: e.z })), boss: game.boss ? { ...game.boss } : null, skillLevels: { ...game.skillLevels }, meta: { ...meta }, camera: scene ? { span: scene.cameraSpan, zoom: scene.zoom, targetSpan: scene.targetSpan } : null, renderer: scene ? { calls: scene.renderer.info.render.calls, triangles: scene.renderer.info.render.triangles } : null, fatal }) };
+
+// Dev-only QA harness. Vite strips this branch from production builds.
+if (import.meta.env?.DEV) {
+  window.bombRiftDev = {
+    game, scene: () => scene, sound, actions, hud, atlas, launch, ranking, globalRanking,
+    pump() { handleEvents(); updateHud(); },
+    skipToBoss() { game.elapsed = ROUND_SECONDS - .05; this.pump(); },
+    killBoss() { if (!game.boss) return false; game.boss.hp = 0; game.defeatBoss(); this.pump(); return true; },
+    get lastRunScore() { return lastRunScore; },
+    get modalType() { return modalType; },
+    // Auditoria de layout: abre cada tela e mede quem rola e quem corta conteudo.
+    // Roda na altura de janela atual — redimensione e rode de novo para varrer.
+    async audit({ quiet = false } = {}) {
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+      const inspect = () => {
+        const rolam = [], cortam = [];
+        for (const el of document.querySelectorAll('body *')) {
+          if (!el.getClientRects().length) continue;
+          const style = getComputedStyle(el), over = el.scrollHeight - el.clientHeight;
+          if (over <= 3) continue;
+          const name = typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/)[0] : el.id ? '#' + el.id : el.tagName;
+          // A cena 3D e o overlay de mundo sao canvas de tamanho fixo, nao conteudo.
+          if (/scene|world-overlay|combat-hud|arena-card/.test(name)) continue;
+          if (/auto|scroll/.test(style.overflowY)) rolam.push(`${name}:${over}`);
+          else if (style.overflowY === 'hidden') cortam.push(`${name}:${over}`);
+        }
+        return { rolam, cortam };
+      };
+      const linhas = [];
+      const passo = async (nome, abrir, fechar) => {
+        await abrir(); await sleep(600);
+        const { rolam, cortam } = inspect();
+        linhas.push({ tela: nome, rola: rolam.join(' ') || '—', CORTA: cortam.join(' ') || '—' });
+        if (fechar) { await fechar(); await sleep(350); }
+      };
+      const estavaJogando = game.active;
+      await passo('refugio', () => actions.home());
+      await passo('atlas', () => actions.atlas(), () => actions.home());
+      for (const tela of ['guide', 'settings', 'meta', 'ranking'])
+        await passo(tela, () => actions[tela](), () => actions['close-modal']());
+      await passo('em jogo', async () => { actions.start(); await sleep(700); game.player.invincible = 9999; game.crystals = 999; this.pump(); });
+      await passo('build', () => actions.build(), () => actions['close-modal']());
+      await passo('pause', () => actions.pause(), () => actions['close-modal']());
+      await passo('upgrade', () => actions.forge(), async () => { game.chooseSkill(game.offers[0].id); this.pump(); });
+      await passo('fase concluida', async () => { this.skipToBoss(); await sleep(700); this.killBoss(); });
+      await passo('game over', async () => { actions.home(); await sleep(400); actions.start(); await sleep(600); game.die(); this.pump(); });
+      if (!estavaJogando) { actions['close-modal'](); actions.home(); }
+      const falhas = linhas.filter(l => l.CORTA !== '—');
+      if (!quiet) {
+        console.table(linhas);
+        console.log(`Janela ${innerWidth}×${innerHeight} · ${falhas.length ? '⚠ CONTEUDO CORTADO — corrija' : '✔ nada cortado'}`);
+      }
+      return { viewport: `${innerWidth}x${innerHeight}`, linhas, cortando: falhas };
+    },
+  };
+}

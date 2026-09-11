@@ -10,6 +10,7 @@ import { relicById } from './campaign.js';
 import { skillById } from './skills.js';
 import { OUTFITS } from './legacy.js';
 import { loadBossLibrary, bossKeyFor } from './boss-models.js';
+import { BiomeAtmosphere, fxFor, deathFx, PICKUP_FX, rarityFx } from './biome-fx.js';
 
 const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
@@ -40,6 +41,9 @@ export class ArenaScene {
     this.objects = new Map(); this.blocks = new Map(); this.particles = []; this.pulses = [];
     this.cameraSpan = 10.7; this.targetSpan = 10.7; this.zoom = 1; this.cameraFocus = new THREE.Vector3();
     this.staticSlots = new Map(); this.enemyModels = new Map();
+    this.quality = true; this.hitStop = 0; this.bossEntry = null; this.scorches = []; this.scorchCursor = 0; this.arenaSize = { width: 21, height: 19 };
+    this.style = fxFor('ruins'); this.eventColor = new THREE.Color(0xffffff); this.heroSpark = 0;
+    this.dummy = new THREE.Object3D(); this.zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
     this.retiredBoss = null; this.bossSources = bossSources; this.bossStatus = bossSources ? 'deferred' : 'procedural';
     this.bombWarningMaterial = new THREE.MeshBasicMaterial({ color: 0xffb452, transparent: true, opacity: .14, depthWrite: false, blending: THREE.AdditiveBlending });
     this.chargeWarningMaterial = new THREE.MeshBasicMaterial({ color: 0xff945e, transparent: true, opacity: .36, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -60,12 +64,14 @@ export class ArenaScene {
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1024, 768), .48, .45, 1.15);
     this.composer.addPass(this.bloom); this.composer.addPass(new OutputPass());
-    this.scene.add(new THREE.HemisphereLight(0xc5c4ff, 0x35262d, 1.7));
+    this.hemi = new THREE.HemisphereLight(0xc5c4ff, 0x35262d, 1.7); this.scene.add(this.hemi);
     const sun = new THREE.DirectionalLight(0xffd5a4, 2.8); sun.position.set(-8, 16, 8); sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 45 });
-    sun.shadow.normalBias = .035; sun.shadow.bias = -.0005; this.scene.add(sun);
-    const rim = new THREE.DirectionalLight(0x9572ff, 2.5); rim.position.set(5, 8, -9); this.scene.add(rim);
-    const fill = new THREE.PointLight(0xff742f, 18, 15, 2); fill.position.set(-6, 3, 5); this.scene.add(fill);
+    sun.shadow.normalBias = .035; sun.shadow.bias = -.0005; this.scene.add(sun); this.sun = sun;
+    const rim = new THREE.DirectionalLight(0x9572ff, 2.5); rim.position.set(5, 8, -9); this.scene.add(rim); this.rim = rim;
+    // O antigo preenchimento fixo virou a luz reativa que acompanha o herói e pulsa nos impactos.
+    const fill = new THREE.PointLight(0xff742f, 15, 11, 2); fill.position.set(-6, 3, 5); this.scene.add(fill); this.fill = fill;
+    this.baseLight = { hemi: 1.7, sun: 2.8, rim: 2.5, fill: 15, rimColor: new THREE.Color(0x9572ff) };
     this.flashLight = new THREE.PointLight(0xffa04a, 0, 6, 2); this.scene.add(this.flashLight);
     this.static = new THREE.Group(); this.dynamic = new THREE.Group(); this.fx = new THREE.Group();
     this.scene.add(this.static, this.dynamic, this.fx);
@@ -97,7 +103,34 @@ export class ArenaScene {
     if (!w || !h) return;
     this.renderer.setSize(w, h); this.composer.setSize(w, h);
     this.aspect = w / h;
-    this.camera.left = -this.cameraSpan * this.aspect; this.camera.right = this.cameraSpan * this.aspect; this.camera.top = this.cameraSpan; this.camera.bottom = -this.cameraSpan;
+    this.readSafeArea();
+    this.frameCamera();
+  }
+  // The canvas fills the screen, but the HUD owns bands at its edges. Reading those
+  // bands here lets the camera keep the board inside the free middle at full size,
+  // instead of shrinking the canvas itself and wasting a third of the viewport.
+  readSafeArea() {
+    const w = this.container.clientWidth || 1, h = this.container.clientHeight || 1;
+    // Measured from a hidden probe rather than read as a custom property: computed
+    // custom properties keep their clamp() text, so only layout gives real pixels.
+    const probe = document.querySelector('#safe-area');
+    if (!probe) { this.safeArea = { top: 0, bottom: 0, left: 0, right: 0 }; return; }
+    const box = probe.getBoundingClientRect(), own = this.container.getBoundingClientRect();
+    // Never surrender more than a third of either axis, however tall the HUD grows.
+    const clampY = v => Math.max(0, Math.min(v, h * .34)), clampX = v => Math.max(0, Math.min(v, w * .3));
+    this.safeArea = { top: clampY(box.top - own.top), bottom: clampY(own.bottom - box.bottom), left: clampX(box.left - own.left), right: clampX(own.right - box.right) };
+  }
+  // Asymmetric ortho frustum: square pixels are preserved, the board is centred in
+  // the safe band, and cameraSpan keeps meaning "half-height of the board window".
+  frameCamera() {
+    const w = this.container.clientWidth, h = this.container.clientHeight;
+    if (!w || !h) return;
+    const { top = 0, bottom = 0, left = 0, right = 0 } = this.safeArea || {};
+    const safeH = Math.max(1, h - top - bottom), safeW = Math.max(1, w - left - right);
+    // World units per pixel, chosen so the board fits the safe box on both axes.
+    const unit = Math.max(2 * this.cameraSpan / safeH, 2 * this.cameraSpan * this.aspect / safeW);
+    this.camera.top = unit * (safeH / 2 + top); this.camera.bottom = -unit * (safeH / 2 + bottom);
+    this.camera.left = -unit * (safeW / 2 + left); this.camera.right = unit * (safeW / 2 + right);
     this.camera.updateProjectionMatrix();
   }
   adjustZoom(change) { this.zoom = THREE.MathUtils.clamp(this.zoom + change, .82, 1.48); }
@@ -112,13 +145,26 @@ export class ArenaScene {
   projectPlayer() { return this.projectMesh(this.playerMesh, 1.6); }
   projectEntity(entity) { const obj = this.objects.get(entity.id); return obj ? this.projectMesh(obj, entity.type === 'boss' ? 2.4 : 1.05) : this.projectWorld(entity.x, entity.z); }
   addAtmosphere() {
-    const positions = new Float32Array(130 * 3);
-    for (let i = 0; i < positions.length; i += 3) { positions[i] = (Math.random() - .5) * 35; positions[i + 1] = Math.random() * 9 - 2; positions[i + 2] = (Math.random() - .5) * 28; }
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    this.dust = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xeeb799, size: .038, transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false }));
-    this.scene.add(this.dust);
+    this.atmosphere = new BiomeAtmosphere(this.scene);
     this.underRing = mesh(this.scene, 'ring', mat(0x321e55, 0x582e9c, 1.3), 0, -1.45, 0, 8.4, 8.4, 8.4, false);
     this.underRing.rotation.x = Math.PI / 2;
+    // Marcas de queimado: um único InstancedMesh reciclado, sem alocação por explosão.
+    this.scorchMarks = new THREE.InstancedMesh(G.box, new THREE.MeshBasicMaterial({ color: 0x0c0910, transparent: true, opacity: .3, depthWrite: false }), 26);
+    this.scorchMarks.frustumCulled = false; this.scorchMarks.castShadow = false; this.scorchMarks.receiveShadow = false;
+    for (let i = 0; i < this.scorchMarks.count; i++) this.scorchMarks.setMatrixAt(i, this.zeroMatrix);
+    this.scene.add(this.scorchMarks);
+  }
+  applyAtmosphere() {
+    const biome = this.game.biome, style = this.style = fxFor(biome.id);
+    this.scene.background.set(style.sky); this.scene.fog.color.set(style.sky); this.scene.fog.density = style.fogDensity;
+    this.hemi.color.set(style.hemi[0]); this.hemi.groundColor.set(style.hemi[1]);
+    this.sun.color.set(style.sun[0]); this.rim.color.set(style.rim[0]); this.fill.color.set(style.glow);
+    this.baseLight = { hemi: style.hemi[2], sun: style.sun[1], rim: style.rim[1], fill: 15, rimColor: new THREE.Color(style.rim[0]) };
+    this.hemi.intensity = style.hemi[2]; this.sun.intensity = style.sun[1]; this.rim.intensity = style.rim[1];
+    this.eventColor.set(style.event.flashColor);
+    this.atmosphere.apply(style, { ...this.arenaSize, reducedMotion: this.reducedMotion, quality: this.quality });
+    this.atmosphere.reduced = this.reducedMotion;
+    this.container.style.setProperty('--biome-tint', '#' + new THREE.Color(biome.color).getHexString());
   }
   buildArena() {
     this.static.traverse(object => { if (object.isInstancedMesh) object.dispose(); });
@@ -129,7 +175,11 @@ export class ArenaScene {
     for (const pulse of this.pulses) pulse.mesh.material.dispose();
     this.fx.clear(); this.particles = []; this.pulses = [];
     const biome = this.game.biome, WIDTH = this.game.width, HEIGHT = this.game.height;
-    this.dust.material.color.set(biome.crystal); this.underRing.scale.setScalar(WIDTH * .56);
+    this.arenaSize = { width: WIDTH, height: HEIGHT }; this.bossEntry = null; this.signatureCharge = null; this.hitStop = 0;
+    for (const scorch of this.scorches) this.scorchMarks.setMatrixAt(scorch.slot, this.zeroMatrix);
+    this.scorches = []; this.scorchMarks.instanceMatrix.needsUpdate = true;
+    this.applyAtmosphere();
+    this.underRing.material = mat(biome.floor, this.style.ring, 1.3); this.underRing.scale.setScalar(WIDTH * .56);
     mesh(this.static, 'round', mat(0x29232f), 0, -.64, 0, WIDTH + .1, 1.1, HEIGHT + .1);
     mesh(this.static, 'box', mat(0x4a3c4d), 0, -.22, 0, WIDTH + .3, .2, HEIGHT + .3);
     const floor = new THREE.InstancedMesh(G.box, mat(0xffffff), WIDTH * HEIGHT);
@@ -426,20 +476,42 @@ export class ArenaScene {
     }
     return this.objects.get(id);
   }
-  burst(x, z, color, count = 12, force = 3) {
+  // Destroços: a forma, a gravidade e a dispersão mudam por origem — gosma, ferro, cristal, madeira.
+  burst(x, z, color, count = 12, force = 3, options) {
     if (this.reducedMotion) count = Math.min(4, count);
-    const [px, pz] = this.at(x, z);
+    else if (!this.quality) count = Math.max(2, Math.round(count * .6));
+    const [px, pz] = this.at(x, z), { geo = 'box', size = 1, y = .35, gravity = 7, lift = 1, spread = 0 } = options || {};
     for (let i = 0; i < count; i++) {
       if (this.particles.length > 220) break;
-      const particle = mesh(this.fx, 'box', mat(color, color, .45), px, .35, pz, .065 + Math.random() * .07, undefined, undefined, false);
-      this.particles.push({ mesh: particle, vx: (Math.random() - .5) * force, vy: 1 + Math.random() * force, vz: (Math.random() - .5) * force, life: .5 + Math.random() * .5 });
+      const scale = (.065 + Math.random() * .07) * size;
+      const particle = mesh(this.fx, geo, mat(color, color, .45), px + (Math.random() - .5) * spread, y, pz + (Math.random() - .5) * spread, scale, undefined, undefined, false);
+      this.particles.push({ mesh: particle, vx: (Math.random() - .5) * force, vy: lift * (1 + Math.random() * force), vz: (Math.random() - .5) * force, life: .5 + Math.random() * .5, g: gravity });
     }
   }
-  pulse(x, z, color, size = 2.1, duration = .5) {
+  pulse(x, z, color, size = 2.1, duration = .5, delay = 0, implode = false) {
     const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
     const [wx, wz] = this.at(x, z), ring = new THREE.Mesh(G.ring, material);
-    ring.rotation.x = Math.PI / 2; ring.position.set(wx, .07, wz); ring.scale.setScalar(.3); this.fx.add(ring);
-    this.pulses.push({ mesh: ring, age: 0, duration, size });
+    ring.rotation.x = Math.PI / 2; ring.position.set(wx, .07, wz); ring.scale.setScalar(implode ? .3 + size : .3); ring.visible = !delay; this.fx.add(ring);
+    this.pulses.push({ mesh: ring, age: 0, duration, size, delay, implode });
+  }
+  // Onda de choque: o anel rápido marca o ponto, o largo e atrasado devolve o peso do impacto.
+  shock(x, z, color, size = 2.4, scorch = 0) {
+    this.pulse(x, z, color, size, .42);
+    if (!this.reducedMotion) this.pulse(x, z, color, size * 1.75, .8, .07);
+    if (scorch) this.scorch(x, z, scorch);
+  }
+  scorch(x, z, scale = 1) {
+    if (this.reducedMotion || !this.quality) return;
+    const [wx, wz] = this.at(x, z), slot = this.scorchCursor = (this.scorchCursor + 1) % this.scorchMarks.count;
+    this.scorches = this.scorches.filter(mark => mark.slot !== slot);
+    this.scorches.push({ slot, x: wx, z: wz, age: 0, life: 2.2 + Math.random() * .6, scale: Math.min(1.5, .88 * scale) });
+  }
+  // Freeze-frame curto: só o tempo da cena para, a simulação segue no seu passo fixo.
+  hit(seconds) { if (!this.reducedMotion) this.hitStop = Math.min(.13, Math.max(this.hitStop, seconds)); }
+  impactLight(x, z, color, intensity, distance = 6, height = 1.2) {
+    const [wx, wz] = this.at(x, z);
+    this.flashLight.position.set(wx, height, wz); this.flashLight.color.set(color);
+    this.flashLight.distance = distance; this.flashLight.intensity = this.reducedMotion ? Math.min(10, intensity * .3) : intensity;
   }
   dangerTiles(cells, material, width = .86) {
     const group = new THREE.Group();
@@ -453,39 +525,91 @@ export class ArenaScene {
     if (['bomb', 'dash', 'hurt', 'skill'].includes(event.type)) this.heroAction = { kind: event.type, age: 0, duration: event.type === 'skill' ? .65 : .3 };
     if (event.type === 'arena') { this.heroAction = null; this.skillAura = null; }
     if (event.type === 'start') { this.zoom = 1; this.pulse(this.game.player.x, this.game.player.z, 0xffd58b, 2, .9); }
-    if (event.type === 'crate' || event.type === 'clear') { const block = this.blocks.get(`${event.x},${event.z}`); if (block) { this.removeBlock(block); this.blocks.delete(`${event.x},${event.z}`); } if (event.type === 'crate') this.burst(event.x, event.z, 0xb58757, 9); }
-    if (event.type === 'explosion' || event.type === 'enemyExplosion' || event.type === 'echo') {
-      this.shake = this.reducedMotion ? 0 : .2;
-      const color = event.fire === 'azure' ? 0x64d9ff : event.type === 'echo' ? 0xc89aff : event.type === 'explosion' ? 0xffae55 : 0xff4359;
-      for (const cell of event.cells) this.burst(cell.x, cell.z, color, 7, 3.5);
-      const center = event.x !== undefined ? event : event.cells[0];
-      if (center) { this.pulse(center.x, center.z, color, 2.4); const [x, z] = this.at(center.x, center.z); this.flashLight.position.set(x, 1.2, z); this.flashLight.color.set(color); this.flashLight.intensity = this.reducedMotion ? 8 : 35; }
+    if (event.type === 'crate' || event.type === 'clear') {
+      const block = this.blocks.get(`${event.x},${event.z}`); if (block) { this.removeBlock(block); this.blocks.delete(`${event.x},${event.z}`); }
+      // Caixas viram tábuas e lascas, não cubos: peças chatas, giro alto e uma nuvem de pó por baixo.
+      if (event.type === 'crate') { this.burst(event.x, event.z, 0xc18a58, 8, 2.6, { geo: 'round', size: 1.5, spread: .45 }); this.burst(event.x, event.z, 0x8a5f3f, 7, 2, { size: .8, gravity: 5, spread: .5 }); this.burst(event.x, event.z, 0xd8b78f, 5, 1.1, { geo: 'sphere', size: .7, gravity: 1.2, lift: .4, y: .2, spread: .7 }); }
     }
-    if (event.type === 'pickup') this.burst(event.x, event.z, ({ heart: 0xff719a, scrap: 0xe6b17f, cores: 0xa6cfff })[event.entityType] || 0x71ffc6, 5, 1.2);
-    if (event.type === 'kill') { this.burst(event.x, event.z, event.entityType === 'ember' ? 0xff9756 : 0xb39aff, 17, 4); this.pulse(event.x, event.z, 0xc49aff, .8, .4); }
+    if (event.type === 'explosion' || event.type === 'enemyExplosion' || event.type === 'echo') {
+      const reach = event.cells.length;
+      this.shake = this.reducedMotion ? 0 : Math.min(.36, .14 + reach * .011);
+      const color = event.fire === 'azure' ? 0x64d9ff : event.type === 'echo' ? 0xc89aff : event.type === 'explosion' ? 0xffae55 : 0xff4359;
+      for (const cell of event.cells) this.burst(cell.x, cell.z, color, 7, 3.5, { spread: .3 });
+      const center = event.x !== undefined ? event : event.cells[0];
+      if (center) {
+        this.shock(center.x, center.z, color, 2.2 + reach * .07, event.type === 'echo' ? 0 : .95 + reach * .02);
+        this.burst(center.x, center.z, color, this.quality ? 8 : 4, 1.4, { geo: 'sphere', size: 1.7, gravity: -2.2, lift: .5, y: .5, spread: .5 });
+        this.impactLight(center.x, center.z, color, Math.min(62, 22 + reach * 1.8), 6 + reach * .16);
+        if (reach >= 7 && event.type !== 'echo') this.hit(.035);
+        this.heroSpark = Math.max(this.heroSpark, Math.min(1, .45 + reach * .03));
+      }
+      // Uma casa em cada três guarda a queimadura: o chão lembra por onde a horda passou.
+      for (let i = 0; i < event.cells.length; i += 3) this.scorch(event.cells[i].x, event.cells[i].z, .8);
+    }
+    if (event.type === 'pickup') {
+      const fx = PICKUP_FX[event.entityType] || PICKUP_FX.crystal;
+      this.burst(event.x, event.z, fx.color, fx.count, fx.force, fx.burst);
+      this.pulse(event.x, event.z, fx.ring, fx.size, .5);
+      if (event.entityType === 'heart') this.impactLight(event.x, event.z, fx.color, 16, 5);
+    }
+    if (event.type === 'kill' || event.type === 'miniDefeated') {
+      const fx = deathFx(event.entityType);
+      this.burst(event.x, event.z, fx.color, fx.count, fx.force, fx.burst);
+      this.pulse(event.x, event.z, fx.ring, fx.size, .45);
+      if (fx.scorch) this.scorch(event.x, event.z, fx.scorch);
+      if (fx.shake) { this.shake = this.reducedMotion ? 0 : Math.max(this.shake, fx.shake); this.pulse(event.x, event.z, fx.ring, fx.size * 1.7, .9, .08); this.impactLight(event.x, event.z, fx.ring, 38, 8); }
+      if (fx.stop) this.hit(fx.stop);
+    }
     if (event.type === 'enemyHit') this.burst(event.x, event.z, 0xffedd0, 4, 1.3);
     if (event.type === 'enemyHeal' || event.type === 'enemyMend') { this.pulse(event.x,event.z,0xabe8c9,.7,.6); this.burst(event.x,event.z,0x9feabf,7,1); }
     if (event.type === 'mimicAwake') { this.burst(event.x,event.z,0xe1ad7c,9,2); this.pulse(event.x,event.z,0xffb274,.8,.7); }
     if (event.type === 'blocked') { this.pulse(event.x,event.z,0xb4eafa,1.2,.6); this.burst(event.x,event.z,0xc7f2ff,10,2); }
     if (event.type === 'webBurst') for (const cell of event.cells) { this.pulse(cell.x,cell.z,0x90dfee,.65,.7); this.burst(cell.x,cell.z,0xb8e9f7,4,1); }
-    if (event.type === 'hurt') this.shake = this.reducedMotion ? 0 : .25;
+    if (event.type === 'hurt') { this.shake = this.reducedMotion ? 0 : .25; this.heroSpark = 1; this.hit(.05); }
     if (event.type === 'dash') {
       const steps = Math.abs(event.x - event.fromX) + Math.abs(event.z - event.fromZ);
       for (let i = 0; i <= steps; i++) { const x = event.fromX + Math.sign(event.x - event.fromX) * i, z = event.fromZ + Math.sign(event.z - event.fromZ) * i; this.burst(x, z, 0x9affe0, 5, 1); this.pulse(x, z, 0x93ffda, .55, .35); }
     }
     if (event.type === 'chargeTrail') this.burst(event.x, event.z, 0xff9067, 4, 1);
-    if (event.type === 'relic' || event.type === 'revive' || event.type === 'relicDrop' || event.type === 'miniboss' || event.type === 'miniDefeated') { this.pulse(event.x,event.z, event.type === 'miniboss' ? 0xff7c52 : 0xa9edff, 2.8, 1); this.burst(event.x,event.z,0xffd88e,26,3); }
+    if (event.type === 'revive' || event.type === 'miniboss') { this.pulse(event.x, event.z, event.type === 'miniboss' ? 0xff7c52 : 0xa9edff, 2.8, 1); this.burst(event.x, event.z, 0xffd88e, 26, 3); }
+    if (event.type === 'relic' || event.type === 'relicDrop') {
+      // A raridade dita o tamanho da festa: mais anéis, mais lascas e mais luz na épica.
+      const relic = relicById(event.id), fx = rarityFx(relic?.rarity), color = new THREE.Color(relic?.color || '#ffdc89');
+      for (let i = 0; i < fx.rings; i++) this.pulse(event.x, event.z, color, 1.9 + i * 1.4, .8 + i * .25, i * .12);
+      this.burst(event.x, event.z, color, fx.count, fx.force, { geo: 'crystal', size: 1.2, spread: .4 });
+      this.impactLight(event.x, event.z, color, fx.light, 7, 1.4);
+      if (fx.shake) this.shake = this.reducedMotion ? 0 : Math.max(this.shake, fx.shake);
+    }
     if (event.type === 'skill') {
       const colors = { power: 0xff985c, range: 0xff985c, capacity: 0xb5a0ff, fuse: 0xb5a0ff, health: 0xfb7993, heal: 0xfb7993, vampire: 0xfb7993, speed: 0x72dcc5, dash: 0x72dcc5, magnet: 0x72dcc5 };
       const p = this.game.player, color = colors[event.id] || skillById(event.id)?.color || '#d9b7ff'; this.skillAura = { color, life: 1.3 };
       this.pulse(p.x, p.z, color, 1.8, .75); this.pulse(p.x, p.z, color, .9, 1.1); this.burst(p.x, p.z, color, 24, 2.5);
     }
-    if (event.type === 'boss' || event.type === 'bossEnraged') { const b = this.game.boss; if (b) { const color = new THREE.Color(this.game.biome.color); this.pulse(b.x, b.z, color, 4, 1.4); this.pulse(b.x, b.z, color, 2.5, .8); this.burst(b.x, b.z, color, 35, 4); this.shake = this.reducedMotion ? 0 : .25; } }
-    if (event.type === 'bossDefeated') { this.burst(event.x, event.z, 0xffc778, 80, 8); this.pulse(event.x, event.z, 0xffd695, 5.5, 1.1); this.shake = this.reducedMotion ? 0 : .4; }
+    if (event.type === 'bossEnraged') { const b = this.game.boss; if (b) { const color = new THREE.Color(this.game.biome.color); this.pulse(b.x, b.z, color, 4, 1.4); this.pulse(b.x, b.z, color, 2.5, .8); this.burst(b.x, b.z, color, 35, 4); this.shake = this.reducedMotion ? 0 : .25; this.hit(.04); } }
+    if (event.type === 'boss') {
+      // Entrada do guardião: a arena escurece, o holofote acende nele e três ondas varrem o chão.
+      const b = this.game.boss;
+      if (b) {
+        const color = new THREE.Color(this.game.biome.color);
+        this.bossEntry = { age: 0, duration: 1.9 };
+        for (let i = 0; i < 3; i++) this.pulse(b.x, b.z, color, 3.6 + i * 2.1, 1 + i * .3, i * .17);
+        this.burst(b.x, b.z, color, 36, 4.2, { geo: 'crystal', size: 1.4, spread: .8 });
+        this.burst(b.x, b.z, color, this.quality ? 14 : 6, 1.6, { geo: 'sphere', size: 2.2, gravity: -2.6, lift: .4, y: .6, spread: 1.4 });
+        this.scorch(b.x, b.z, 1.7); this.shake = this.reducedMotion ? 0 : .34; this.hit(.1);
+      }
+    }
+    if (event.type === 'bossDefeated') {
+      this.burst(event.x, event.z, 0xffc778, 80, 8, { spread: 1.2 });
+      this.burst(event.x, event.z, new THREE.Color(this.game.biome.color), 24, 3, { geo: 'crystal', size: 1.6, gravity: 4, spread: 1 });
+      for (let i = 0; i < 3; i++) this.pulse(event.x, event.z, 0xffd695, 5 + i * 2.4, 1.1 + i * .3, i * .13);
+      this.impactLight(event.x, event.z, 0xffd695, 52, 11, 2);
+      this.scorch(event.x, event.z, 1.8); this.shake = this.reducedMotion ? 0 : .45; this.hit(.12);
+    }
     if (event.type === 'mastery') {
       this.skillAura={color:event.color,life:2.5};
-      for (const size of [1.2,2.3,3.5]) this.pulse(event.x,event.z,event.color,size,1.4);
-      this.burst(event.x,event.z,event.color,55,4); this.heroAction={kind:'skill',age:0,duration:1};
+      for (const [i,size] of [1.2,2.3,3.5].entries()) this.pulse(event.x,event.z,event.color,size,1.4,i*.1);
+      this.burst(event.x,event.z,event.color,55,4,{geo:'crystal',size:1.2,spread:.6}); this.heroAction={kind:'skill',age:0,duration:1};
+      this.impactLight(event.x,event.z,event.color,40,8,1.6); this.hit(.07); this.heroSpark=1;
     }
     if (event.type === 'chainArc') {
       const steps=12;
@@ -502,10 +626,11 @@ export class ArenaScene {
       this.pulse(event.x,event.z,this.game.biome.color,.55,.22);
     }
     if(event.type==='bossImpact') {
-      this.pulse(event.x,event.z,event.color,2.4,.5);
-      this.burst(event.x,event.z,event.color,24,3);
+      this.shock(event.x,event.z,event.color,2.6,1.2);
+      this.burst(event.x,event.z,event.color,24,3,{spread:.6});
       for(const c of event.cells.slice(0,18))this.burst(c.x,c.z,event.color,3,1.2);
-      this.shake=this.reducedMotion?0:.16;
+      this.impactLight(event.x,event.z,event.color,34,8);
+      this.shake=this.reducedMotion?0:.22; this.hit(.045); this.signatureCharge=null;
     }
     if (event.type === 'anchorBroken') {
       this.pulse(event.x,event.z,0xaaffe0,2.4,1);this.burst(event.x,event.z,0xe6ffe9,28,3);
@@ -518,10 +643,38 @@ export class ArenaScene {
       }
     }
     if (event.type === 'wardReady') this.pulse(event.x,event.z,0xb3e5d4,.8,.7);
-    if (event.type === 'bossTeleport') for(const c of [event.from,event]) {this.pulse(c.x,c.z,event.color,1.6,1);this.burst(c.x,c.z,event.color,20,2);}
+    if (event.type === 'bossTeleport') for(const c of [event.from,event]) {this.pulse(c.x,c.z,event.color,1.6,1);this.burst(c.x,c.z,event.color,20,2,{geo:'crystal',size:1.1});}
+    if (event.type === 'bossPhase') {
+      // Virada de ato. O III é o clímax da luta: escurece mais, sacode mais e para o tempo por um instante.
+      const climax = event.phase >= 3, color = new THREE.Color(event.color);
+      this.bossEntry = { age: 0, duration: climax ? 2.1 : 1.3, depth: climax ? 1 : .55 };
+      for (let i = 0; i < (climax ? 4 : 2); i++) this.pulse(event.x, event.z, color, 3 + i * 2, .9 + i * .28, i * .14);
+      this.burst(event.x, event.z, color, climax ? 44 : 26, climax ? 4.6 : 3.4, { geo: 'crystal', size: 1.4, spread: .9 });
+      if (climax) this.burst(event.x, event.z, color, this.quality ? 16 : 6, 1.8, { geo: 'sphere', size: 2.4, gravity: -2.8, lift: .4, y: .7, spread: 1.6 });
+      this.scorch(event.x, event.z, climax ? 1.7 : 1.1);
+      this.shake = this.reducedMotion ? 0 : climax ? .42 : .26; this.hit(climax ? .12 : .06);
+    }
+    if (event.type === 'bossSignature') {
+      // Acumulação: anéis que implodem no guardião durante todo o telégrafo, resolvidos no bossImpact.
+      const color = new THREE.Color(event.color), rings = this.reducedMotion ? 1 : 3;
+      for (let i = 0; i < rings; i++) this.pulse(event.x, event.z, color, 4.4, event.duration / rings, event.duration * i / rings, true);
+      this.signatureCharge = { x: event.x, z: event.z, color, age: 0, duration: event.duration, next: 0 };
+      this.impactLight(event.x, event.z, color, 20, 7, 1.8);
+    }
+    if (event.type === 'bossDash') {
+      const cells = event.cells || [];
+      for (const [i, cell] of cells.entries()) { this.burst(cell.x, cell.z, this.game.biome.color, 3, 1.6, { spread: .5 }); this.pulse(cell.x, cell.z, this.game.biome.color, .8, .35, i * .015); }
+      if (event.from) this.burst(event.from.x, event.from.z, this.game.biome.color, 10, 2.4, { geo: 'round', size: 1.1, spread: .6 });
+      this.shock(event.x, event.z, this.game.biome.color, 2, 1); this.shake = this.reducedMotion ? 0 : .2; this.hit(.035);
+    }
+    if (event.type === 'bossDodge') { this.burst(event.x, event.z, 0xd8e6ff, 8, 1.8, { geo: 'sphere', size: .8, gravity: 2, spread: .7 }); this.pulse(event.x, event.z, 0xd8e6ff, 1, .35); }
+    // Recuo acontece o tempo todo: só um sopro de poeira, sem anel nem tremor.
+    if (event.type === 'bossReposition' && !this.reducedMotion && this.time > (this.lastReposition || 0) + .45) { this.lastReposition = this.time; this.burst(event.x, event.z, this.game.biome.color, 3, .8, { size: .7, gravity: 4, y: .18, spread: .6 }); }
   }
   update(dt) {
     if (['paused', 'upgrade'].includes(this.game.phase)) dt = 0;
+    if (this.hitStop > 0) { this.hitStop = Math.max(0, this.hitStop - dt); dt *= .16; }
+    if (this.atmosphere.reduced !== this.reducedMotion) this.applyAtmosphere();
     this.time += dt; const t = this.time, game = this.game;
     const p = game.player, [px, pz] = this.at(p.x, p.z);
     this.playerMesh.position.x = THREE.MathUtils.damp(this.playerMesh.position.x, px, 25, dt);
@@ -661,10 +814,23 @@ export class ArenaScene {
     for (const warning of game.warnings) {
       live.add(warning.id);
       const obj = this.ensureObject(warning.id, () => {
-        const group = new THREE.Group(); for (const c of warning.cells) { const [x, z] = this.at(c.x, c.z); const color=warning.color || (warning.effect === 'snare' ? 0x9cddff : 0xf65a69); mesh(group, 'box', mat(color,color,.8), x, .035, z, .89, .025, .89, false); if(warning.rite)mesh(group,'crystal',mat(color,color,.5),x,1.05,z,.09,.15,.09,false); } return group;
+        // O golpe assinatura ganha magenta e espinhos: precisa ser lido de relance como "esse é diferente".
+        const group = new THREE.Group(), signature = warning.signature;
+        const color = warning.color || (warning.effect === 'snare' ? 0x9cddff : signature ? 0xff5fd2 : 0xf65a69);
+        for (const [i, c] of warning.cells.entries()) {
+          const [x, z] = this.at(c.x, c.z);
+          mesh(group, 'box', mat(color, color, signature ? 1.3 : .8), x, .035, z, .89, signature ? .035 : .025, .89, false);
+          if (warning.rite || (signature && i % 4 === 0)) mesh(group, 'crystal', mat(color, color, .5), x, signature ? .42 : 1.05, z, .09, signature ? .5 : .15, .09, false);
+        }
+        // Destino do salto e fim da investida ganham um marco alto: o chão diz onde o guardião vai parar.
+        for (const spot of [warning.landing, warning.path?.[warning.path.length - 1]]) {
+          if (!spot) continue; const [x, z] = this.at(spot.x, spot.z);
+          mesh(group, 'crystal', mat(color, color, 1.6), x, .75, z, .2, .55, .2, false);
+        }
+        return group;
       }, { x: (game.width - 1) / 2, z: (game.height - 1) / 2 });
       obj.visible = true;
-      obj.scale.y = 1 + (this.reducedMotion ? 0 : Math.sin(t * 8) * .2);
+      obj.scale.y = 1 + (this.reducedMotion ? 0 : Math.sin(t * (warning.signature ? 13 : 8)) * (warning.signature ? .32 : .2));
     }
     for (const [id, obj] of this.objects) if (!live.has(id)) { obj.userData.actor?.dispose(); this.dynamic.remove(obj); this.objects.delete(id); }
     if (this.retiredBoss) {
@@ -673,34 +839,80 @@ export class ArenaScene {
       if (obj.userData.retireTime <= 0) { obj.userData.actor.dispose(); this.retiredBoss = null; }
     }
     for (const particle of this.particles) {
-      particle.life -= dt; particle.vy -= dt * 7;
+      particle.life -= dt; particle.vy -= dt * particle.g;
       particle.mesh.position.x += particle.vx * dt; particle.mesh.position.y += particle.vy * dt; particle.mesh.position.z += particle.vz * dt;
       particle.mesh.rotation.x += dt * 3; particle.mesh.scale.multiplyScalar(Math.exp(-dt * 1.3));
       if (particle.life <= 0) this.fx.remove(particle.mesh);
     }
     this.particles = this.particles.filter(particle => particle.life > 0);
     for (const pulse of this.pulses) {
+      if (pulse.delay > 0) { pulse.delay -= dt; if (pulse.delay <= 0) pulse.mesh.visible = true; continue; }
       pulse.age += dt; const progress = Math.min(1, pulse.age / pulse.duration);
-      pulse.mesh.scale.setScalar(.3 + pulse.size * (1 - (1 - progress) ** 2));
-      pulse.mesh.material.opacity = (1 - progress) ** 2 * .8;
+      pulse.mesh.scale.setScalar(pulse.implode ? .3 + pulse.size * (1 - progress) ** 1.6 : .3 + pulse.size * (1 - (1 - progress) ** 2));
+      pulse.mesh.material.opacity = pulse.implode ? .2 + progress * .7 : (1 - progress) ** 2 * .8;
       if (progress >= 1) { this.fx.remove(pulse.mesh); pulse.mesh.material.dispose(); }
     }
     this.pulses = this.pulses.filter(pulse => pulse.age < pulse.duration);
     this.flashLight.intensity *= Math.exp(-dt * 13);
     if (this.portalRing) this.portalRing.rotation.z = t * .12;
-    if (!this.reducedMotion) { this.dust.rotation.y = t * .008; this.underRing.rotation.z = t * .015; }
+    if (!this.reducedMotion) this.underRing.rotation.z = t * .015;
+    this.atmosphere.update(dt, t);
+    const base = this.baseLight;
+    if (this.bossEntry) {
+      this.bossEntry.age += dt;
+      const k = Math.min(1, this.bossEntry.age / this.bossEntry.duration), depth = this.bossEntry.depth ?? 1, dim = (k < .16 ? k / .16 : (1 - (k - .16) / .84) ** 1.5) * depth;
+      this.hemi.intensity = base.hemi * (1 - dim * .58); this.sun.intensity = base.sun * (1 - dim * .5); this.rim.intensity = base.rim * (1 + dim * .55);
+      const boss = game.boss;
+      if (boss) { const [bx, bz] = this.at(boss.x, boss.z); this.flashLight.position.set(bx, 3.4, bz); this.flashLight.color.set(game.biome.color); this.flashLight.distance = 12; this.flashLight.intensity = Math.max(this.flashLight.intensity, 48 * dim); }
+      if (k >= 1) { this.bossEntry = null; this.hemi.intensity = base.hemi; this.sun.intensity = base.sun; this.rim.intensity = base.rim; }
+    } else {
+      // Eventos ambientais (raio, gêiser, sopro de gelo) acendem só a luz de contorno, nunca a tela.
+      const flash = this.atmosphere.flash;
+      this.rim.intensity = base.rim * (1 + flash * this.style.event.punch); this.hemi.intensity = base.hemi * (1 + flash * .28); this.sun.intensity = base.sun;
+      this.rim.color.copy(base.rimColor).lerp(this.eventColor, Math.min(.85, flash));
+    }
+    if (this.signatureCharge) {
+      const charge = this.signatureCharge; charge.age += dt;
+      const boss = game.boss; if (boss) { charge.x = boss.x; charge.z = boss.z; }
+      if (!this.reducedMotion && charge.age > charge.next) {
+        charge.next = charge.age + .09;
+        const a = Math.random() * Math.PI * 2, radius = 1.4 + Math.random() * 1.3;
+        this.burst(charge.x + Math.cos(a) * radius, charge.z + Math.sin(a) * radius, charge.color, 1, .25, { geo: 'crystal', size: 1.1, gravity: -3.4, lift: .2, y: .15 });
+      }
+      if (charge.age >= charge.duration) this.signatureCharge = null;
+    }
+    // A luz de preenchimento vira o brilho reativo do chão sob o herói: pulsa em dano e explosão.
+    this.heroSpark = Math.max(0, this.heroSpark - dt * 2.4);
+    this.fill.position.set(this.playerMesh.position.x, 2.4, this.playerMesh.position.z + .6);
+    this.fill.intensity = base.fill * (1 + this.heroSpark * 1.7); this.fill.distance = 11 + this.heroSpark * 4;
+    if (this.scorches.length) {
+      for (const scorch of this.scorches) {
+        scorch.age += dt; const fade = Math.max(0, 1 - scorch.age / scorch.life) ** .55;
+        this.dummy.position.set(scorch.x, .03, scorch.z); this.dummy.scale.set(scorch.scale * fade, .01, scorch.scale * fade); this.dummy.updateMatrix();
+        this.scorchMarks.setMatrixAt(scorch.slot, scorch.age >= scorch.life ? this.zeroMatrix : this.dummy.matrix);
+      }
+      this.scorches = this.scorches.filter(scorch => scorch.age < scorch.life);
+      this.scorchMarks.instanceMatrix.needsUpdate = true;
+    }
     this.shake = Math.max(0, this.shake - dt * 1.5);
     const inRun = game.phase !== 'menu', portrait = this.aspect < .85;
     this.targetSpan = (inRun ? Math.max(8.5 + (game.height - 13) * .35, (portrait ? 5.4 : 11 + (game.width - 15) * .55) / this.aspect) : Math.max(10.7, 12.4 / this.aspect)) / (inRun ? this.zoom : 1);
+    this.safeClock = (this.safeClock || 0) - dt;
+    if (this.safeClock <= 0) { this.safeClock = .25; this.readSafeArea(); }
     this.cameraSpan = this.reducedMotion ? this.targetSpan : THREE.MathUtils.damp(this.cameraSpan, this.targetSpan, 3.5, dt);
-    this.camera.left = -this.cameraSpan * this.aspect; this.camera.right = this.cameraSpan * this.aspect; this.camera.top = this.cameraSpan; this.camera.bottom = -this.cameraSpan; this.camera.updateProjectionMatrix();
+    this.frameCamera();
     const follow = inRun ? portrait ? .88 : Math.min(.65, Math.max(0, this.zoom - 1) * 1.8) : 0;
     this.cameraFocus.x = THREE.MathUtils.damp(this.cameraFocus.x, px * follow, 4, dt); this.cameraFocus.z = THREE.MathUtils.damp(this.cameraFocus.z, pz * follow, 4, dt);
     this.camera.position.set(this.cameraFocus.x + 10 + (Math.random() - .5) * this.shake, 19, this.cameraFocus.z + 15 + (Math.random() - .5) * this.shake);
     this.camera.lookAt(this.cameraFocus.x, -.1, this.cameraFocus.z); this.camera.updateMatrixWorld();
     this.renderer.info.reset(); this.composer.render();
   }
-  setQuality(high) { this.renderer.setPixelRatio(high ? Math.min(window.devicePixelRatio, 1.6) : 1); this.renderer.shadowMap.enabled = high; this.bloom.enabled = high; this.resize(); }
+  setQuality(high) {
+    this.quality = high; this.renderer.setPixelRatio(high ? Math.min(window.devicePixelRatio, 1.6) : 1); this.renderer.shadowMap.enabled = high; this.bloom.enabled = high;
+    this.atmosphere.apply(this.style, { ...this.arenaSize, reducedMotion: this.reducedMotion, quality: high });
+    if (!high) { for (const scorch of this.scorches) this.scorchMarks.setMatrixAt(scorch.slot, this.zeroMatrix); this.scorches = []; this.scorchMarks.instanceMatrix.needsUpdate = true; }
+    this.resize();
+  }
   animateBoss(event) {
     const boss = this.game.boss;
     if (event.type === 'boss' && boss) this.ensureObject(boss.id, () => this.makeEnemy('boss', boss.variant), boss);
