@@ -64,18 +64,32 @@ test('the opening has a smaller, slower horde and longer boss telegraphs than la
   const late = new Game({ random: seededRandom(42), meta: { unlockedStage: 9 } }); late.start(9);
   assert.equal(early.enemies.length, 2); assert(early.enemies.length < late.enemies.length);
   assert(early.spawnInterval > late.spawnInterval); assert(early.enemyLimit < late.enemyLimit);
-  early.spawnBoss(); late.spawnBoss(); early.bossAttack(); late.bossAttack();
-  assert(early.warnings[0].timer > late.warnings[0].timer);
-  assert.equal(early.drainEvents().find(e => e.type === 'warning').duration, early.warnings[0].timer);
+  // Guardiao direto nos dois lados: createBoss pula a transformacao, que tem teste proprio.
+  const earlyBoss = new Game({ random: seededRandom(42), meta: { unlockedStage: 9 } }); earlyBoss.start(3);
+  earlyBoss.phase = 'boss'; earlyBoss.createBoss(); late.phase = 'boss'; late.createBoss();
+  earlyBoss.bossAttack(); late.bossAttack();
+  assert(earlyBoss.warnings[0].timer > late.warnings[0].timer);
+  assert.equal(earlyBoss.drainEvents().find(e => e.type === 'warning').duration, earlyBoss.warnings[0].timer);
+  early.spawnBoss(); late.bossAttack();
 });
 test('dash stops at walls and requires cooldown', () => {
   const g = arena(); g.player.facing = [1, 0]; g.grid[1][4] = 1;
   assert(g.dash()); assert.equal(g.player.x, 3); assert(!g.dash()); assert(g.player.invincible > 0);
 });
-test('boss appears at exactly 120 seconds, never earlier, and suspends the survival timer', () => {
-  const g = arena(); g.tick(119.99); assert.equal(g.boss, null); assert.equal(g.phase, 'playing');
-  g.tick(.01); assert.equal(g.phase, 'boss'); assert(g.boss); assert.equal(g.elapsed, ROUND_SECONDS);
-  const maxHp = g.boss.maxHp; advance(g, .5); assert.equal(g.boss.maxHp, maxHp); assert.equal(g.elapsed, 120);
+test('the finale appears at exactly 120 seconds, never earlier, and suspends the survival timer', () => {
+  // Cacada: o campeao fecha a fase. Nascer aos 60s quebraria o piso de 120
+  // segundos que o servidor exige em toda vitoria.
+  const g = arena(); assert.equal(g.stage.kind, 'hunt');
+  g.tick(119.99); assert.equal(g.finale, null); assert.equal(g.phase, 'playing');
+  g.tick(.01); assert.equal(g.phase, 'boss'); assert(g.champion); assert.equal(g.elapsed, ROUND_SECONDS);
+  const maxHp = g.finale.maxHp; advance(g, .5); assert.equal(g.finale.maxHp, maxHp); assert.equal(g.elapsed, 120);
+  // Duelo: a arena se transforma antes, e so entao o guardiao entra.
+  const duel = new Game({ random: seededRandom(42), meta: { unlockedStage: 9 } }); duel.start(3);
+  duel.enemies = []; duel.spawnClock = Infinity;
+  duel.tick(119.99); assert.equal(duel.boss, null);
+  duel.tick(.01); assert.equal(duel.phase, 'transition', 'o duelo passa pela transformacao da arena');
+  while (duel.phase === 'transition') duel.tick(1 / 60);
+  assert.equal(duel.phase, 'boss'); assert(duel.boss);
 });
 test('boss victory unlocks a fresh stage and resets temporary build', () => {
   const g = arena(); g.player.damage = 8; g.skillLevels.power = 6; g.spawnBoss(); g.defeatBoss();

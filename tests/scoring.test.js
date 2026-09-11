@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { Game, seededRandom } from '../src/game.js';
 import { captureRun, scoreReport, emptyMetrics } from '../shared/scoring.js';
 const fresh=()=>{const g=new Game({random:seededRandom(4)});g.start();g.enemies=[];g.pickups=[];g.player.invincible=0;return g;};
-test('published formula example totals 7529 and does not reward damage or bomb spam',()=>{
-  const r={stage:3,victory:true,bosses:1,seconds:165,bossSeconds:45,hp:70,maxHp:100,crates:12,crystals:30,levels:3,masteries:[],metrics:{...emptyMetrics(),normalKills:20,miniKills:1,maxCombo:6,damageTaken:30}};
-  assert.equal(scoreReport(r).total,7529);r.metrics.bombsPlaced=100000;r.metrics.damageDealt=100000;assert.equal(scoreReport(r).total,7529);
+test('published formula example totals 10609 and does not reward damage or bomb spam',()=>{
+  const r={stage:3,victory:true,outcome:'slain',bosses:1,seconds:165,bossSeconds:45,hp:70,maxHp:100,crates:12,crystals:30,levels:3,masteries:[],metrics:{...emptyMetrics(),normalKills:20,miniKills:1,maxCombo:6,damageTaken:30}};
+  assert.equal(scoreReport(r).total,10609);r.metrics.bombsPlaced=100000;r.metrics.damageDealt=100000;assert.equal(scoreReport(r).total,10609);
   r.victory=false;const loss=scoreReport(r);assert(loss.total>0);assert.equal(loss.parts.find(p=>p.id==='speed').points,0);
 });
 test('actual damage caps overkill and counts minichefs separately',()=>{

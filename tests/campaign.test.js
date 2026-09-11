@@ -69,10 +69,20 @@ test('relic collection equips without corrupting numeric currency and avoids dup
   const g=game();g.addPickup(1,1,'relic','magnet');g.collect();assert(g.relics.includes('magnet'));assert.equal(g.crystals,0);assert.equal(g.xp,0);assert.equal(g.player.magnet,3.25);
   for(const r of RELICS) g.equipRelic(r.id);g.dropRelic(1,1);assert.equal(g.pickups[0].type,'crystal');
 });
-test('miniboss spawns once at 60s, drops a relic and grants bonus essence', () => {
-  const g=game(2);g.elapsed=59.98;g.tick(.01);assert(!g.enemies.some(e=>e.type==='sentinel'));g.tick(.02);
-  const mini=g.enemies.find(e=>e.type==='sentinel');assert(mini);assert(g.miniSpawned);g.tick(.1);assert.equal(g.enemies.filter(e=>e.type==='sentinel').length,1);
-  g.applyFlame({cells:[{x:mini.x,z:mini.z}],damage:999,hit:new Set()});assert(g.pickups.some(p=>p.type==='relic'));assert.equal(g.earnedShards,3);
+test('the champion closes a hunt stage at 120s, drops a relic and never appears elsewhere', () => {
+  // Cacada: nada aos 60s. O campeao nasce aos 120s, no lugar do guardiao.
+  const g=game(1);assert.equal(g.stage.kind,'hunt');
+  g.elapsed=59.98;g.tick(.05);assert(!g.enemies.some(e=>e.type==='sentinel'),'nao ha sentinela aos 60s');
+  g.elapsed=119.98;g.tick(.05);
+  const champ=g.champion;assert(champ,'o campeao fecha a cacada');assert.equal(g.phase,'boss');
+  assert(champ.maxHp>12,'o campeao e mais duro que um sentinela comum');
+  g.tick(.1);assert.equal(g.enemies.filter(e=>e.type==='sentinel').length,1,'so um campeao por fase');
+  g.applyFlame({cells:[{x:champ.x,z:champ.z}],damage:9999,hit:new Set()});
+  assert(g.pickups.some(p=>p.type==='relic'));assert(g.earnedShards>=3);
+  assert.equal(g.phase,'intermission');assert.equal(g.result.outcome,'champion');assert.equal(g.bosses,0);
+  // Perseguicao e duelo nao tem campeao nenhum.
+  for(const stage of [2,3]){const other=game(stage);other.elapsed=119.98;other.tick(.05);
+    assert.equal(other.champion,null,`a fase ${stage} nao tem campeao`);}
 });
 test('world hazards are announced, bounded, pause-safe and distinct', () => {
   const g=game(4);g.environmentAttack();assert(g.warnings.length);const warning=g.warnings[0];assert.equal(warning.timer,1.65);assert(warning.cells.every(c=>g.tile(c.x,c.z)===0));

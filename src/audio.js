@@ -67,6 +67,10 @@ export class Sound {
     notes.bossDash = [300, 85, .28, 'square'];
     notes.bossDodge = [430, 640, .14, 'sine'];
     notes.arenaRite = [150, 520, .9, 'triangle'];
+    // Ritmo novo da campanha: campeao, fuga e a arena se partindo.
+    notes.champion = [140, 300, .9, 'sawtooth'];
+    notes.bossFlee = [420, 70, 1.1, 'sine'];
+    notes.arenaReshape = [70, 190, 1.5, 'triangle'];
     if (name === 'explosion' || name === 'enemyExplosion') {
       const length = this.ctx.sampleRate * .35, buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate), data = buffer.getChannelData(0);
       for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 2;

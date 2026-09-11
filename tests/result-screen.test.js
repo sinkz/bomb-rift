@@ -5,13 +5,10 @@ import { LocalRanking } from '../src/ranking.js';
 import { normalizeMeta } from '../src/legacy.js';
 import { CAMPAIGN_LENGTH } from '../src/campaign.js';
 import { resultMarkup } from '../src/ranking-view.js';
+import { winStage } from './fixtures/stage-run.js';
 
 const create = () => new Game({ campaignMode: true, random: seededRandom(7), meta: normalizeMeta({ unlockedStage: 1 }) });
-function clearStage(game) {
-  game.elapsed = 120; game.totalTime += 120; game.spawnBoss(); game.totalTime += 30;
-  game.damageEnemy(game.boss, 1e5);
-  assert.equal(game.phase, 'intermission');
-}
+const clearStage = game => winStage(game);
 
 test('clearing a stage mid-expedition produces no scored row, so no scorecard can open', () => {
   const game = create(), board = new LocalRanking();

@@ -5,9 +5,11 @@ import { DIFFICULTIES, CAMPAIGN_STAGES, aggregateExpedition, difficultyUnlocked 
 export const WIDTH = 17;
 export const HEIGHT = 15;
 export const ROUND_SECONDS = 120;
+// Na perseguicao o guardiao quebra exatamente onde comecaria o ato do desespero.
+export const FLEE_RATIO = .30;
 export const BIOMES = WORLDS;
 import { SKILLS, skillById } from './skills.js';
-import { queueArenaRite, resolveArenaRite, resolveBossMove, chooseBossMove, carveSafeHouse, bossTelegraph, bossRhythm, bossPhaseFor, movesFor, landingSite, PHASE_LABELS } from './boss-mechanics.js';
+import { queueArenaRite, resolveArenaRite, resolveBossMove, chooseBossMove, carveSafeHouse, bossTelegraph, bossRhythm, bossPhaseFor, movesFor, landingSite, PHASE_LABELS, ARENA_RITES } from './boss-mechanics.js';
 import { updateBossAI } from './boss-ai.js';
 export { SKILLS };
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -29,6 +31,10 @@ export class Game {
     this.phase = 'menu';
     this.reset();
   }
+  // Quem encerra a fase: o guardiao no duelo e na perseguicao, o campeao na cacada.
+  // O campeao NAO e this.boss de proposito -- senao herdaria updateBossAI, os tres
+  // atos e os ritos de arena, que sao gramatica de guardiao.
+  get finale() { return this.boss || this.champion; }
   emit(type, data = {}) { this.events.push({ ...data, entityType: data.type, type }); }
   drainEvents() { return this.events.splice(0); }
   reset(stage = 1) {
@@ -38,6 +44,7 @@ export class Game {
     this.crystals = 0; this.collected = 0; this.level = 1; this.xp = 0; this.nextXp = 36;
     this.forgeCount = 0; this.skillLevels = {}; this.masteries = []; this.wardTimer = 0; this.pendingLevels = 0; this.earnedShards = 0;
     this.combo = 0; this.comboTimer = 0; this.relics = []; this.echoes = []; this.miniSpawned = false;
+    this.champion = null; this.transition = null;
     this.hazardClock = 10; this.resultClaimed = false; this.result = null; this.relicDropCount = 0;
     this.materials = { scrap: 0, cores: 0 }; this.cratesBroken = 0;
     this.player = { x: 1, z: 1, hp: 100 + (this.meta.health || 0) * 10, maxHp: 100 + (this.meta.health || 0) * 10,
@@ -95,7 +102,7 @@ export class Game {
         if (!this.resultClaimed || stage !== this.expedition.stages.length + 1 || stage > CAMPAIGN_STAGES) return false;
       } else {
         if (stage !== 1) return false;
-        this.expedition = { stages: [], lives: 1, purchases: 0, ended: false, report: null };
+        this.expedition = { stages: [], lives: 1, purchases: 0, ended: false, report: null, routed: [] };
         this.meta.unlockedStage = 1;
       }
     }
@@ -383,6 +390,12 @@ export class Game {
     if (cold || this.relics.includes('frost')) enemy.slow = Math.max(enemy.slow || 0, enemy.type === 'boss' ? 1.2 : Math.max(cold ? 1+ cold*.3 : 0,this.relics.includes('frost') ? 2.5 : 0));
     if (cold >= 5) enemy.frozen = enemy.type === 'boss' ? .5 : 2;
     this.emit('enemyHit', { ...enemy, damage });
+      // Perseguicao: o limiar e verificado antes do teste de morte, entao um
+      // golpe que o cruzaria e clampeado em vez de matar. Matar nao e opcao.
+      if (enemy.type === 'boss' && this.stage.kind === 'chase' && enemy.hp <= enemy.maxHp * FLEE_RATIO) {
+        enemy.hp = Math.max(1, enemy.hp);
+        return this.routeBoss(enemy);
+      }
       if (enemy.hp <= 0) {
         if (enemy.type === 'boss') this.defeatBoss();
         else {
@@ -397,6 +410,7 @@ export class Game {
           if (this.kills % 3 === 0) this.addPickup(enemy.x, enemy.z, 'scrap', 1);
           if (enemy.type === 'mimic') this.addPickup(enemy.x, enemy.z, 'scrap', 2);
           if (enemy.type === 'sentinel') { this.dropRelic(enemy.x, enemy.z); this.addPickup(enemy.x, enemy.z, 'cores', 1); this.earnedShards += 3; this.emit('miniDefeated', enemy); }
+          if (enemy === this.champion) this.defeatChampion(enemy);
           else if (this.random() < .055) this.dropRelic(enemy.x, enemy.z);
           this.emit('kill', enemy);
         }
@@ -442,16 +456,81 @@ export class Game {
       }
     }
   }
+  // No duelo a arena se transforma ANTES do guardiao existir: a transicao congela
+  // a simulacao, o mapa muda, e so entao ele entra. Na perseguicao ele entra direto.
   spawnBoss() {
-    this.phase = 'boss';
     this.stats.bossStartedAt = this.totalTime;
+    if (this.stage.kind === 'duel') {
+      this.transition = { kind: 'duel', timer: 2.6 };
+      this.phase = 'transition';
+      this.reshapeArena();
+      return;
+    }
+    this.phase = 'boss';
+    this.createBoss();
+  }
+  // A arena do duelo. Regra dura: o plano so e aplicado se TODA casa de chao
+  // continuar alcancavel a pe a partir de onde o jogador esta. Parede que
+  // desconecta e descartada, e no pior caso o plano degenera para so remocoes,
+  // que nunca prendem ninguem.
+  connected(grid, from) {
+    const seen = new Set([`${from.x},${from.z}`]), queue = [from];
+    let floor = 0;
+    for (let z = 1; z < this.height - 1; z++) for (let x = 1; x < this.width - 1; x++) if (grid[z][x] !== 1) floor++;
+    while (queue.length) {
+      const c = queue.shift();
+      for (const [dx, dz] of DIRS) {
+        const x = c.x + dx, z = c.z + dz, key = `${x},${z}`;
+        if (x < 1 || z < 1 || x >= this.width - 1 || z >= this.height - 1) continue;
+        if (seen.has(key) || grid[z][x] === 1) continue;
+        seen.add(key); queue.push({ x, z });
+      }
+    }
+    return seen.size >= floor;
+  }
+  reshapeArena() {
+    const p = this.player, cx = Math.floor(this.width / 2), cz = Math.floor(this.height / 2) - 1;
+    const shape = ARENA_RITES[this.biome.id]?.shape || 'pillars';
+    const blocked = new Set();
+    // Nunca soterrar o jogador, o que ele pode alcancar num passo, a clareira do
+    // guardiao, uma bomba armada ou um item no chao.
+    for (const [dx, dz] of [[0,0], ...DIRS]) blocked.add(`${p.x+dx},${p.z+dz}`);
+    for (let z = cz - 2; z <= cz + 2; z++) for (let x = cx - 2; x <= cx + 2; x++) blocked.add(`${x},${z}`);
+    for (const b of this.bombs) blocked.add(`${b.x},${b.z}`);
+    for (const item of this.pickups) blocked.add(`${item.x},${item.z}`);
+
+    const opens = [], walls = [];
+    for (let z = 1; z < this.height - 1; z++) for (let x = 1; x < this.width - 1; x++) {
+      if (blocked.has(`${x},${z}`)) continue;
+      const onShape = shape === 'row' ? z === cz : shape === 'column' ? x === cx
+        : shape === 'diagonal' ? Math.abs((x - cx) - (z - cz)) <= 1 || Math.abs((x - cx) + (z - cz)) <= 1
+        : (x % 4 === 2 && z % 4 === 2);
+      const ring = Math.max(Math.abs(x - cx), Math.abs(z - cz));
+      if (onShape || ring <= 4) { if (this.grid[z][x] !== 0) opens.push({ x, z, to: 0 }); }
+      else if (this.grid[z][x] === 0 && ring > 5 && (x + z) % 3 === 0) walls.push({ x, z, to: 1 });
+    }
+
+    const next = this.grid.map(row => row.slice());
+    const plan = [];
+    for (const cell of opens) { next[cell.z][cell.x] = 0; plan.push(cell); }
+    for (const cell of walls) {
+      next[cell.z][cell.x] = 1;
+      if (this.connected(next, p)) plan.push(cell);
+      else next[cell.z][cell.x] = this.grid[cell.z][cell.x];
+    }
+    for (const cell of plan) { this.grid[cell.z][cell.x] = cell.to; this.emit(cell.to ? 'raise' : 'clear', { x: cell.x, z: cell.z }); }
+    this.emit('arenaReshape', { cells: plan, shape, color: this.biome.color, opened: opens.length, raised: plan.length - opens.length });
+    return plan;
+  }
+  createBoss() {
     const x = Math.floor(this.width / 2), z = Math.floor(this.height / 2) - 1;
     for (let zz = z - 1; zz <= z + 1; zz++) for (let xx = x - 1; xx <= x + 1; xx++) {
       this.grid[zz][xx] = 0; this.emit('clear', { x: xx, z: zz });
     }
-    const hp = Math.ceil((14 + this.round * 4) * this.challenge.hp);
+    const grudge = !!this.expedition?.routed?.includes(this.stage.worldIndex);
+    const hp = Math.ceil((14 + this.round * 4) * this.challenge.hp * (grudge ? 1.35 : 1));
     this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.guardian || this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 3.2, attackCooldown: 4, hitFlash: 0, attackIndex: 0, enraged: false };
-    Object.assign(this.boss, { phase: 1, lastMove: null, comboQueue: [], signatureBeat: 0, riteCounter: 3, retreat: 0, dodgeCooldown: 0 });
+    Object.assign(this.boss, { phase: 1, lastMove: null, comboQueue: [], signatureBeat: 0, riteCounter: grudge ? 2 : 3, retreat: 0, dodgeCooldown: 0, grudge });
     this.boss.entranceTimer = 1.2; this.boss.intent = 'spawn';
     this.spawnClock = this.spawnInterval;
     this.emit('boss');
@@ -486,14 +565,61 @@ export class Game {
     if (chosen.signature) this.emit('bossSignature', { id: b.id, x: b.x, z: b.z, move: chosen.id, name: chosen.name, duration, color: this.biome.color });
     return chosen;
   }
+  // Toda vitoria de fase passa por aqui. Os tres tipos mudam so o `outcome`,
+  // que e o que o servidor cruza contra o tipo derivado do numero da fase.
+  clearStage(outcome) {
+    this.earnedShards += this.stage.reward + Math.floor(this.kills / 5);
+    this.materials.cores++;
+    this.result = { victory: true, stage: this.round, shards: this.earnedShards, outcome };
+    this.phase = 'intermission'; this.anchors = []; this.warnings = []; this.flames = []; this.bombs = []; this.echoes = [];
+  }
   defeatBoss() {
     if (!this.boss || !this.active) return;
     const boss = this.boss; this.boss = null; this.bosses++;
-    this.earnedShards += this.stage.reward + Math.floor(this.kills / 5);
-    this.materials.cores++;
-    this.result = { victory: true, stage: this.round, shards: this.earnedShards };
-    this.phase = 'intermission'; this.anchors = []; this.warnings = []; this.flames = []; this.bombs = []; this.echoes = [];
+    this.clearStage('slain');
     this.emit('bossDefeated', boss);
+  }
+  // Cacada: um campeao no lugar do guardiao, aos 120s. Nascer aos 60s quebraria
+  // o piso de 120 segundos que o servidor exige em toda vitoria.
+  spawnChampion() {
+    if (this.champion) return;
+    this.phase = 'boss';
+    this.stats.bossStartedAt = this.totalTime;
+    const champion = this.spawnEnemy('sentinel');
+    if (!champion) { this.phase = 'playing'; return; }
+    const scale = 1 + (this.round - 1) * .12;
+    champion.maxHp = Math.ceil(28 * scale * this.challenge.hp);
+    champion.hp = champion.maxHp; champion.champion = true; champion.name = this.biome.champion || 'CAMPEÃO DA FENDA';
+    this.champion = champion; this.miniSpawned = true;
+    this.spawnClock = this.spawnInterval;
+    this.emit('champion', champion);
+  }
+  defeatChampion(champion) {
+    if (this.champion !== champion || !this.active) return;
+    this.champion = null;
+    this.clearStage('champion');
+    this.emit('championDefeated', champion);
+  }
+  // Perseguicao: o guardiao quebra antes do desespero e some. Nao da para mata-lo
+  // -- o golpe que cruzaria o limiar e clampeado no mesmo lugar que dispara a fuga.
+  routeBoss(boss) {
+    if (!this.boss || this.phase === 'transition') return;
+    this.transition = { kind: 'flee', timer: 3.2 };
+    this.phase = 'transition';
+    this.warnings = []; this.flames = []; this.bombs = []; this.echoes = []; this.anchors = [];
+    this.emit('bossFlee', { id: boss.id, x: boss.x, z: boss.z, name: boss.name, line: this.biome.fleeLine || '', color: this.biome.color });
+  }
+  finishTransition() {
+    const done = this.transition; this.transition = null;
+    if (done?.kind === 'flee') {
+      const boss = this.boss; this.boss = null;
+      const world = this.stage.worldIndex;
+      if (this.expedition && !this.expedition.routed.includes(world)) this.expedition.routed.push(world);
+      this.clearStage('routed');
+      this.emit('bossRouted', boss || {});
+      return;
+    }
+    if (done?.kind === 'duel') { this.phase = 'boss'; this.createBoss(); }
   }
   nextRound() {
     if (this.phase !== 'intermission') return false;
@@ -621,6 +747,11 @@ export class Game {
     return false;
   }
   tick(dt) {
+    if (this.phase === 'transition') {
+      this.transition.timer -= dt;
+      if (this.transition.timer <= 0) this.finishTransition();
+      return;
+    }
     if (!this.active) return;
     this.totalTime += dt;
     this.anchors = this.anchors.filter(a=>(a.life-=dt)>0);
@@ -634,11 +765,7 @@ export class Game {
     p.invincible = Math.max(0, p.invincible - dt); p.moveCooldown = Math.max(0, p.moveCooldown - dt); p.dashCooldown = Math.max(0, p.dashCooldown - dt);
     if (this.phase === 'playing') {
       this.elapsed = Math.min(ROUND_SECONDS, this.elapsed + dt);
-      if (this.stage.miniboss && !this.miniSpawned && this.elapsed >= 60) {
-        const mini = this.spawnEnemy('sentinel');
-        if (mini) { this.miniSpawned = true; this.emit('miniboss', mini); }
-      }
-      if (this.elapsed >= ROUND_SECONDS) this.spawnBoss();
+      if (this.elapsed >= ROUND_SECONDS) this.stage.kind === 'hunt' ? this.spawnChampion() : this.spawnBoss();
     }
     this.hazardClock -= dt;
     if (this.hazardClock <= 0) { this.hazardClock = Math.max(5, 12 - this.stage.local); this.environmentAttack(); }

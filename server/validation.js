@@ -1,7 +1,7 @@
 import { METRIC_KEYS } from '../shared/scoring.js';
 import { aggregateExpedition, DIFFICULTIES, CAMPAIGN_STAGES } from '../shared/expedition.js';
 import { SKILLS } from '../src/skills.js';
-import { RELICS } from '../src/campaign.js';
+import { RELICS, stageFor } from '../src/campaign.js';
 export class ApiError extends Error { constructor(code, status = 400) { super(code); this.status = status; } }
 export const fail = (code, status) => { throw new ApiError(code, status); };
 export const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value);
@@ -44,8 +44,17 @@ export function validateRun(input, session, now = Date.now()) {
   if (!m || METRIC_KEYS.some(k => !integer(m[k]))) fail('invalid_run');
   if (r.seconds > 7200 || r.seconds > (now - session.started_at) / 1000 + 3 || now > session.expires_at) fail('invalid_duration');
   if (!r.maxHp || r.hp > r.maxHp || r.bossSeconds > r.seconds || r.bosses > 1 || m.miniKills > 1 || m.revives > (session.campaign ? 10 : 1)) fail('invalid_run');
-  if (r.victory && (r.bosses !== 1 || !r.bossEncountered || r.seconds < 120 || r.hp === 0)) fail('invalid_run');
-  if (!r.victory && (r.hp !== 0 || r.bosses !== 0)) fail('invalid_run');
+  // O tipo da fase e DERIVADO do numero, nunca lido do payload: o numero ja e
+  // travado pela sessao e por invalid_campaign, entao nao ha campo novo sobre o
+  // qual mentir. Cada tipo so aceita o seu proprio desfecho.
+  const kind = stageFor(r.stage).kind;
+  const OUTCOMES = { hunt: 'champion', chase: 'routed', duel: 'slain' };
+  if (r.victory) {
+    if (r.outcome !== OUTCOMES[kind] || r.seconds < 120 || r.hp === 0 || !r.bossEncountered) fail('invalid_run');
+    if (kind === 'hunt' && (r.bosses !== 0 || m.bossDamage !== 0 || m.miniKills !== 1)) fail('invalid_run');
+    if (kind === 'chase' && (r.bosses !== 0 || m.miniKills !== 0 || !m.bossDamage)) fail('invalid_run');
+    if (kind === 'duel' && (r.bosses !== 1 || m.miniKills !== 0 || !m.bossDamage)) fail('invalid_run');
+  } else if (r.outcome !== 'defeat' || r.hp !== 0 || r.bosses !== 0) fail('invalid_run');
   if (!r.bossEncountered && (r.bossSeconds || m.bossDamage) || r.bossEncountered && r.seconds - r.bossSeconds < 119) fail('invalid_run');
   if (m.bossDamage > m.damageDealt || m.chainExplosions > m.bombsExploded || m.bombsExploded > m.bombsPlaced || m.maxCombo > m.normalKills + m.miniKills) fail('invalid_run');
   if (m.normalKills + m.miniKills > 20 + r.seconds * 2 || m.bombsPlaced > 30 + r.seconds * 60 || m.dashes > 3 + r.seconds * 60) fail('implausible_run');
@@ -56,5 +65,5 @@ export function validateRun(input, session, now = Date.now()) {
   if (!Array.isArray(r.relics) || new Set(r.relics).size !== r.relics.length || r.relics.some(id => !RELICS.some(x => x.id === id))) fail('invalid_build');
   if (!r.materials || !integer(r.materials.scrap) || !integer(r.materials.cores)) fail('invalid_run');
   // Only approved fields cross the persistence boundary.
-  return Object.fromEntries(['stage','victory','seconds','bossSeconds','bossEncountered','hp','maxHp','bosses','crystals','crates','levels','skills','masteries','relics','materials'].map(k=>[k,r[k]]).concat([['metrics',Object.fromEntries(METRIC_KEYS.map(k=>[k,m[k]]))]]));
+  return Object.fromEntries(['stage','victory','outcome','seconds','bossSeconds','bossEncountered','hp','maxHp','bosses','crystals','crates','levels','skills','masteries','relics','materials'].map(k=>[k,r[k]]).concat([['metrics',Object.fromEntries(METRIC_KEYS.map(k=>[k,m[k]]))]]));
 }

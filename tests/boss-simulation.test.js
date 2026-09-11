@@ -9,13 +9,16 @@ import { MIN_TELEGRAPH, escapeSteps, safeHouses } from '../src/boss-mechanics.js
 const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
 const key = c => `${c.x},${c.z}`;
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
-const STAGES = [1, 4, 7, 10, 13, 16, 19, 31];
+const STAGES = [3, 6, 9, 12, 15, 18, 21, 33];
 
 function boot(stage, seed) {
   const g = new Game({ random: seededRandom(seed), meta: { unlockedStage: 40 } });
   assert(g.start(stage));
   g.enemies = []; g.pickups = []; g.spawnClock = Infinity; g.hazardClock = Infinity;
-  g.elapsed = 119.9; g.tick(.2); assert(g.boss, 'the guardian must be awake');
+  g.elapsed = 119.9; g.tick(.2);
+  // Num duelo a arena se transforma antes: atravesse a transicao congelada.
+  while (g.phase === 'transition') g.tick(.2);
+  assert(g.boss, 'the guardian must be awake');
   g.spawnClock = Infinity; g.hazardClock = Infinity; g.drainEvents();
   return g;
 }
@@ -102,7 +105,7 @@ test('a full fight in every world never lands damage the player could not read',
 });
 
 test('a fight walks through the two act breaks and uses more than one pattern', () => {
-  for (const stage of [10, 13, 16]) {
+  for (const stage of [12, 15, 18]) {
     const report = fight(stage, 91 + stage);
     assert.deepEqual(report.phases, [2, 3], `stage ${stage} phases ${report.phases}`);
     assert(report.moves.size >= 3, `stage ${stage} only used ${[...report.moves]}`);
@@ -110,7 +113,7 @@ test('a fight walks through the two act breaks and uses more than one pattern', 
 });
 
 test('no pattern is ever a checkmate: a clean tile is in reach the moment it is painted', () => {
-  for (const stage of [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34]) for (const seed of [11, 300 + stage]) {
+  for (const stage of [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36]) for (const seed of [11, 300 + stage]) {
     const report = fight(stage, seed, { pilot: dodge });
     assert.deepEqual(report.faults.slice(0, 3), [], `stage ${stage} seed ${seed}`);
     assert.equal(report.blind, 0, `stage ${stage} hit a dodging player without a mark`);

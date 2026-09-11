@@ -7,6 +7,8 @@ import { rpgArt } from './rpg-art.js';
 import { relicById } from './campaign.js';
 import { PHASE_LABELS } from './boss-mechanics.js';
 
+const escapeText = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
 export class GameHud {
   constructor(game, { icon, icons, avatar }) {
     this.game = game; this.icon = icon; this.icons = icons; this.floaters = []; this.labels = new Map(); this.last = ''; this.buildStamp = ''; this.lifeRatio = 1;
@@ -40,7 +42,9 @@ export class GameHud {
     // the guardian is from its next escalation, not only how much life is left.
     insertHTML(this.bossBar.querySelector('.boss-track'), 'beforeend', '<i class="boss-act-mark" style="left:60%"></i><i class="boss-act-mark" style="left:30%"></i>');
     insertHTML(document.querySelector('#combat-build'), 'beforebegin', '<div class="prepared-gear" id="combat-equipment"></div><div class="relic-belt" id="combat-relics"></div>');
-    this.el = Object.fromEntries([...document.querySelectorAll('.combat-hud [id], .world-overlay [id]')].map(el => [el.id, el]));
+    // Fora do combat-hud: precisa cobrir a arena inteira nos momentos narrativos.
+    insertHTML(document.querySelector('.arena-card'), 'beforeend', '<div id="cinematic" class="cinematic" role="status" aria-live="polite"></div>');
+    this.el = Object.fromEntries([...document.querySelectorAll('.combat-hud [id], .world-overlay [id], #cinematic')].map(el => [el.id, el]));
   }
   /** Restart a one-shot animation class. */
   pop(el, name) { if (!el) return; el.classList.remove(name); void el.offsetWidth; el.classList.add(name); }
@@ -98,6 +102,20 @@ export class GameHud {
       setHTML(e['combat-build'], skills.length ? skills.map(s => `<button data-action="build" data-rune="${s.id}" class="build-rune ${this.gained === s.id ? 'rune-gained' : ''}" title="${s.name} · Nível ${g.skillLevels[s.id]} — ${s.desc}" aria-label="${s.name}, nível ${g.skillLevels[s.id]}" style="--skill-color:${s.color}">${skillArt(s.id)}<b>${g.skillLevels[s.id]}</b></button>`).join('') : Array.from({ length: 4 }, () => '<span class="rune-empty">◇</span>').join(''));
       setText(e['combat-build-hint'], skills.length ? `${skills.length} ${skills.length === 1 ? 'HABILIDADE' : 'HABILIDADES'} · B PARA DETALHES` : 'SEU PODER COMEÇA AQUI');
     }
+  }
+  // Momento narrativo: ocupa o centro da tela, palavra por palavra, e sai sozinho.
+  // Diferente do notice (canto, 3,5s, informativo) -- este interrompe a leitura
+  // de proposito, entao so serve para viradas de verdade.
+  cinematic(title, subtitle = '', { color = '#ffd39b', kind = '', hold = 2600 } = {}) {
+    const el = this.el['cinematic']; if (!el) return;
+    el.style.setProperty('--cinematic-color', color);
+    el.className = 'cinematic' + (kind ? ' ' + kind : '');
+    const words = String(title).split(/\s+/).filter(Boolean);
+    setHTML(el, '<strong>' + words.map((w, i) => '<i style="--step:' + i + '">' + escapeText(w) + '</i>').join(' ') + '</strong><small></small>');
+    setText(el.querySelector('small'), subtitle);
+    void el.offsetWidth; el.classList.add('visible');
+    clearTimeout(this.cinematicTimer);
+    this.cinematicTimer = setTimeout(() => el.classList.remove('visible'), hold + words.length * 70);
   }
   floating(text, x, z, style = 'damage') {
     if (this.floaters.length >= 32) { this.floaters.shift().el.remove(); }
@@ -162,7 +180,7 @@ export class GameHud {
       }
       const el = this.labels.get(enemy.id), pos = scene.projectEntity(enemy);
       el.style.transform = `translate(${pos.x}px,${pos.y}px) translate(-50%,-100%)`;
-      setText(el.firstElementChild, enemy.mending ? '✦ CURANDO A HORDA' : enemy.intent === 'ambush' ? '⚠ EMBOSCADA' : enemy.windup ? '⚠ INVESTIDA' : enemy.slow ? '❄ LENTO' : enemy.type === 'sentinel' ? '◆ SENTINELA' : enemy.intent === 'cast' ? '✦ CONJURANDO' : enemy.intent === 'evade' ? '↗' : '');
+      setText(el.firstElementChild, enemy.mending ? '✦ CURANDO A HORDA' : enemy.intent === 'ambush' ? '⚠ EMBOSCADA' : enemy.windup ? '⚠ INVESTIDA' : enemy.slow ? '❄ LENTO' : enemy === this.game.champion ? '★ CAMPEÃO' : enemy.type === 'sentinel' ? '◆ SENTINELA' : enemy.intent === 'cast' ? '✦ CONJURANDO' : enemy.intent === 'evade' ? '↗' : '');
       el.querySelector('i').style.width = `${Math.max(0, enemy.hp / enemy.maxHp * 100)}%`;
       el.classList.toggle('charging', enemy.windup > 0);
     }

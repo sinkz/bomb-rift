@@ -7,6 +7,7 @@ import { emptyMetrics } from '../shared/scoring.js';
 import { aggregateExpedition } from '../shared/expedition.js';
 import { promotionInput } from '../server/validation.js';
 import { validateRun } from '../server/validation.js';
+import { stageFor } from '../src/campaign.js';
 
 class TestD1 {
   constructor(){this.db=new DatabaseSync(':memory:');this.db.exec(readFileSync(new URL('../migrations/0001_global_ranking.sql',import.meta.url),'utf8'));}
@@ -29,7 +30,7 @@ function setup(extraEnv={}){const DB=new TestD1(),pending=[];return {DB,pending,
   await Promise.all(pending.splice(0));return {status:response.status,body:await response.json(),cookie:response.headers.get('set-cookie')?.split(';')[0]};
 }};}
 async function profile(api){const p=await api.call('profile',{});assert.equal(p.status,201);return p;}
-const report=()=>({stage:1,victory:true,seconds:165,bossSeconds:45,bossEncountered:true,hp:70,maxHp:100,bosses:1,crystals:30,crates:12,levels:3,skills:{power:3},masteries:[],relics:[],materials:{scrap:4,cores:1},metrics:{...emptyMetrics(),normalKills:20,maxCombo:6,choices:3,damageDealt:100,bossDamage:18,damageTaken:30,hitsTaken:2,bombsPlaced:35,bombsExploded:34}});
+const report=()=>({stage:1,victory:true,outcome:'champion',seconds:165,bossSeconds:45,bossEncountered:true,hp:70,maxHp:100,bosses:0,crystals:30,crates:12,levels:3,skills:{power:3},masteries:[],relics:[],materials:{scrap:4,cores:1},metrics:{...emptyMetrics(),normalKills:20,miniKills:1,maxCombo:6,choices:3,damageDealt:100,bossDamage:0,damageTaken:30,hitsTaken:2,bombsPlaced:35,bombsExploded:34}});
 test('awakenings require five actual selections of their skill',()=>{
   const r=report(),now=Date.now(),session={stage:1,started_at:now-180000,expires_at:now+1000};
   assert.throws(()=>validateRun({...r,masteries:['range']},session,now),/invalid_build/);
@@ -54,7 +55,13 @@ test('public submissions require a successful Turnstile token for this hostname 
   assert.equal((await api.call('runs/publish',values,p.cookie)).status,200);
   assert.equal((await api.call('profile/update',{name:'Changed'},p.cookie)).status,403);
 });
-const campaignReport=()=>aggregateExpedition([{...report(),victory:false,hp:0,bosses:0}],'easy');
+const stageReport=n=>{
+  const kind=stageFor(n).kind,r={...report(),stage:n};
+  if(kind==='hunt')return {...r,outcome:'champion',bosses:0,metrics:{...r.metrics,miniKills:1,bossDamage:0}};
+  if(kind==='chase')return {...r,outcome:'routed',bosses:0,metrics:{...r.metrics,miniKills:0,bossDamage:18}};
+  return {...r,outcome:'slain',bosses:1,metrics:{...r.metrics,miniKills:0,bossDamage:18}};
+};
+const campaignReport=()=>aggregateExpedition([{...report(),victory:false,outcome:'defeat',hp:0,bosses:0}],'easy');
 test('API accepts a full campaign, rejects intermediate victory and pins difficulty at session start',async()=>{
   const a=setup(),p=await profile(a),id=crypto.randomUUID();
   assert.equal((await a.call('runs/start',{id,stage:2},p.cookie)).status,400);
@@ -64,8 +71,8 @@ test('API accepts a full campaign, rejects intermediate victory and pins difficu
   assert.equal((await a.call('runs/finish',{id,report:report()},p.cookie)).body.error,'unfinished_campaign');
   assert.equal((await a.call('runs/finish',{id,report:aggregateExpedition([report()],'medium')},p.cookie)).body.error,'unfinished_campaign');
   assert.equal((await a.call('runs/finish',{id,report:campaignReport()},p.cookie)).body.error,'invalid_campaign');
-  const full=aggregateExpedition(Array.from({length:18},(_,i)=>({...report(),stage:i+1})),'medium');
-  const finish=await a.call('runs/finish',{id,report:full},p.cookie);assert.equal(finish.status,200,JSON.stringify(finish.body));assert.equal(finish.body.report.bosses,18);assert.equal(finish.body.report.seconds,2970);
+  const full=aggregateExpedition(Array.from({length:18},(_,i)=>stageReport(i+1)),'medium');
+  const finish=await a.call('runs/finish',{id,report:full},p.cookie);assert.equal(finish.status,200,JSON.stringify(finish.body));assert.equal(finish.body.report.bosses,6);assert.equal(finish.body.report.seconds,2970);
   assert.equal((await a.call('runs/publish',{id,name:'Campaign winner'},p.cookie)).status,200);
   const board=(await a.call('leaderboard')).body;assert.equal(board.rows[0].report.difficulty,'medium');assert.equal(board.rows[0].victory,true);
 });

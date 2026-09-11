@@ -643,6 +643,26 @@ export class ArenaScene {
       }
     }
     if (event.type === 'wardReady') this.pulse(event.x,event.z,0xb3e5d4,.8,.7);
+    // A arena do duelo se reconstroi inteira: buildArena e puramente apresentacao,
+    // entao o mesh do jogador sobrevive e os dinamicos voltam por ensureObject.
+    if (event.type === 'arenaReshape') {
+      this.buildArena();
+      const cx = (this.game.width - 1) / 2, cz = (this.game.height - 1) / 2;
+      for (const size of [3, 6, 10]) this.pulse(cx, cz, event.color, size, 1.1);
+      for (const cell of event.cells.slice(0, 40)) this.burst(cell.x, cell.z, event.color, this.reducedMotion ? 1 : 4, 2.2);
+      this.shake = this.reducedMotion ? 0 : .5; this.hit(.12);
+      this.impactLight?.(cx, cz, event.color, 46, 14, 1.8);
+    }
+    // Uma casa que fecha merece o oposto do estilhaco: poeira subindo no lugar.
+    if (event.type === 'raise') { this.burst(event.x, event.z, 0xb9a6c8, this.reducedMotion ? 2 : 7, 1.6); this.pulse(event.x, event.z, 0xcbb6da, .7, .5); }
+    if (event.type === 'champion') { this.pulse(event.x, event.z, 0xffb05a, 3.4, 1.1); this.burst(event.x, event.z, 0xffc98a, 26, 3); this.shake = this.reducedMotion ? 0 : .26; }
+    if (event.type === 'bossFlee') {
+      // Some no escuro: a mesma coreografia da entrada, ao contrario.
+      this.bossEntry = { age: 0, duration: 3, depth: 1 };
+      for (const size of [4.4, 2.6, 1.2]) this.pulse(event.x, event.z, event.color, size, .9);
+      this.burst(event.x, event.z, event.color, this.reducedMotion ? 6 : 44, 5);
+      this.shake = this.reducedMotion ? 0 : .3; this.hit(.1);
+    }
     if (event.type === 'bossTeleport') for(const c of [event.from,event]) {this.pulse(c.x,c.z,event.color,1.6,1);this.burst(c.x,c.z,event.color,20,2,{geo:'crystal',size:1.1});}
     if (event.type === 'bossPhase') {
       // Virada de ato. O III é o clímax da luta: escurece mais, sacode mais e para o tempo por um instante.

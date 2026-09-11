@@ -1,14 +1,14 @@
 // Shared by the browser and API. Scores are always derived from metrics.
 import { DIFFICULTIES } from './expedition.js';
-export const SCORE_VERSION = 'campaign-2';
-export const SEASON = 'expeditions-2';
+export const SCORE_VERSION = 'campaign-3';
+export const SEASON = 'expeditions-3';
 export const METRIC_KEYS = ['bombsPlaced','bombsExploded','chainExplosions','echoExplosions','damageDealt','bossDamage','damageTaken','healed','hitsTaken','blocked','dashes','revives','normalKills','miniKills','maxCombo','anchorsBroken','choices'];
 export const emptyMetrics = () => Object.fromEntries(METRIC_KEYS.map(k => [k, 0]));
 const whole = value => Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 
 export function captureRun(game) {
   return {
-    stage: game.round, victory: !!game.result?.victory, seconds: whole(game.totalTime),
+    stage: game.round, victory: !!game.result?.victory, outcome: game.result?.outcome || 'defeat', seconds: whole(game.totalTime),
     bossSeconds: game.stats?.bossStartedAt == null ? 0 : whole(game.totalTime - game.stats.bossStartedAt),
     bossEncountered: game.stats?.bossStartedAt != null,
     hp: whole(game.player.hp), maxHp: whole(game.player.maxHp),
@@ -30,7 +30,8 @@ export function scoreReport(run) {
   const stage = Math.max(1, whole(run.stage)), index = (stage - 1) % 18;
   const multiplier = Math.min(200, 100 + Math.floor(index / 3) * 10 + index % 3 * 5 + Math.floor((stage - 1) / 18) * 10);
   const parts = [
-    ['kills', whole(m.normalKills) * 100], ['minis', whole(m.miniKills) * 600], ['boss', whole(run.bosses) * 2000],
+    ['kills', whole(m.normalKills) * 100], ['champions', whole(m.miniKills) * 1800],
+    ['routed', (run.outcome === 'routed' ? 1 : 0) * 2200], ['boss', whole(run.bosses) * 3600],
     ['crates', Math.min(500, whole(run.crates) * 10)], ['crystals', Math.min(500, whole(run.crystals) * 5)],
     ['levels', Math.min(800, whole(run.levels) * 80)], ['masteries', Math.min(750, new Set(run.masteries || []).size * 250)],
     ['victory', win ? 1000 : 0], ['combo', Math.min(500, whole(m.maxCombo) * 25)],

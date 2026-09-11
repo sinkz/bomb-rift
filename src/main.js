@@ -168,7 +168,10 @@ function showIntermission() {
   const worldStep = game.stage.local, worldDone = worldStep === STAGES_PER_WORLD;
   const progress = `<div class="stage-progress" role="group" aria-label="Progresso da campanha"><div class="stage-progress-heading"><span>FASE ${String(cleared).padStart(2, '0')} DE ${CAMPAIGN_LENGTH}</span><b>${game.challenge.label.toUpperCase()}</b></div><div class="stage-progress-track"><span style="width:${cleared / CAMPAIGN_LENGTH * 100}%"></span></div><div class="stage-progress-pips">${Array.from({ length: CAMPAIGN_LENGTH }, (_, i) => `<i class="${i < cleared ? 'done' : ''}"></i>`).join('')}</div></div>`;
   const teaser = nextStage ? `<div class="next-stage" style="--world-color:${nextStage.world.color}"><span class="micro">A PRÓXIMA FENDA</span><strong>${nextStage.name}</strong><small>${nextStage.world.name} · ${nextStage.world.boss} · ${nextStage.description}</small></div>` : '';
-  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${game.biome.boss} CAIU.</span><h2 id="modal-title">Uma fenda a menos.</h2><p>${game.stage.name}${worldDone ? ` · ${game.biome.name} concluído` : ''}</p>${progress}${legacyResultCard()}${teaser}${lifeShop(game)}<p class="victory-map-note">Skills, relíquias e cristais reiniciam na próxima fase. Vidas extras continuam nesta tentativa.</p><button class="primary-button full-width" data-action="world-map">Continuar no atlas ${icon('ArrowRight')}</button><button class="secondary-button full-width" data-action="home">Voltar ao refúgio</button>`, { closable: false });
+  // Cada tipo de fase termina com a sua propria manchete: dizer que o guardiao
+  // caiu numa cacada onde ele nunca apareceu seria mentira.
+  const headline = { champion: 'O CAMPEÃO CAIU.', routed: `${game.biome.boss} FUGIU.`, slain: `${game.biome.boss} CAIU.` }[game.result?.outcome] || `${game.biome.boss} CAIU.`;
+  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${headline}</span><h2 id="modal-title">Uma fenda a menos.</h2><p>${game.stage.name}${worldDone ? ` · ${game.biome.name} concluído` : ''}</p>${progress}${legacyResultCard()}${teaser}${lifeShop(game)}<p class="victory-map-note">Skills, relíquias e cristais reiniciam na próxima fase. Vidas extras continuam nesta tentativa.</p><button class="primary-button full-width" data-action="world-map">Continuar no atlas ${icon('ArrowRight')}</button><button class="secondary-button full-width" data-action="home">Voltar ao refúgio</button>`, { closable: false });
 }
 function showDead() {
   modal('dead', `<div class="modal-emblem">${icon('Skull')}</div><span class="eyebrow orange">TODA LENDA COMEÇA COM ALGUMAS EXPLOSÕES.</span><h2 id="modal-title">O pavio apagou.<br><span>A faísca continua.</span></h2><p>Sua build ficou na fenda. As essências e as evoluções permanentes vieram com você.</p><div class="results-row"><div><strong>${String(game.round).padStart(2, '0')}</strong><span>RODADA</span></div><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS</span></div></div><button class="primary-button full-width" data-action="start">Mais uma expedição ${icon('RotateCcw')}</button><button class="secondary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
@@ -237,6 +240,12 @@ function handleEvents() {
     if (event.type === 'skill') { closeModal(); updateBuild(); }
     if (event.type === 'bossDefeated') { claimRun(); showIntermission(); }
     if (event.type === 'miniboss') announce('SENTINELA DA FENDA · RELÍQUIA GARANTIDA', 'danger');
+    // Os tres momentos narrativos do novo ritmo de campanha.
+    if (event.type === 'champion') hud.cinematic('O CAMPEÃO DESPERTA', 'Derrote-o para atravessar a fenda.', { color: '#ffb05a', hold: 2200 });
+    if (event.type === 'bossFlee') hud.cinematic(`${event.name} FUGIU`, event.line, { color: event.color, kind: 'flee', hold: 2900 });
+    if (event.type === 'bossRouted') announce('ELE ESPERA NA PRÓXIMA FENDA');
+    if (event.type === 'arenaReshape') hud.cinematic('A ARENA SE PARTE', game.biome.tag, { color: event.color, kind: 'duel', hold: 2000 });
+    if (event.type === 'boss' && game.boss?.grudge) hud.notice(`${game.biome.boss} · RANCOR`, game.biome.grudgeLine || '', game.biome.color);
     // Act two already speaks through 'bossEnraged'; only the desperation turn
     // needs its own voice, or the same threshold would announce itself twice.
     if (event.type === 'bossPhase' && event.phase >= 3) { sound.play('bossDesperation'); announce(`${game.biome.boss} · ${event.label}`, 'danger'); }

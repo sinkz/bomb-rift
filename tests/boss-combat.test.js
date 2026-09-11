@@ -5,16 +5,17 @@ import { MIN_TELEGRAPH, PHASE_LABELS, bossPhaseFor, bossRepertoire, bossTelegrap
 
 // Stages 19..34 replay the six worlds one cycle later, which is the only place
 // every guardian has its full repertoire unlocked at once.
-const WORLD_STAGES = [1, 4, 7, 10, 13, 16], LATE_STAGES = [19, 22, 25, 28, 31, 34];
+const WORLD_STAGES = [3, 6, 9, 12, 15, 18], LATE_STAGES = [21, 24, 27, 30, 33, 36];
 const key = c => `${c.x},${c.z}`;
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
-function setup(stage = 1, seed = 7) {
+function setup(stage = 3, seed = 7) {
   const g = new Game({ random: seededRandom(seed), meta: { unlockedStage: 40 } });
   assert(g.start(stage));
   g.enemies = []; g.pickups = []; g.spawnClock = Infinity; g.hazardClock = Infinity;
   for (let z = 1; z < g.height - 1; z++) for (let x = 1; x < g.width - 1; x++) g.grid[z][x] = 0;
   g.player.x = 2; g.player.z = 2; g.player.invincible = 0;
-  g.spawnBoss(); g.boss.entranceTimer = 0; g.boss.cooldown = 999; g.boss.attackCooldown = 999;
+  g.phase = 'boss'; g.createBoss();
+  g.boss.entranceTimer = 0; g.boss.cooldown = 999; g.boss.attackCooldown = 999;
   g.spawnClock = Infinity; g.drainEvents(); return g;
 }
 function force(g, id, phase) {
@@ -51,7 +52,7 @@ test('every pattern leaves a safe house the player can still walk to', () => {
 });
 
 test('a cornered player keeps one clean tile even under a pattern that covers everything', () => {
-  const g = setup(1); g.boss.phase = 3;
+  const g = setup(3); g.boss.phase = 3;
   // Seal the player into a three tile pocket, then fire a pattern over all of it.
   g.player.x = 1; g.player.z = 1; g.grid[1][3] = 1; g.grid[3][1] = 1; g.grid[2][2] = 1;
   const cells = [];
@@ -100,12 +101,12 @@ test('each phase change reopens the arena so fresh anchors are always available'
 });
 
 test('early rounds teach with two patterns and long marks, late rounds are quick and varied', () => {
-  const early = setup(1), late = setup(16);
+  const early = setup(3), late = setup(16);
   early.boss.phase = late.boss.phase = 3;
   assert.equal(bossRepertoire(early, early.boss).filter(m => !m.signature).length, 2);
   assert(bossRepertoire(late, late.boss).length > bossRepertoire(early, early.boss).length);
   assert(bossTelegraph(early, early.boss) > bossTelegraph(late, late.boss) + .4);
-  const opener = setup(1); opener.boss.phase = 1;
+  const opener = setup(3); opener.boss.phase = 1;
   assert(bossTelegraph(opener, opener.boss) >= 1.6, 'the first world must stay readable');
   // Rounds one to three never unlock a dash or a teleport.
   assert(!bossRepertoire(opener, { ...opener.boss, phase: 3 }).some(m => m.dash || m.teleport));
@@ -182,7 +183,7 @@ test('a guardian that called a move centred on itself walks away to make room', 
 });
 
 test('the guardian stays baitable: no bomb dodging in the first worlds', () => {
-  const g = setup(1), b = g.boss;
+  const g = setup(3), b = g.boss;
   b.cooldown = 0; b.phase = 3; g.player.x = b.x + 5; g.player.z = b.z;
   g.bombs = [{ id: 900, x: b.x - 1, z: b.z, fuse: .25, range: 1, damage: 2 }];
   const before = distance(b, g.player);

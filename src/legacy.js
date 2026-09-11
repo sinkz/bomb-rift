@@ -127,6 +127,6 @@ export function settleLegacy(game) {
   m.scrap += materials.scrap; m.cores += materials.cores;
   const xp = game.kills * 2 + game.cratesBroken + Math.floor(game.elapsed / 12) + (game.result.victory ? 30 : 0);
   const before = rankInfo(m.legacyXp).level; m.legacyXp += xp;
-  m.totals.kills += game.kills; m.totals.crates += game.cratesBroken; m.totals.guardians += game.result.victory ? 1 : 0;
+  m.totals.kills += game.kills; m.totals.crates += game.cratesBroken; m.totals.guardians += game.result.outcome === 'slain' ? 1 : 0;
   game.result.legacy = { materials, xp, rank: rankInfo(m.legacyXp).level, rankedUp: rankInfo(m.legacyXp).level > before };
 }
