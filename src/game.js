@@ -461,7 +461,7 @@ export class Game {
   spawnBoss() {
     this.stats.bossStartedAt = this.totalTime;
     if (this.stage.kind === 'duel') {
-      this.transition = { kind: 'duel', timer: 2.6 };
+      this.transition = { kind: 'duel', timer: 1.6 };
       this.phase = 'transition';
       this.reshapeArena();
       return;
@@ -488,7 +488,10 @@ export class Game {
     while (t.fired < t.beats.length && t.beats[t.fired].at <= elapsed) {
       const beat = t.beats[t.fired++];
       const escort = beat.kind === 'summon' ? this.summonEscort(beat.count ?? 3, seat) : [];
-      this.emit('bossEntranceBeat', { kind: beat.kind, ...seat, color: this.biome.color, escort });
+      this.emit('bossEntranceBeat', { kind: beat.kind, ...seat, color: this.biome.color, escort, name: this.biome.boss, line: this.biome.quote });
+      // O guardiao chega antes do fim da transicao de proposito: assim ele roda
+      // a animacao de entrada na tela enquanto o jogo ainda esta congelado.
+      if (beat.arrive && !this.boss) this.createBoss();
     }
   }
   // A escolta nasce pelo mesmo spawnEnemy de sempre — andavel, longe do jogador,
@@ -574,7 +577,7 @@ export class Game {
     const hp = Math.ceil((14 + this.round * 4) * this.challenge.hp * (grudge ? 1.35 : 1));
     this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.guardian || this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 3.2, attackCooldown: 4, hitFlash: 0, attackIndex: 0, enraged: false };
     Object.assign(this.boss, { phase: 1, lastMove: null, comboQueue: [], signatureBeat: 0, riteCounter: grudge ? 2 : 3, retreat: 0, dodgeCooldown: 0, grudge });
-    this.boss.entranceTimer = 1.2; this.boss.intent = 'spawn';
+    this.boss.entranceTimer = .5; this.boss.intent = 'spawn';
     this.spawnClock = this.spawnInterval;
     this.emit('boss');
   }
@@ -663,7 +666,10 @@ export class Game {
       return;
     }
     if (done?.kind === 'duel' && this.beginEntrance()) return;
-    if (done?.kind === 'duel' || done?.kind === 'entrance') { this.phase = 'boss'; this.createBoss(); }
+    if (done?.kind === 'duel' || done?.kind === 'entrance') {
+      this.phase = 'boss';
+      if (!this.boss) this.createBoss();
+    }
   }
   nextRound() {
     if (this.phase !== 'intermission') return false;

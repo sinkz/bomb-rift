@@ -11,7 +11,7 @@ import { skillById } from './skills.js';
 import { OUTFITS } from './legacy.js';
 import { loadBossLibrary, bossKeyFor } from './boss-models.js';
 import { BiomeAtmosphere, fxFor, deathFx, PICKUP_FX, rarityFx } from './biome-fx.js';
-import { ParticleField, SPRITE, SPRITE_FOR_GEO, rampFor } from './particles.js';
+import { ParticleField, SPRITE, SPRITE_FOR_GEO, rampFor, rampColor } from './particles.js';
 
 const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
@@ -21,7 +21,12 @@ const G = {
   cone: new THREE.ConeGeometry(1, 1, 5),
   ring: new THREE.TorusGeometry(1, .035, 6, 48),
   cylinder: new THREE.CylinderGeometry(1, 1, 1, 12),
+  plane: new THREE.PlaneGeometry(1, 1),
 };
+// O toro antigo tinha raio 1 (diametro 2). No sprite, o anel fica em .72 do
+// meio-lado, entao o plano precisa de 1/.36 para desenhar um anel do mesmo
+// tamanho que as 39 chamadas de pulse() ja esperavam.
+const RING_FIT = 2.78;
 const materialCache = new Map();
 function mat(color, emissive = 0, intensity = 0, metalness = 0) {
   if (color?.isColor) color = color.getHex();
@@ -78,6 +83,15 @@ export class ArenaScene {
     this.scene.add(this.static, this.dynamic, this.fx);
     // Fica fora de this.fx de proposito: buildArena limpa aquele grupo inteiro.
     this.field = new ParticleField(this.scene, particleSources?.atlas);
+    // O anel deita no chao, entao nao pode ser um ponto de Points: viraria um
+    // disco virado para a camera. E um plano texturizado com o sprite assado.
+    this.ringTexture = null;
+    if (particleSources?.ring) {
+      this.ringTexture = new THREE.TextureLoader().load(particleSources.ring);
+      this.ringTexture.colorSpace = THREE.SRGBColorSpace;
+      this.ringTexture.generateMipmaps = false;
+      this.ringTexture.minFilter = THREE.LinearFilter;
+    }
     this.playerMesh = this.makePlayer(); this.dynamic.add(this.playerMesh);
     this.addAtmosphere(); this.buildArena();
     this.resizeObserver = new ResizeObserver(() => this.resize()); this.resizeObserver.observe(container); this.resize();
@@ -504,9 +518,12 @@ export class ArenaScene {
   }
   pulse(x, z, color, size = 2.1, duration = .5, delay = 0, implode = false) {
     const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-    const [wx, wz] = this.at(x, z), ring = new THREE.Mesh(G.ring, material);
-    ring.rotation.x = Math.PI / 2; ring.position.set(wx, .07, wz); ring.scale.setScalar(implode ? .3 + size : .3); ring.visible = !delay; this.fx.add(ring);
-    this.pulses.push({ mesh: ring, age: 0, duration, size, delay, implode });
+    if (this.ringTexture) { material.map = this.ringTexture; material.side = THREE.DoubleSide; }
+    const fit = this.ringTexture ? RING_FIT : 1;
+    const [wx, wz] = this.at(x, z), ring = new THREE.Mesh(this.ringTexture ? G.plane : G.ring, material);
+    ring.rotation.x = Math.PI / 2; ring.position.set(wx, .07, wz); ring.scale.setScalar((implode ? .3 + size : .3) * fit); ring.visible = !delay; this.fx.add(ring);
+    // A mesma rampa das particulas: o anel comeca branco-quente e esfria.
+    this.pulses.push({ mesh: ring, age: 0, duration, size, delay, implode, fit, ramp: rampFor(color?.isColor ? color.getHex() : color) });
   }
   // Onda de choque: o anel rápido marca o ponto, o largo e atrasado devolve o peso do impacto.
   shock(x, z, color, size = 2.4, scorch = 0) {
@@ -659,8 +676,7 @@ export class ArenaScene {
         this.shake = soft ? 0 : .6;
         this.hit(.13);
         this.shock(x, z, color, 6.2, 2);
-        this.burst(x, z, color, soft ? 8 : 54, 5.2, { geo: 'crystal', size: 1.5, spread: .9 });
-        this.burst(x, z, 0xffffff, soft ? 6 : 28, 3.4, { size: 1.9, gravity: 5, spread: .5 });
+        this.burst(x, z, 0xffffff, soft ? 6 : 26, 3.4, { size: 1.9, gravity: 5, spread: .5 });
         this.burst(x, z, 0xf6ecff, soft ? 4 : 20, 2.4, { geo: 'sphere', size: 2.3, gravity: -2.2, lift: .5, y: .6, spread: 1.5 });
         this.pulse(x, z, 0xffffff, 3.2, .4);
         this.impactLight(x, z, color, 62, 16, 1.5);
@@ -724,6 +740,24 @@ export class ArenaScene {
       }
     }
     if (event.type === 'wardReady') this.pulse(event.x,event.z,0xb3e5d4,.8,.7);
+    // O cenario ataca sozinho, sem inimigo por perto. A brasa sobe do chao no
+    // instante do anuncio para separar 'o mapa te quer morto' de 'alguem te
+    // quer morto' — o telegrafo sozinho nao dizia de onde vinha.
+    if (event.type === 'hazard') {
+      const color = new THREE.Color(this.game.biome.color);
+      const cells = event.cells.slice(0, 24);
+      // Duas respiradas, nao um flash: o anuncio sozinho se perde no meio da
+      // partida, e o telegrafo ainda tem 1,65s de vida pela frente.
+      const respirar = forca => {
+        for (const cell of cells)
+          this.burst(cell.x, cell.z, color, this.reducedMotion ? 1 : forca, 1,
+            { geo: 'round', size: 1.15, gravity: -2.4, lift: .4, y: .08, spread: .6 });
+      };
+      respirar(5);
+      if (!this.reducedMotion) this.later(.55, () => respirar(3));
+      const first = cells[0];
+      if (first) { this.pulse(first.x, first.z, color, 1.8, .9, 0, true); this.impactLight(first.x, first.z, color, 18, 6, 1); }
+    }
     // A arena do duelo se reconstroi inteira: buildArena e puramente apresentacao,
     // entao o mesh do jogador sobrevive e os dinamicos voltam por ensureObject.
     if (event.type === 'arenaReshape') {
@@ -985,8 +1019,11 @@ export class ArenaScene {
     for (const pulse of this.pulses) {
       if (pulse.delay > 0) { pulse.delay -= dt; if (pulse.delay <= 0) pulse.mesh.visible = true; continue; }
       pulse.age += dt; const progress = Math.min(1, pulse.age / pulse.duration);
-      pulse.mesh.scale.setScalar(pulse.implode ? .3 + pulse.size * (1 - progress) ** 1.6 : .3 + pulse.size * (1 - (1 - progress) ** 2));
+      pulse.mesh.scale.setScalar((pulse.implode ? .3 + pulse.size * (1 - progress) ** 1.6 : .3 + pulse.size * (1 - (1 - progress) ** 2)) * (pulse.fit ?? 1));
       pulse.mesh.material.opacity = pulse.implode ? .2 + progress * .7 : (1 - progress) ** 2 * .8;
+      // Amostra so ate 75% da rampa: o ultimo tom e quase preto e some sozinho
+      // no aditivo, o que comeria o fim do anel duas vezes.
+      rampColor(pulse.ramp, progress * .75, pulse.mesh.material.color);
       if (progress >= 1) { this.fx.remove(pulse.mesh); pulse.mesh.material.dispose(); }
     }
     this.pulses = this.pulses.filter(pulse => pulse.age < pulse.duration);

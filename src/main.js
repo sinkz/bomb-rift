@@ -246,7 +246,9 @@ function handleEvents() {
     if (event.type === 'bossFlee') hud.cinematic(`${event.name} FUGIU`, event.line, { color: event.color, kind: 'flee', hold: 2900 });
     if (event.type === 'bossRouted') announce('ELE ESPERA NA PRÓXIMA FENDA');
     if (event.type === 'arenaReshape') hud.cinematic('A ARENA SE PARTE', game.biome.tag, { color: event.color, kind: 'duel', hold: 2000 });
-    if (event.type === 'bossEntrance') hud.cinematic(event.name, event.line, { color: event.color, kind: 'duel', hold: 2400 });
+    // O letreiro entra junto com o guardiao, na batida do pouso, e nao no comeco
+    // da transicao: antes ele tapava justamente o centro da coreografia.
+    if (event.type === 'bossEntranceBeat' && event.kind === 'slam') hud.cinematic(event.name, event.line, { color: event.color, kind: 'duel', hold: 2200 });
     // Cada batida tem a propria voz; sound.play(event.type) sozinho daria uma so.
     if (event.type === 'bossEntranceBeat') sound.play('entrance' + event.kind[0].toUpperCase() + event.kind.slice(1));
     if (event.type === 'boss' && game.boss?.grudge) hud.notice(`${game.biome.boss} · RANCOR`, game.biome.grudgeLine || '', game.biome.color);

@@ -109,7 +109,7 @@ test('a entrada do primeiro guardiao congela a arena, invoca escolta e so entao 
   assert.equal(g.transition.kind, 'duel');
   assert.equal(g.boss, null);
 
-  tick(g, 2.7);
+  tick(g, 1.7);
   // Terminada a remodelagem, encadeia na entrada em vez de criar o chefe.
   assert.equal(g.phase, 'transition');
   assert.equal(g.transition.kind, 'entrance');
@@ -117,10 +117,19 @@ test('a entrada do primeiro guardiao congela a arena, invoca escolta e so entao 
 
   const batidas = [];
   const hpInicial = g.player.hp;
+  let bossNoPouso = null, congeladoNoPouso = null;
   for (let i = 0; i < 5 * 60 && g.phase === 'transition'; i++) {
     g.tick(1 / 60);
-    for (const event of g.drainEvents()) if (event.type === 'bossEntranceBeat') batidas.push(event);
+    for (const event of g.drainEvents()) {
+      if (event.type !== 'bossEntranceBeat') continue;
+      batidas.push(event);
+      // O guardiao tem de chegar NA batida do pouso, nao no fim da transicao:
+      // e o que lhe da tempo de tela para rodar a animacao de entrada.
+      if (event.kind === 'slam') { bossNoPouso = !!g.boss; congeladoNoPouso = g.phase; }
+    }
   }
+  assert.equal(bossNoPouso, true, 'o guardiao devia chegar na batida do pouso');
+  assert.equal(congeladoNoPouso, 'transition', 'o jogo devia seguir congelado quando ele pousa');
 
   assert.deepEqual(batidas.map(b => b.kind), ['rumble', 'fissure', 'summon', 'slam']);
   // I2 vale de graca aqui: o jogo nao simula nada durante a transicao.
@@ -136,6 +145,8 @@ test('a entrada do primeiro guardiao congela a arena, invoca escolta e so entao 
 
   assert.equal(g.phase, 'boss');
   assert(g.boss, 'o guardiao nao chegou ao fim da entrada');
+  // Orcamento de abertura: 1,6 de remodelagem + 2,9 de entrada + 0,5 de tregua.
+  assert.equal(g.boss.entranceTimer, .5);
   assert.deepEqual({ x: g.boss.x, z: g.boss.z }, g.bossSeat);
 });
 

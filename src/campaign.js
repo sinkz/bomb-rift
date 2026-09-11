@@ -17,12 +17,14 @@ export const STAGE_KINDS = ['hunt', 'chase', 'duel'];
 // Os tempos sao em segundos desde o inicio da transicao.
 export const BOSS_ENTRANCES = {
   ruins: {
-    duration: 4.4,
+    duration: 2.9,
     beats: [
       { at: 0, kind: 'rumble' },
-      { at: 1.15, kind: 'fissure' },
-      { at: 2.1, kind: 'summon', count: 3 },
-      { at: 3.35, kind: 'slam' },
+      { at: .6, kind: 'fissure' },
+      { at: 1.15, kind: 'summon', count: 3 },
+      // 'arrive' cria o guardiao aqui, ainda dentro da transicao: ele pousa,
+      // roda a animacao de entrada e so entao o jogo destrava.
+      { at: 1.8, kind: 'slam', arrive: true },
     ],
   },
 };

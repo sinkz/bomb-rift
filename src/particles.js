@@ -73,13 +73,16 @@ export function rampFor(hex) {
   return ramp;
 }
 
-const tmp = new THREE.Color();
-function sample(ramp, t) {
+// Escreve no alvo em vez de devolver um temporario compartilhado, para que a
+// cena possa amostrar a mesma rampa sem brigar com o laco das particulas.
+export function rampColor(ramp, t, target) {
   const n = ramp.length - 1;
   const k = Math.min(n - 1e-5, Math.max(0, t) * n);
   const i = Math.floor(k);
-  return tmp.copy(ramp[i]).lerp(ramp[i + 1], k - i);
+  return target.copy(ramp[i]).lerp(ramp[i + 1], k - i);
 }
+const tmp = new THREE.Color();
+const sample = (ramp, t) => rampColor(ramp, t, tmp);
 
 export class ParticleField {
   // atlasUrl vem injetado (ver particle-sources.js). Sem ele o campo fica mudo.
