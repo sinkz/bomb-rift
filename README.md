@@ -2,7 +2,7 @@
 
 Jogo de ação em grade com bombas, sobrevivência roguelike e progressão RPG, feito com Three.js. Interface em português brasileiro e inglês, refúgio animado em pixel art e seis guardiões 3D.
 
-[Jogar na web](https://bomb-rift.pages.dev/) · [Plano de evolução](docs/plans/2026-09-07-evolucao-ux-mobile-progressao.md) · [Preparação para o teste Godot](docs/GODOT-SETUP.md)
+[Jogar na web](https://bomb-rift.pages.dev/) · **[Estado atual e invariantes](docs/ESTADO-E-INVARIANTES.md)** · [Plano de evolução](docs/plans/2026-09-07-evolucao-ux-mobile-progressao.md) · [Preparação para o teste Godot](docs/GODOT-SETUP.md)
 
 ## Versão 2.5 beta — checkpoint Three.js
 

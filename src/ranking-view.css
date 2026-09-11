@@ -1,5 +1,7 @@
 .personal-runs{display:grid;gap:8px;margin:16px 0}.personal-runs button{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:12px}.personal-runs small{color:#c3a6d6}
-.modal.modal-dead,.modal.modal-intermission,.modal.modal-ranking{width:min(1080px,96vw);max-width:1080px;text-align:left}
+.modal.modal-dead.wide,.modal.modal-intermission.wide,.modal.modal-ranking{width:min(1080px,96vw);max-width:1080px;text-align:left}
+/* Fase concluída é uma celebração curta: largura de leitura, não de ficha. */
+.modal.modal-intermission:not(.wide){width:min(700px,96vw);max-width:700px;text-align:left}
 .result-heading{text-align:center;margin-bottom:24px}.result-heading h2{font-size:clamp(22px,3vw,34px)}
 .result-columns{display:grid;grid-template-columns:minmax(230px,.8fr) minmax(330px,1.2fr);gap:26px;align-items:start}.result-trophy{text-align:center;background:#120d1c88;border:2px solid #493851;padding:18px}
 .result-guardian{display:block;width:210px;height:210px;max-width:100%;margin:0 auto 8px;image-rendering:pixelated;filter:drop-shadow(0 10px 0 #09061066)}.result-trophy>span{font-family:var(--pixel);font-size:11px;letter-spacing:2px;color:#c7a2e5}
@@ -10,6 +12,49 @@
 .board-controls{display:grid;grid-template-columns:1fr 1.6fr auto;gap:10px;align-items:end;margin:18px 0}.global-board{padding:0;list-style:none;display:grid;gap:12px}.rank-card{position:relative;display:grid;grid-template-columns:46px 1fr auto;gap:12px;border:2px solid #604669;background:linear-gradient(110deg,#30213b,#1a1424);padding:18px 16px 28px}.rank-place{display:flex;justify-content:center;color:#f5cd8d;font:21px var(--pixel)}.rank-place svg{width:42px;height:42px}.rank-player{min-width:0}.rank-player h3{font:17px Oxanium;color:#ffe0a2;margin:0;overflow-wrap:anywhere}.rank-player h3 small{color:#a291b1;font-size:10px;margin-left:8px}.rank-player>span{font-size:9px;color:#ba9dcc}.rank-player>p{font-size:13px;line-height:1.5;color:#ded1e6;overflow-wrap:anywhere}.rank-points{font:21px var(--pixel);color:#f7da96;text-align:right}.rank-points small{font:8px Oxanium;display:block;letter-spacing:2px;margin-top:5px}.project-link{display:flex;flex-wrap:wrap;align-items:center;gap:7px;color:#98e0d3;text-decoration:none;padding:9px 10px;background:#172b2d;border:1px solid #436767;width:fit-content;max-width:100%;font-size:12px}.project-link svg{width:17px;height:17px}.project-link>span{overflow-wrap:anywhere}.project-link small{font-size:9px;color:#a6bcb8}.rank-detail{margin-top:10px;font-size:11px;color:#b9a4c9}.rank-detail>summary{cursor:pointer}.rank-detail>.run-metric{margin-top:8px}.report-player{position:absolute;right:10px;bottom:4px;font-size:9px!important;padding:4px!important;color:#ab98b8!important}.board-pagination{display:flex;justify-content:center;align-items:center;gap:15px;margin:20px 0}.board-pagination>span{font-size:13px;color:#d9bdcf}.board-pagination button{font-size:11px}.global-board .score-breakdown{max-width:420px}.turnstile-container{overflow:auto}.global-ranking-note{font-size:10px;color:#baa6c5;line-height:1.5}
 @keyframes score-arrive{from{transform:scale(.92);opacity:.4}to{transform:scale(1);opacity:1}}
 .reduced-motion .final-score strong{animation:none}
-@media(max-width:700px){.result-columns{grid-template-columns:1fr;gap:15px}.result-trophy{padding:14px}.result-guardian{width:130px;height:130px}.final-score{margin:12px 0;padding:12px}.result-heading{margin-bottom:14px}.run-metrics{gap:5px}.run-metric{font-size:10px;padding:8px 6px}.result-actions>button{width:100%}.board-controls{grid-template-columns:1fr 1.3fr}.board-controls>button{grid-column:1/-1}.rank-card{grid-template-columns:30px 1fr;gap:8px;padding:12px 10px 28px}.rank-place svg{width:29px;height:29px}.rank-points{grid-column:2;text-align:left;font-size:18px;display:flex;align-items:center;gap:8px}.rank-points small{margin:0}.rank-player h3{font-size:16px}.rank-player>span{font-size:8px}.modal.modal-dead,.modal.modal-intermission,.modal.modal-ranking{width:calc(100vw - 12px)}}
+@media(max-width:700px){.result-columns{grid-template-columns:1fr;gap:15px}.result-trophy{padding:14px}.result-guardian{width:130px;height:130px}.final-score{margin:12px 0;padding:12px}.result-heading{margin-bottom:14px}.run-metrics{gap:5px}.run-metric{font-size:10px;padding:8px 6px}.result-actions>button{width:100%}.board-controls{grid-template-columns:1fr 1.3fr}.board-controls>button{grid-column:1/-1}.rank-card{grid-template-columns:30px 1fr;gap:8px;padding:12px 10px 28px}.rank-place svg{width:29px;height:29px}.rank-points{grid-column:2;text-align:left;font-size:18px;display:flex;align-items:center;gap:8px}.rank-points small{margin:0}.rank-player h3{font-size:16px}.rank-player>span{font-size:8px}.modal.modal-dead,.modal.modal-intermission,.modal.modal-ranking{width:calc(100vw - 12px);max-width:calc(100vw - 12px)}}
 @media(prefers-reduced-motion:reduce){.final-score strong{animation:none}}
 .score-breakdown dt small{display:block;font-size:9px;line-height:1.6;margin-top:3px}.modal.modal-ranking{scrollbar-width:thin;scrollbar-color:#806184 #201627}
+/* A ficha final é alta e rola: o título fica fixo para a tela nunca abrir "cortada". */
+.modal-dead .result-heading,.modal-intermission .result-heading{position:sticky;top:-20px;z-index:3;margin:-20px -24px 20px;padding:20px 24px 16px;background:linear-gradient(#0c0918 82%,#0c091800)}
+.modal-dead .result-heading::after,.modal-intermission .result-heading::after{content:"";position:absolute;left:24px;right:24px;bottom:6px;height:2px;background:linear-gradient(90deg,transparent,#5d4468,transparent)}
+.result-heading .eyebrow{display:block}
+@media(max-width:700px){.modal-dead .result-heading,.modal-intermission .result-heading{top:-16px;margin:-16px -12px 14px;padding:16px 12px 12px}.modal-dead .result-heading::after,.modal-intermission .result-heading::after{left:12px;right:12px}}
+/* Em tela baixa (celular deitado) um cabeçalho fixo comeria metade da ficha. */
+@media(max-height:560px){.modal-dead .result-heading,.modal-intermission .result-heading{position:static;margin:0 0 12px;padding:0;background:none}.modal-dead .result-heading::after,.modal-intermission .result-heading::after{display:none}}
+/* Dezesseis metricas em duas colunas viravam uma lista longa. Em coluna estreita
+   o grid se adapta sozinho; o rotulo cabe porque a fonte acompanha. */
+.result-feats .run-metrics{grid-template-columns:repeat(auto-fit,minmax(148px,1fr))}
+@media(max-height:1000px){
+  .modal-dead .run-metric{padding:7px 8px;font-size:10px;grid-template-columns:17px 1fr auto;gap:6px}
+  .modal-dead .run-metric svg{width:17px;height:17px}
+  .modal-dead .run-metric b{font-size:12px}
+  .modal-dead .result-build>span{width:38px;height:38px}
+}
+@media(max-height:1000px){
+  .modal-dead .result-heading,.modal-intermission .result-heading{padding:12px 24px 10px;margin:-20px -24px 12px}
+  .modal-dead .result-heading h2{font-size:24px;margin:4px 0 2px}
+  .modal-dead .result-heading>p{font-size:11px;margin:2px 0 0}
+  .modal-dead .result-guardian{width:132px;height:132px;margin-bottom:4px}
+  .modal-dead .result-trophy{padding:12px}
+  .modal-dead .final-score{margin:12px 0;padding:12px 8px}
+  .modal-dead .final-score strong{font-size:clamp(24px,3vw,34px);margin:6px 0}
+  .modal-dead .result-actions{margin-top:10px;padding-top:9px;gap:8px}
+  .modal-dead .result-columns{gap:18px}
+}
+@media(max-height:730px){
+  .modal-dead .result-guardian{width:112px;height:112px}
+  .modal-dead .final-score{margin:9px 0;padding:9px 6px}
+  .modal-dead .result-heading h2{font-size:21px}
+  .modal-intermission .stage-progress{margin:8px 0 3px}
+  .modal-intermission .next-stage{margin:7px 0}
+}
+@media(max-height:730px){
+  .modal-dead .result-actions{margin-top:8px;padding-top:8px}
+  .modal-dead .result-actions p{margin:0 0 4px}
+  .modal-dead .result-feats h3{margin-bottom:6px}
+  .modal-dead .run-metrics{margin-bottom:10px}
+  .modal-intermission .life-shop{padding:8px 12px}
+  .modal-intermission .modal-emblem{display:none}
+}
+@media(max-height:730px){ .modal-dead .result-trophy{padding:9px} .modal-dead .score-breakdown{margin-top:10px} }

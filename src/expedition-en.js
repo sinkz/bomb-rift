@@ -1,4 +1,14 @@
 export const EXPEDITION_EN = {
+  'DIFICULDADE':'DIFFICULTY',
+  // Fase concluída (celebração curta, sem placar).
+  'VIDA':'LIFE',
+  'Progresso da campanha':'Campaign progress',
+  'FASE {1} DE {2}':'STAGE {1} OF {2}',
+  'A PRÓXIMA FENDA':'THE NEXT RIFT',
+  '{1} concluído':'{1} cleared',
+  'Skills, relíquias e cristais reiniciam na próxima fase. Vidas extras continuam nesta tentativa.':'Skills, relics and crystals reset next stage. Extra lives carry through this attempt.',
+  'Ver o salão das faíscas':'Open the Hall of Sparks',
+  'CARREGANDO A TRILHA…':'LOADING THE SOUNDTRACK…',
   'VIDAS':'LIVES', 'VIDA EXTRA':'EXTRA LIFE', 'VIDAS NO MÁXIMO':'MAXIMUM LIVES', 'ESTOQUE ESGOTADO':'SOLD OUT',
   'VIDA EXTRA · MAIS UMA CHANCE':'EXTRA LIFE · ANOTHER CHANCE',
   'Vidas e compra de vida extra':'Lives and extra life shop',
