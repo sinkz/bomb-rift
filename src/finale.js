@@ -11,7 +11,10 @@
 /** Segundos que a arena segura antes do modal, e a voz de cada desfecho. */
 export const CERIMONIA = {
   // O duelo e o unico que ganha a janela inteira: e a unica morte de verdade.
-  slain: { espera: 3.0, titulo: 'O guardião caiu.', tom: 'morte' },
+  // 3,6s e nao 3,0: a queda tem DOIS momentos -- o corpo afundando na fenda e
+  // o letreiro com a promessa dos outros guardioes. Com 3,0 eles brigavam pelo
+  // meio da tela e nenhum dos dois era visto direito.
+  slain: { espera: 3.6, titulo: 'O guardião caiu.', tom: 'morte' },
   // A fuga ja teve a propria cinematica de 3,2s na transicao; repetir cansaria.
   routed: { espera: 1.2, titulo: 'Ele fugiu de você.', tom: 'fuga' },
   champion: { espera: 1.8, titulo: 'A fenda cedeu.', tom: 'campeao' },
@@ -34,5 +37,8 @@ export function finaleFor(outcome, biome) {
   const fala = outcome === 'routed' ? (biome?.fleeLine || '')
     : outcome === 'slain' ? (biome?.deathLine || '')
     : '';
-  return { ...base, manchete, fala, cor: biome?.color || '#ffd39b' };
+  // Quem sobrou tem voz. No duelo, os outros guardioes respondem -- e e isso
+  // que faz a morte pesar mais que a tela de pontos.
+  const vinganca = outcome === 'slain' ? (biome?.revengeLine || '') : '';
+  return { ...base, manchete, fala, vinganca, nome, cor: biome?.color || '#ffd39b' };
 }

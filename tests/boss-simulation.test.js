@@ -258,3 +258,51 @@ test('o cerco aperta sem sufocar, e a dificuldade muda o comportamento na pratic
   assert(arremessosPor.hard > arremessosPor.medium,
     `hard devia arremessar mais que medium: ${arremessosPor.hard} vs ${arremessosPor.medium}`);
 });
+
+// Relatado jogando: "passei em cima e nao tomei dano". Eram duas causas somadas
+// -- o dano era pulso da REGIAO (quem atravessava entre dois pulsos passava de
+// graca) e hurt() dava 1,4s de invencibilidade contra um perigo que bate a cada
+// 0,55s, comendo dois de cada tres tiques. Agora e presenca, com janela propria.
+test('ficar em brasa queima de forma continua, e sair para de queimar', () => {
+  const g = boot(3, 5);
+  g.player.invincible = 0;
+  g.restoreHealth(999);
+
+  // Acende uma casa debaixo do jogador pela porta dos fundos do campo, para
+  // medir so a regra de dano -- o planejador nunca faria isso, de proposito.
+  const p = g.player;
+  g.hazardField.add(p.x, p.z, 'lava');
+  const regra = g.hazardField.rules.lava;
+
+  // Quem faz a invencibilidade decair e o tick(); chamando queimarJogador
+  // sozinho ela ficaria congelada e so a primeira mordida passaria.
+  const quadro = dt => { g.player.invincible = Math.max(0, g.player.invincible - dt); g.queimarJogador(dt); };
+
+  const antes = g.player.hp;
+  for (let i = 0; i < 2 / (1 / 60); i++) quadro(1 / 60);
+  const levou = antes - g.player.hp;
+
+  // Em 2s de lava (tique .55) cabem ~3 mordidas. Aceito 2 para folga de borda.
+  assert(levou >= regra.damage * 2,
+    `dois segundos em lava tiraram so ${levou} de vida -- devia tirar ao menos ${regra.damage * 2}`);
+
+  // Saiu do fogo, parou de queimar.
+  g.hazardField.clear();
+  g.player.invincible = 0;
+  const depois = g.player.hp;
+  for (let i = 0; i < 2 / (1 / 60); i++) quadro(1 / 60);
+  assert.equal(g.player.hp, depois, 'continuou queimando fora do fogo');
+  assert.equal(g.player.burning, 0, 'o estado de queimadura nao zerou');
+});
+
+// O gelo prende em vez de ferir, e isso tem de valer tambem no caminho novo.
+test('o gelo prende quem fica em cima, sem tirar vida', () => {
+  const g = boot(3, 5);
+  g.player.invincible = 0;
+  g.restoreHealth(999);
+  const antes = g.player.hp;
+  g.hazardField.add(g.player.x, g.player.z, 'gelo');
+  for (let i = 0; i < 2 / (1 / 60); i++) { g.player.invincible = Math.max(0, g.player.invincible - 1 / 60); g.queimarJogador(1 / 60); }
+  assert.equal(g.player.hp, antes, 'o gelo tirou vida');
+  assert(g.player.slow > 0, 'o gelo nao prendeu');
+});

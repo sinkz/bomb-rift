@@ -20,6 +20,7 @@ import { particleSources } from './particle-sources.js';
 import { finaleFor } from './finale.js';
 import { criarFinaleFX } from './finale-fx.js';
 import { criarHazardFX } from './hazard-fx.js';
+import { criarRiftFX } from './rift-fx.js';
 import { Sound } from './audio.js';
 import { REFUGE_TRACKS } from './refuge-tracks.js';
 import '@fontsource/silkscreen/latin-400.css';
@@ -238,7 +239,7 @@ function updateHud() {
   $('#pause-button').disabled = !game.active && game.phase !== 'paused'; icons();
 }
 
-let celebracao = null;
+let celebracao = null, letreiroQueda = null;
 function handleEvents() {
   let venceuFase = false;
   for (const event of game.drainEvents()) {
@@ -249,6 +250,7 @@ function handleEvents() {
     // chegam na cena antes de o modal cobrir a arena.
     if (event.type === 'stageCleared') venceuFase = true;
     if (event.type === 'miniboss') announce('SENTINELA DA FENDA · RELÍQUIA GARANTIDA', 'danger');
+    if (event.type === 'arenaCleared') { sound.play('arenaRite'); hud.cinematic('A FENDA RESPONDE', 'Você limpou o mapa. Ela mandou o que sobrou.', { color: event.color, kind: 'duel', hold: 2000 }); }
     // Os tres momentos narrativos do novo ritmo de campanha.
     if (event.type === 'champion') hud.cinematic('O CAMPEÃO DESPERTA', 'Derrote-o para atravessar a fenda.', { color: '#ffb05a', hold: 2200 });
     if (event.type === 'bossFlee') hud.cinematic(`${event.name} FUGIU`, event.line, { color: event.color, kind: 'flee', hold: 2900 });
@@ -256,6 +258,15 @@ function handleEvents() {
     if (event.type === 'arenaReshape') hud.cinematic('A ARENA SE PARTE', game.biome.tag, { color: event.color, kind: 'duel', hold: 2000 });
     // O letreiro entra junto com o guardiao, na batida do pouso, e nao no comeco
     // da transicao: antes ele tapava justamente o centro da coreografia.
+    if (event.type === 'bossDefeated') {
+      // Atrasado de proposito: primeiro a fenda abre e o corpo afunda, e so
+      // entao o nome sobe. Juntos, os dois disputam o centro da tela.
+      const q = finaleFor('slain', game.biome);
+      clearTimeout(letreiroQueda);
+      letreiroQueda = setTimeout(
+        () => hud.cinematic(q.nome, q.fala, { color: q.cor, kind: 'queda', hold: 1500, footer: q.vinganca }),
+        1300);
+    }
     if (event.type === 'bossEntranceBeat' && event.kind === 'slam') hud.cinematic(event.name, event.line, { color: event.color, kind: 'duel', hold: 2200 });
     // Cada batida tem a propria voz; sound.play(event.type) sozinho daria uma so.
     if (event.type === 'bossEntranceBeat') sound.play('entrance' + event.kind[0].toUpperCase() + event.kind.slice(1));
@@ -401,7 +412,7 @@ if (document.readyState === 'complete') (window.requestIdleCallback || (fn => se
 else addEventListener('load', () => (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio), { once: true });
 
 try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources, particleSources });
-  scene.use(criarFinaleFX()).use(criarHazardFX()); game.drainEvents(); updateHud(); }
+  scene.use(criarFinaleFX()).use(criarHazardFX(particleSources)).use(criarRiftFX()); game.drainEvents(); updateHud(); }
 catch (error) { fatal = true; console.error(error); modal('error', `<div class="modal-emblem">${icon('CircleHelp')}</div><h2 id="modal-title">A fenda não conseguiu abrir.</h2><p>Este jogo precisa de WebGL 2. Ative a aceleração de hardware e tente um navegador atualizado, como Chrome ou Edge.</p><p class="small-note">Detalhe: ${String(error.message).replace(/[<>&]/g, '')}</p>`, { closable: false }); }
 
 let lastTime = performance.now(); let accumulator = 0;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SPRITE } from './particles.js';
 import { HAZARD_RULES } from './hazards.js';
 import { CICLO } from './hazard-cycle.js';
 
@@ -18,8 +19,8 @@ import { CICLO } from './hazard-cycle.js';
 const CAPACIDADE = 96;
 const chave = (x, z) => `${x},${z}`;
 
-export function criarHazardFX() {
-  let malha = null, halo = null, dummy = null, cenaAtual = null;
+export function criarHazardFX(particleSources) {
+  let malha = null, halo = null, dummy = null, cenaAtual = null, textura = null, kindAtual = null;
   // casa -> { kind, fase, idade, cor }
   const marcas = new Map();
 
@@ -33,8 +34,19 @@ export function criarHazardFX() {
     // ja iluminado e qualquer matiz saturava para branco -- o perigo virava
     // mancha palida sem cara de perigo. Com normal a cor sobrevive, e o brilho
     // fica por conta da fagulha e do anel, que sao aditivos.
+    // A marca usa o MESMO sprite assado no Blender que as particulas daquele
+    // perigo. Como cada mundo tem um tipo so, da para apontar a textura para a
+    // celula certa do atlas uma vez e pronto -- sem shader por instancia.
+    if (particleSources?.atlas && !textura) {
+      textura = new THREE.TextureLoader().load(particleSources.atlas);
+      textura.colorSpace = THREE.SRGBColorSpace;
+      textura.generateMipmaps = false;
+      textura.minFilter = THREE.LinearFilter;
+      textura.repeat.set(1 / 4, 1 / 2);
+    }
     const mat = new THREE.MeshBasicMaterial({
       transparent: true, opacity: .78, depthWrite: false, toneMapped: false,
+      map: textura || null,
     });
     malha = new THREE.InstancedMesh(geo, mat, CAPACIDADE);
     malha.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -66,6 +78,13 @@ export function criarHazardFX() {
     handle(cena, evento) {
       if (!evento.cells) return;
       const cor = new THREE.Color(regra(evento.kind).color);
+      // Aponta a textura para a celula do atlas deste perigo. O atlas e 4x2 e a
+      // ordem esta em SPRITE, no particles.js -- se mudar la, muda aqui.
+      if (textura && evento.kind && evento.kind !== kindAtual) {
+        kindAtual = evento.kind;
+        const indice = SPRITE[regra(evento.kind).sprite] ?? SPRITE.ember;
+        textura.offset.set((indice % 4) / 4, 1 / 2 - Math.floor(indice / 4) / 2);
+      }
 
       if (evento.type === 'hazardAviso') {
         for (const c of evento.cells) marcas.set(chave(c.x, c.z), { x: c.x, z: c.z, kind: evento.kind, fase: 'aviso', idade: 0, cor });

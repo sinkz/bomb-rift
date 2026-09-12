@@ -49,6 +49,7 @@ export class Game {
     this.champion = null; this.transition = null;
     this.hazardField = this.hazardField || new HazardField();
     this.hazardField.clear(); this.hazardDirector = null;
+    this.surge = false; this.cratesTotal = this.cratesTotal || 0;
     this.hazardClock = 10; this.resultClaimed = false; this.result = null; this.relicDropCount = 0;
     this.materials = { scrap: 0, cores: 0 }; this.cratesBroken = 0;
     this.player = { x: 1, z: 1, hp: 100 + (this.meta.health || 0) * 10, maxHp: 100 + (this.meta.health || 0) * 10,
@@ -74,10 +75,11 @@ export class Game {
   }
   get intelligence() { return Math.min(.9, this.challenge.intelligence + (this.round - 1) * .065 + this.elapsed / 120 * (this.round === 1 ? .04 : .08)); }
   get enemyLimit() { return 4 + Math.min(14, this.round) + Math.floor(this.elapsed / 60); }
-  get spawnInterval() { return (Math.max(3, 11 - (this.round - 1) * .6 - this.elapsed / 90) + (this.boss ? 4 : 0)) * this.challenge.spawn; }
+  get spawnInterval() { return (Math.max(3, 11 - (this.round - 1) * .6 - this.elapsed / 90) + (this.boss ? 4 : 0)) * this.challenge.spawn * (this.surge && !this.boss ? .45 : 1); }
   get forgeCost() { return Math.floor((20 + this.forgeCount * 10) * (this.masteries.includes('alchemy') ? .75 : 1)); }
   get active() { return this.phase === 'playing' || this.phase === 'boss'; }
   generateArena() {
+    this.cratesTotal = 0;
     const { width, height, layout, worldIndex } = this.stage;
     this.grid = Array.from({ length: height }, (_, z) => Array.from({ length: width }, (_, x) => {
       if (x === 0 || z === 0 || x === width - 1 || z === height - 1) return 1;
@@ -85,7 +87,9 @@ export class Game {
       const open = layout === 'courtyard' && Math.abs(x - centerX) <= 2 && Math.abs(z - centerZ) <= 2 || layout === 'crossroads' && (x === centerX || z === centerZ) || layout === 'lanes' && z % 4 === 2 || layout === 'gardens' && (Math.abs(x - centerX) <= 1 || z % 6 === 3) || layout === 'bridges' && (z % 4 === 2 || x === centerX);
       if (x % 2 === 0 && z % 2 === 0 && !open) return 1;
       if (x + z <= 5 || (x === 1 && z <= 5) || (z === 1 && x <= 5)) return 0;
-      return !open && this.random() < .30 + worldIndex * .025 ? 2 : 0;
+      const caixa = !open && this.random() < .30 + worldIndex * .025;
+      if (caixa) this.cratesTotal++;
+      return caixa ? 2 : 0;
     }));
     this.bombs = []; this.flames = []; this.enemies = []; this.pickups = []; this.warnings = [];
     this.anchors = []; this.boss = null; this.spawnClock = this.round === 1 ? 10 : 7; this.player.x = 1; this.player.z = 1;
@@ -312,20 +316,70 @@ export class Game {
       ]),
     });
     for (const ocorrencia of acontecimentos) {
-      if (ocorrencia.tipo === 'bate') {
-        // Reusa o caminho de dano que ja existe: flame.enemy = true acerta o
-        // jogador, respeita 'snare' e para antes de ferir a horda. Perigo nao
-        // e arma do jogador -- isso fica para a meta-progressao.
-        const regra = this.hazardField.rules[ocorrencia.kind];
-        this.applyFlame({
-          id: this.nextId++, cells: ocorrencia.cells, damage: regra.damage,
-          effect: regra.effect, hit: new Set(), enemy: true, hazard: true,
-        });
-        continue;
-      }
+      // 'bate' era o pulso da regiao inteira. Nao serve para dano: quem
+      // atravessava entre dois pulsos passava de graca. Fica so como batida
+      // visual; quem fere e queimarJogador, que olha onde o jogador ESTA.
+      if (ocorrencia.tipo === 'bate') continue;
       this.emit('hazard' + ocorrencia.tipo[0].toUpperCase() + ocorrencia.tipo.slice(1),
         { cells: ocorrencia.cells, kind: ocorrencia.kind, color: this.biome.color });
     }
+    // Queima DEPOIS de anunciar. O diretor ja pos as casas no campo dentro do
+    // update, entao queimar antes emitiria o dano na frente do proprio aviso --
+    // e quem le a fila de eventos veria dano sem marca.
+    this.queimarJogador(dt);
+  }
+  /**
+   * Queima enquanto os pes estiverem no fogo. E presenca, nao pulso: o dano
+   * acompanha ONDE o jogador esta, e nao o relogio da regiao.
+   *
+   * A janela de invencibilidade e menor que o intervalo do perigo de proposito.
+   * Com os 1,4s normais de um golpe, a lava (que bate a cada 0,55s) perdia dois
+   * de cada tres tiques e ficar em cima quase nao doia.
+   */
+  queimarJogador(dt) {
+    const p = this.player;
+    const celula = this.hazardField.get(p.x, p.z);
+    if (!celula) { p.burning = 0; p.burnTimer = 0; return; }
+    const regra = celula.regra;
+    p.burning = Math.min(1, (p.burning || 0) + dt * 3);
+    p.burnTimer = (p.burnTimer || 0) - dt;
+    if (p.burnTimer > 0) return;
+    p.burnTimer = regra.tick;
+    if (regra.effect === 'snare') {
+      if (p.invincible <= 0) { p.slow = 2; this.emit('snared', { x: p.x, z: p.z }); }
+      return;
+    }
+    this.hurt(regra.damage, { iframes: regra.tick * .8 });
+    this.emit('hazardBurn', { x: p.x, z: p.z, kind: celula.kind, color: this.biome.color });
+  }
+  /** Quantas caixas ainda ha no mapa. */
+  get cratesLeft() { return Math.max(0, (this.cratesTotal || 0) - this.cratesBroken); }
+
+  /**
+   * O mapa acabou e ainda falta tempo. Relatado jogando: "acabaram as caixas e
+   * eu tive que esperar 40 segundos matando monstros fracos demais".
+   *
+   * A fenda responde. NAO adiantando o finale -- validation.js exige 120s de
+   * fase, e terminar antes invalidaria a partida legitima -- mas soltando os
+   * lacaios mais duros do mundo e apertando o ritmo do que vem depois.
+   */
+  checkArenaCleared() {
+    if (this.surge || !this.active || this.finale) return;
+    if (!this.cratesTotal || this.cratesLeft > 0) return;
+    this.surge = true;
+    // Os mais duros do bioma, nao os de sempre: o incomodo era a horda fraca.
+    const duros = [...new Set(this.biome.enemies)];
+    const tipo = duros[duros.length - 1];
+    const quantos = 3 + this.stage.local;
+    const nascidos = [];
+    for (let i = 0; i < quantos; i++) {
+      const inimigo = this.spawnEnemy(tipo);
+      if (inimigo) nascidos.push({ x: inimigo.x, z: inimigo.z, type: inimigo.type });
+    }
+    this.spawnClock = Math.min(this.spawnClock, 1.2);
+    // 'enemy' e nao 'type': o emit carimba o tipo do EVENTO em type, e um campo
+    // com o mesmo nome no payload seria sobrescrito em silencio.
+    this.emit('arenaCleared', { cells: nascidos, enemy: tipo, color: this.biome.color, count: nascidos.length });
   }
   /** Essa casa fere AGORA? Perigo persistente nao e terreno: walkable() nao muda. */
   harmful(x, z) { return this.hazardField.has(x, z); }
@@ -408,12 +462,12 @@ export class Game {
     const actual = Math.max(0, Math.min(amount, this.player.maxHp - this.player.hp));
     this.player.hp += actual; this.stats.healed += actual; return actual;
   }
-  hurt(amount) {
+  hurt(amount, { iframes = 1.4 } = {}) {
     if (!this.active || this.player.invincible > 0) return;
     if (this.player.ward > 0) { this.stats.blocked++; this.player.ward--; this.player.invincible = .9; if (this.masteries.includes('ward')) this.restoreHealth(10); this.emit('blocked', { x: this.player.x, z: this.player.z }); return; }
     amount = Math.ceil(amount * this.challenge.damage * (1 - (this.player.armor || 0)));
     const actual = Math.min(this.player.hp, amount); this.stats.damageTaken += actual; if (actual > 0) this.stats.hitsTaken++;
-    this.player.hp = Math.max(0, this.player.hp - amount); this.player.invincible = 1.4;
+    this.player.hp = Math.max(0, this.player.hp - amount); this.player.invincible = iframes;
     this.emit('hurt', { x: this.player.x, z: this.player.z, amount });
     if (!this.player.hp && this.player.revive) {
       this.stats.revives++; this.player.revive = false; this.restoreHealth(Math.ceil(this.player.maxHp / 2)); this.player.invincible = 3;
@@ -869,6 +923,7 @@ export class Game {
       if (this.elapsed >= ROUND_SECONDS) this.stage.kind === 'hunt' ? this.spawnChampion() : this.spawnBoss();
     }
     this.stepHazards(dt);
+    this.checkArenaCleared();
     this.hazardClock -= dt;
     if (this.hazardClock <= 0) { this.hazardClock = Math.max(5, 12 - this.stage.local); this.environmentAttack(); }
     this.spawnClock -= dt;

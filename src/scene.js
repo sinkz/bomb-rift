@@ -769,6 +769,18 @@ export class ArenaScene {
   // A arena viva: perigo, remodelagem, campeao e os golpes do guardiao.
   handleArenaLife(event) {
     if (event.type === 'wardReady') this.pulse(event.x,event.z,0xb3e5d4,.8,.7);
+    // O mapa acabou e a fenda mandou reforco. Cada chegada tem a propria boca.
+    if (event.type === 'arenaCleared') {
+      const cor = new THREE.Color(event.color);
+      this.shake = this.reducedMotion ? 0 : .34;
+      for (const [i, c] of (event.cells || []).entries()) {
+        this.later(i * .12, () => {
+          this.pulse(c.x, c.z, cor, 2.2, .8, 0, true);
+          this.burst(c.x, c.z, cor, this.reducedMotion ? 3 : 16, 2.6, { geo: 'crystal', size: 1.2, spread: .5 });
+          this.impactLight(c.x, c.z, cor, 30, 8, 1.2);
+        });
+      }
+    }
     // O cenario ataca sozinho, sem inimigo por perto. A brasa sobe do chao no
     // instante do anuncio para separar 'o mapa te quer morto' de 'alguem te
     // quer morto' — o telegrafo sozinho nao dizia de onde vinha.

@@ -215,3 +215,39 @@ test('boss draws patterns without repeating and keeps the cross blocked by stone
   assert(cells.some(c => c.x === x && c.z === z));
   assert(!cells.some(c => c.x > x));
 });
+
+// Relatado jogando: "acabaram as caixas e eu tive que esperar 40 segundos
+// matando monstros fracos demais". O mapa acabar passa a ter consequencia.
+test('limpar o mapa faz a fenda responder, uma vez so e com os inimigos duros', () => {
+  const g = new Game({ random: seededRandom(9), meta: { unlockedStage: 18 } });
+  assert(g.start(1));
+  g.player.invincible = 999;
+  g.enemies = []; g.spawnClock = Infinity; g.hazardClock = Infinity;
+  g.elapsed = 30;
+  assert(g.cratesTotal > 0, 'a arena nasceu sem caixas');
+
+  // Ainda ha caixas: nada acontece.
+  g.drainEvents();
+  g.checkArenaCleared();
+  assert.equal(g.surge, false);
+  assert.deepEqual(g.drainEvents().filter(e => e.type === 'arenaCleared'), []);
+
+  // Limpa o mapa por baixo dos panos e deixa a fenda notar.
+  g.cratesBroken = g.cratesTotal;
+  assert.equal(g.cratesLeft, 0);
+  g.checkArenaCleared();
+
+  const anuncio = g.drainEvents().filter(e => e.type === 'arenaCleared');
+  assert.equal(anuncio.length, 1, 'a fenda devia responder uma vez');
+  assert(anuncio[0].count > 0, 'a fenda nao mandou ninguem');
+  assert.equal(g.enemies.length, anuncio[0].count);
+  // Os duros do bioma, nao o slime de sempre.
+  const duros = [...new Set(g.biome.enemies)];
+  assert.equal(anuncio[0].enemy, duros[duros.length - 1]);
+  // E o ritmo aperta depois disso.
+  assert(g.surge, 'o surto nao ficou marcado');
+
+  // Nunca duas vezes.
+  g.checkArenaCleared();
+  assert.deepEqual(g.drainEvents().filter(e => e.type === 'arenaCleared'), []);
+});

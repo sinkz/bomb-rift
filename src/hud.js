@@ -106,13 +106,14 @@ export class GameHud {
   // Momento narrativo: ocupa o centro da tela, palavra por palavra, e sai sozinho.
   // Diferente do notice (canto, 3,5s, informativo) -- este interrompe a leitura
   // de proposito, entao so serve para viradas de verdade.
-  cinematic(title, subtitle = '', { color = '#ffd39b', kind = '', hold = 2600 } = {}) {
+  cinematic(title, subtitle = '', { color = '#ffd39b', kind = '', hold = 2600, footer = '' } = {}) {
     const el = this.el['cinematic']; if (!el) return;
     el.style.setProperty('--cinematic-color', color);
     el.className = 'cinematic' + (kind ? ' ' + kind : '');
     const words = String(title).split(/\s+/).filter(Boolean);
-    setHTML(el, '<strong>' + words.map((w, i) => '<i style="--step:' + i + '">' + escapeText(w) + '</i>').join(' ') + '</strong><small></small>');
+    setHTML(el, '<strong>' + words.map((w, i) => '<i style="--step:' + i + '">' + escapeText(w) + '</i>').join(' ') + '</strong><small></small>' + (footer ? '<em class="cinematic-eco"></em>' : ''));
     setText(el.querySelector('small'), subtitle);
+    if (footer) setText(el.querySelector('.cinematic-eco'), footer);
     void el.offsetWidth; el.classList.add('visible');
     clearTimeout(this.cinematicTimer);
     this.cinematicTimer = setTimeout(() => el.classList.remove('visible'), hold + words.length * 70);
