@@ -21,6 +21,8 @@ import { finaleFor } from './finale.js';
 import { criarFinaleFX } from './finale-fx.js';
 import { criarHazardFX } from './hazard-fx.js';
 import { criarRiftFX } from './rift-fx.js';
+import { criarPlayerMark } from './player-mark.js';
+import { criarHitDirection } from './hit-direction.js';
 import { Sound } from './audio.js';
 import { REFUGE_TRACKS } from './refuge-tracks.js';
 import '@fontsource/silkscreen/latin-400.css';
@@ -208,7 +210,7 @@ function updateBuild() {
   const entries = SKILLS.filter(s => game.skillLevels[s.id]);
   setText($('#build-count'), `${entries.length} HABILIDADE${entries.length === 1 ? '' : 'S'}`);
   if (!entries.length) setHTML($('#skill-list'), `<div class="empty-build"><div class="empty-slots">${[0, 1, 2, 3].map(() => `<span>${icon('Plus')}</span>`).join('')}</div><p>Cada escolha cria um novo caminho.</p></div>`);
-  else setHTML($('#skill-list'), entries.map(s => `<div class="build-skill" style="--skill-color:${s.color}" title="${s.desc}"><span>${icon(s.icon)}</span><strong>${s.name}</strong><b>${game.skillLevels[s.id]}</b></div>`).join(''));
+  else setHTML($('#skill-list'), entries.map(s => `<div class="build-skill" style="--skill-color:${s.color}" title="${s.desc}"><span>${icon(s.icon)}</span><div class="build-skill-nome"><strong>${s.name}</strong><small>${s.branch}</small></div><b>${game.skillLevels[s.id]}</b></div>`).join(''));
   icons();
 }
 let lastHud = '';
@@ -412,7 +414,7 @@ if (document.readyState === 'complete') (window.requestIdleCallback || (fn => se
 else addEventListener('load', () => (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio), { once: true });
 
 try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources, particleSources });
-  scene.use(criarFinaleFX()).use(criarHazardFX(particleSources)).use(criarRiftFX(particleSources)); game.drainEvents(); updateHud(); }
+  scene.use(criarFinaleFX()).use(criarHazardFX(particleSources)).use(criarRiftFX(particleSources)).use(criarPlayerMark(particleSources)).use(criarHitDirection()); game.drainEvents(); updateHud(); }
 catch (error) { fatal = true; console.error(error); modal('error', `<div class="modal-emblem">${icon('CircleHelp')}</div><h2 id="modal-title">A fenda não conseguiu abrir.</h2><p>Este jogo precisa de WebGL 2. Ative a aceleração de hardware e tente um navegador atualizado, como Chrome ou Edge.</p><p class="small-note">Detalhe: ${String(error.message).replace(/[<>&]/g, '')}</p>`, { closable: false }); }
 
 let lastTime = performance.now(); let accumulator = 0;

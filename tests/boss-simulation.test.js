@@ -232,9 +232,11 @@ test('a dificuldade muda como o guardiao pensa, nao so quanto ele aguenta', () =
 // licao da brasa: teste que passa por omissao nao prova nada.
 test('o cerco aperta sem sufocar, e a dificuldade muda o comportamento na pratica', () => {
   const { respiro } = intencaoImport;
-  const arremessosPor = {};
-  for (const dificuldade of ['easy', 'medium', 'hard']) {
-    const g = new Game({ random: seededRandom(31), meta: { unlockedStage: 40 } });
+  // Somado em varias sementes: numa luta so a diferenca entre recarga de 5s e
+  // de 7s cabe dentro do acaso, e o teste viraria moeda.
+  const arremessosPor = { easy: 0, medium: 0, hard: 0 };
+  for (const dificuldade of ['easy', 'medium', 'hard']) for (const semente of [31, 77, 123]) {
+    const g = new Game({ random: seededRandom(semente), meta: { unlockedStage: 40 } });
     g.difficulty = dificuldade;
     assert(g.start(3));
     g.enemies = []; g.pickups = []; g.spawnClock = Infinity; g.hazardClock = Infinity;
@@ -251,12 +253,13 @@ test('o cerco aperta sem sufocar, e a dificuldade muda o comportamento na pratic
       if (g.boss) arMinimo = Math.min(arMinimo, respiro(g, g.boss));
     }
     // A garantia do cerco: apertar ate o jogador ter pouco ar, nunca ate zero.
-    assert(arMinimo > 0, `${dificuldade}: o guardiao sufocou o jogador (${arMinimo} saidas)`);
-    arremessosPor[dificuldade] = arremessos;
+    assert(arMinimo > 0, `${dificuldade} semente ${semente}: o guardiao sufocou o jogador (${arMinimo} saidas)`);
+    arremessosPor[dificuldade] += arremessos;
   }
   assert.equal(arremessosPor.easy, 0, 'no easy o guardiao arremessou');
   assert(arremessosPor.hard > arremessosPor.medium,
-    `hard devia arremessar mais que medium: ${arremessosPor.hard} vs ${arremessosPor.medium}`);
+    `hard devia arremessar mais que medium: ${arremessosPor.hard} vs ${arremessosPor.medium}. ` +
+    'Se caiu abaixo, provavelmente o cerco esta colando ele no jogador e sufocando o arremesso -- ver INTENCAO.alcance.');
 });
 
 // Relatado jogando: "passei em cima e nao tomei dano". Eram duas causas somadas
@@ -305,4 +308,33 @@ test('o gelo prende quem fica em cima, sem tirar vida', () => {
   for (let i = 0; i < 2 / (1 / 60); i++) { g.player.invincible = Math.max(0, g.player.invincible - 1 / 60); g.queimarJogador(1 / 60); }
   assert.equal(g.player.hp, antes, 'o gelo tirou vida');
   assert(g.player.slow > 0, 'o gelo nao prendeu');
+});
+
+// Medido em 2026-09-12: com a brasa respeitando a invencibilidade dos golpes,
+// lava (tique .55) e ruina (tique .75) tiravam a MESMA coisa numa luta cheia,
+// porque o 1,4s dos golpes e maior que qualquer tique. A afinacao por bioma
+// existia no codigo e nao chegava na vida do jogador. Agora ela chega.
+test('cada perigo machuca no proprio ritmo, mesmo apanhando do guardiao', () => {
+  const medir = (stage, kind) => {
+    const g = boot(stage, 5);
+    g.restoreHealth(999);
+    g.player.invincible = 0;
+    g.hazardField.clear();
+    g.hazardField.add(g.player.x, g.player.z, kind);
+    const antes = g.player.hp;
+    for (let i = 0; i < 3 / (1 / 60); i++) {
+      // Golpe do guardiao no meio do caminho: e ele que antes engolia os tiques.
+      if (i === 30) g.hurt(1, { iframes: 1.4 });
+      g.player.invincible = Math.max(0, g.player.invincible - 1 / 60);
+      g.queimarJogador(1 / 60);
+    }
+    return antes - g.player.hp;
+  };
+
+  const lava = medir(6, 'lava');       // 16 a cada .55s -> ~5 mordidas em 3s
+  const espinho = medir(6, 'espinho'); // 10 a cada .80s -> ~3 mordidas em 3s
+  assert(lava > espinho * 1.5,
+    `a lava devia machucar bem mais que o espinho: ${lava} vs ${espinho}`);
+  // E o golpe do guardiao no meio nao pode ter blindado o jogador contra o chao.
+  assert(lava >= 16 * 4, `a lava so tirou ${lava} em 3s -- a invencibilidade ainda engole tiques`);
 });

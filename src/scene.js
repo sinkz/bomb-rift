@@ -850,6 +850,10 @@ export class ArenaScene {
     // Recuo acontece o tempo todo: só um sopro de poeira, sem anel nem tremor.
     if (event.type === 'bossReposition' && !this.reducedMotion && this.time > (this.lastReposition || 0) + .45) { this.lastReposition = this.time; this.burst(event.x, event.z, this.game.biome.color, 3, .8, { size: .7, gravity: 4, y: .18, spread: .6 }); }
   }
+  // Despacho do quadro. O corpo foi fatiado por assunto em 2026-09-12: eram
+  // 271 linhas, o maior metodo do projeto depois que o handle foi quebrado.
+  // As fatias sao contiguas e na mesma ordem -- e movimento de codigo, nao
+  // reescrita. O estado que atravessa fatias viaja em q em vez de ficar solto.
   update(dt) {
     if (['paused', 'upgrade'].includes(this.game.phase)) dt = 0;
     if (this.hitStop > 0) { this.hitStop = Math.max(0, this.hitStop - dt); dt *= .16; }
@@ -858,6 +862,17 @@ export class ArenaScene {
     for (const extra of this.extras) extra.frame?.(this, dt);
     this.time += dt; const t = this.time, game = this.game;
     const p = game.player, [px, pz] = this.at(p.x, p.z);
+    const live = new Set();
+    const q = { t, game, p, px, pz, live };
+    this.stepHeroi(dt, q);
+    this.stepEntidades(dt, q);
+    this.stepAvisos(dt, q);
+    this.stepEfeitos(dt, q);
+    this.stepCamera(dt, q);
+  }
+  // O heroi: posicao, pose, passada, acao e aura.
+  stepHeroi(dt, q) {
+    const { t, game, p, px, pz, live } = q;
     this.playerMesh.position.x = THREE.MathUtils.damp(this.playerMesh.position.x, px, 25, dt);
     this.playerMesh.position.z = THREE.MathUtils.damp(this.playerMesh.position.z, pz, 25, dt);
     this.playerMesh.position.y = game.active && p.moveCooldown > .03 ? Math.abs(Math.sin(t * 20)) * .09 : Math.sin(t * 2) * .025;
@@ -879,7 +894,11 @@ export class ArenaScene {
     if (this.skillAura) this.skillAura.life -= dt;
     this.playerMesh.children[0].material.color.set(this.skillAura?.life > 0 ? this.skillAura.color : p.fire === 'azure' ? 0x59caff : 0xffc180);
     this.playerMesh.children[0].material.emissive.set(this.skillAura?.life > 0 ? this.skillAura.color : p.fire === 'azure' ? 0x189de8 : 0xff9441);
-    const live = new Set();
+  }
+  // Ancoras, inimigos, chefe, bombas, itens, chamas e avisos.
+  // Ancoras, inimigos, chefe, bombas, itens, chamas.
+  stepEntidades(dt, q) {
+    const { t, game, p, px, pz, live } = q;
     if (game.masteries?.length || p.ward) {
       const id='player-mastery'; live.add(id);
       const aura=this.ensureObject(id,()=>{
@@ -992,6 +1011,10 @@ export class ArenaScene {
       obj.scale.y = Math.max(.015, Math.exp(-age * 12));
       obj.children.forEach((part, i) => { if (i % 2) part.visible = age < .2; });
     }
+  }
+  // O telegrafo de ataque, que conta o tempo no chao, e a faxina do que morreu.
+  stepAvisos(dt, q) {
+    const { t, game, p, px, pz, live } = q;
     for (const warning of game.warnings) {
       live.add(warning.id);
       const obj = this.ensureObject(warning.id, () => {
@@ -1057,6 +1080,10 @@ export class ArenaScene {
       obj.userData.actor.update(elapsed); obj.userData.retireTime -= elapsed;
       if (obj.userData.retireTime <= 0) { obj.userData.actor.dispose(); this.retiredBoss = null; }
     }
+  }
+  // Particulas, pulsos, luzes, holofote e marcas de queimado.
+  stepEfeitos(dt, q) {
+    const { t, game, p, px, pz, live } = q;
     this.field.update(dt);
     for (const pulse of this.pulses) {
       if (pulse.delay > 0) { pulse.delay -= dt; if (pulse.delay <= 0) pulse.mesh.visible = true; continue; }
@@ -1111,6 +1138,10 @@ export class ArenaScene {
       this.scorchMarks.instanceMatrix.needsUpdate = true;
     }
     this.shake = Math.max(0, this.shake - dt * 1.5);
+  }
+  // Enquadramento, seguimento, tremor e o desenho final.
+  stepCamera(dt, q) {
+    const { t, game, p, px, pz, live } = q;
     const inRun = game.phase !== 'menu', portrait = this.aspect < .85;
     this.targetSpan = (inRun ? Math.max(8.5 + (game.height - 13) * .35, (portrait ? 5.4 : 11 + (game.width - 15) * .55) / this.aspect) : Math.max(10.7, 12.4 / this.aspect)) / (inRun ? this.zoom : 1);
     this.safeClock = (this.safeClock || 0) - dt;

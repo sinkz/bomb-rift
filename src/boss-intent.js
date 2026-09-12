@@ -20,12 +20,19 @@ const distancia = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
  * `cerco`: a partir de qual ato ele passa a escolher o passo que fecha saidas.
  * `arremesso`: a partir de qual ato ele pune quem fica longe, e de quantos em
  *              quantos segundos.
+ * `alcance`: de quantas casas de distancia ele ja considera valer o arremesso.
  * `toque`: se ele fere so na mesma casa (false) ou tambem na casa vizinha.
+ *
+ * O `alcance` existe por causa de uma interacao que so apareceu medindo: no
+ * hard ele cerca desde o ato 1, entao fica COLADO no jogador -- e quase nunca
+ * satisfazia a condicao de "longe" para arremessar. Somados em tres sementes,
+ * o hard arremessava MENOS que o medium (6 contra 7), o contrario do que a
+ * tabela prometia. Um alcance menor no hard destrava o arremesso de perto.
  */
 export const INTENCAO = Object.freeze({
-  easy: { cerco: 3, arremesso: 0, recarga: 0, toque: 3 },
-  medium: { cerco: 2, arremesso: 2, recarga: 7, toque: 2 },
-  hard: { cerco: 1, arremesso: 1, recarga: 5, toque: 1 },
+  easy: { cerco: 3, arremesso: 0, recarga: 0, alcance: 99, toque: 3 },
+  medium: { cerco: 2, arremesso: 2, recarga: 7, alcance: 4, toque: 2 },
+  hard: { cerco: 1, arremesso: 1, recarga: 5, alcance: 3, toque: 1 },
 });
 
 export const intencaoDe = game => INTENCAO[game.difficulty] || INTENCAO.easy;
@@ -104,7 +111,7 @@ export function querArremessar(game, boss) {
   const regra = intencaoDe(game);
   if (!regra.arremesso || (boss.phase || 1) < regra.arremesso) return false;
   if ((boss.throwCooldown || 0) > 0) return false;
-  return distancia(boss, game.player) >= 4;
+  return distancia(boss, game.player) >= regra.alcance;
 }
 
 /**
@@ -120,7 +127,7 @@ export function toqueDoGuardiao(game, boss, dt) {
   const alcanca = dist === 0 || (dist === 1 && (boss.phase || 1) >= regra.toque);
   if (!alcanca) return false;
   boss.touchCooldown = 1.5;
-  game.hurt(dist === 0 ? 24 : 14);
+  game.hurt(dist === 0 ? 24 : 14, { de: { x: boss.x, z: boss.z, tipo: 'boss' } });
   game.emit('bossTouch', { id: boss.id, x: game.player.x, z: game.player.z, color: game.biome.color });
   return true;
 }
