@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, seededRandom } from '../src/game.js';
 import { MIN_TELEGRAPH, escapeSteps, safeHouses } from '../src/boss-mechanics.js';
+import { CICLO } from '../src/hazard-cycle.js';
 
 // Headless fight simulator. Every world is fought from full health down to the
 // desperation phase while an invariant checker watches every event the guardian
@@ -24,12 +25,18 @@ function boot(stage, seed) {
 }
 // The promise the fight makes is measured the instant a mark is painted: from
 // where the player stands right then, a clean tile has to be within reach.
+// Le as marcas de golpe mas ignora o chao aceso. Serve para medir se a brasa
+// tem consequencia: se nem este se queima, o perigo e enfeite.
+const cego = g => dodge(g, { veBrasa: false });
 function trapped(g) {
   const p = g.player, live = g.warnings.filter(w => w.damage !== 0);
   const covering = live.filter(w => w.cells.some(c => c.x === p.x && c.z === p.z));
   if (!covering.length) return null;
   const budget = escapeSteps(g, Math.min(...covering.map(w => w.timer)));
   const danger = new Set(live.flatMap(w => w.cells).map(key));
+  // Brasa acesa conta como perigo aqui: golpe e chao vem de sistemas diferentes
+  // e nao podem somar num xeque-mate por acidente.
+  for (const celula of g.hazardField.list()) danger.add(key(celula));
   const queue = [{ x: p.x, z: p.z, d: 0 }], seen = new Set([key(p)]);
   while (queue.length) {
     const cell = queue.shift();
@@ -44,7 +51,7 @@ function trapped(g) {
   return `no way out of ${key(p)} within ${budget} steps`;
 }
 function fight(stage, seed, { pilot = null, seconds = 70 } = {}) {
-  const g = boot(stage, seed), announced = new Map(), report = { faults: [], impacts: 0, casts: 0, moves: new Set(), phases: [], contact: 0, blind: 0, burned: 0 };
+  const g = boot(stage, seed), announced = new Map(), brasa = new Map(), report = { faults: [], impacts: 0, casts: 0, moves: new Set(), phases: [], contact: 0, blind: 0, burned: 0, scorched: 0 };
   let clock = 0;
   for (let i = 0; i < seconds * 20 && g.boss; i++) {
     // The horde is muted so only the guardian can be blamed for a hit.
@@ -66,6 +73,9 @@ function fight(stage, seed, { pilot = null, seconds = 70 } = {}) {
           announced.get(key(c)).push({ at: clock, due: clock + event.duration });
         }
       }
+      if (event.type === 'hazardAviso') for (const c of event.cells) brasa.set(key(c), { avisadoEm: clock, acesoEm: null });
+      if (event.type === 'hazardAcendeu') for (const c of event.cells) { const b = brasa.get(key(c)); if (b) b.acesoEm = clock; else report.faults.push(`brasa acendeu sem aviso em ${key(c)}`); }
+      if (event.type === 'hazardEsfriou') for (const c of event.cells) brasa.delete(key(c));
       if (event.type === 'bossPhase') report.phases.push(event.phase);
       if (event.type === 'enemyExplosion' || event.type === 'webBurst') {
         report.impacts++;
@@ -82,8 +92,11 @@ function fight(stage, seed, { pilot = null, seconds = 70 } = {}) {
         else {
           // Fire only hurts while its own mark is resolving: never before, and
           // never long after the flame that the mark promised has burned out.
+          const b = brasa.get(key(event));
+          const acesaComAviso = b && b.acesoEm !== null && b.acesoEm - b.avisadoEm >= CICLO.aviso - .051;
           const marks = announced.get(key(event)) || [];
-          if (!marks.some(m => clock >= m.due - .051 && clock <= m.due + .8)) { report.blind++; report.faults.push(`unmarked damage at ${key(event)}`); }
+          if (acesaComAviso) report.scorched++;
+          else if (!marks.some(m => clock >= m.due - .051 && clock <= m.due + .8)) { report.blind++; report.faults.push(`unmarked damage at ${key(event)}`); }
           else report.burned++;
         }
       }
@@ -91,6 +104,7 @@ function fight(stage, seed, { pilot = null, seconds = 70 } = {}) {
     if (cast) { const trap = trapped(g); if (trap) report.faults.push(trap); }
     if (g.boss && (!g.walkable(g.boss.x, g.boss.z) && !g.bombs.some(b => b.x === g.boss.x && b.z === g.boss.z))) report.faults.push(`the guardian stands inside stone at ${key(g.boss)}`);
   }
+  report.socorros = g.hazardRescues || 0;
   return report;
 }
 
@@ -130,8 +144,9 @@ test('reading the marks pays: a moving player is hit far less than a statue', ()
 // A competent player: never walks across a marked tile unless it is boxed in,
 // leaves any mark it is standing on, and does not volunteer to stand on the
 // guardian. It is the load the fairness invariants are measured under.
-function dodge(g) {
+function dodge(g, { veBrasa = true } = {}) {
   const p = g.player, danger = new Set(g.warnings.flatMap(w => w.cells).map(key));
+  if (veBrasa) for (const celula of g.hazardField.list()) danger.add(key(celula));
   for (const bomb of g.bombs) for (const c of g.blastCells(bomb)) danger.add(key(c));
   const boss = g.boss, touching = c => boss && distance(c, boss) <= 1;
   if (!danger.has(key(p)) && !touching(p)) return;
@@ -149,3 +164,37 @@ function dodge(g) {
     }
   }
 }
+
+// A emenda ao I2 so vale se for exercida: um teste que passa porque a brasa
+// nunca acendeu nao prova nada. Este confere que ela acende, queima, e que
+// nenhuma queimadura veio sem a janela de aviso.
+test('a brasa errante arde no duelo, sempre anunciada antes', () => {
+  let queimadurasTotais = 0;
+  for (const stage of [3, 12, 18]) {
+    const report = fight(stage, 77 + stage, { pilot: cego });
+    assert.equal(report.blind, 0, `stage ${stage}: ${report.blind} dano(s) sem marca`);
+    assert.deepEqual(report.faults.filter(f => f.includes('brasa')), [], `stage ${stage}`);
+    // O degrau de socorro do carveSafeHouse e rede, nao ferramenta: se ele
+    // disparou, o orcamento de brasa esta grande demais.
+    assert.equal(report.socorros, 0, `stage ${stage}: carveSafeHouse apagou brasa ${report.socorros}x`);
+    queimadurasTotais += report.scorched;
+  }
+  assert(queimadurasTotais > 0, 'a brasa nunca queimou ninguem -- a emenda ao I2 nao foi exercida');
+});
+
+test('ler o chao paga: quem desvia da brasa se queima muito menos', () => {
+  // Nem toda fase queima o piloto distraido: arena grande com pouca brasa pode
+  // simplesmente nao cruzar o caminho dele. Onde cruzar, atento tem de levar
+  // menos -- e tem de cruzar em alguma.
+  let mediu = 0;
+  for (const stage of [3, 6, 12, 18]) {
+    const atento = fight(stage, 77 + stage, { pilot: dodge });
+    const distraido = fight(stage, 77 + stage, { pilot: cego });
+    assert.equal(atento.blind, 0, `stage ${stage}: dano sem marca no piloto atento`);
+    if (!distraido.scorched) continue;
+    mediu++;
+    assert(atento.scorched < distraido.scorched,
+      `stage ${stage}: atento levou ${atento.scorched} e distraido ${distraido.scorched}`);
+  }
+  assert(mediu > 0, 'a brasa nao alcancou o piloto distraido em nenhuma fase');
+});

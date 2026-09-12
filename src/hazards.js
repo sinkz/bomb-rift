@@ -19,7 +19,9 @@ export const HAZARD_RULES = {
   vazio:  { damage: 12, effect: null,    tick: 0.7,  color: 0x6ee7dc, sprite: 'glow',  nome: 'vazio' },
   espinho:{ damage: 10, effect: null,    tick: 0.8,  color: 0xa2e58d, sprite: 'spark', nome: 'espinhos' },
   trilho: { damage: 14, effect: null,    tick: 0.5,  color: 0xefd17a, sprite: 'spark', nome: 'trilho' },
-  ruina:  { damage: 11, effect: null,    tick: 0.75, color: 0xb9a6c8, sprite: 'smoke', nome: 'desmoronamento' },
+  // Ambar, nao lavanda: com mistura normal o matiz sobrevive, e lavanda sobre o
+  // chao roxo do Vale lia como 'ladrilho mais claro', nao como perigo.
+  ruina:  { damage: 11, effect: null,    tick: 0.75, color: 0xffab5e, sprite: 'smoke', nome: 'desmoronamento' },
 };
 
 /** Qual perigo cada mundo respira. Fica aqui, e nao em WORLDS, para o conceito

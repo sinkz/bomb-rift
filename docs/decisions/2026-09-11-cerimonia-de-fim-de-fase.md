@@ -72,3 +72,55 @@ O desfazer cai 40 ms depois de o corpo sumir, o que faz a troca ler como "ele vi
 ## O que vem depois
 
 Passo 3 do GDD: o perigo rotativo ligado ao jogo. O módulo puro (`src/hazards.js`) já existe com 8 testes próprios; falta o ciclo de brasa errante, os cinco pontos de contato e a emenda ao invariante I2.
+
+---
+
+# Passo 3: a brasa errante
+
+**Escopo adicional:** `src/hazard-cycle.js`, `src/hazard-fx.js`, `src/game.js`, `src/boss-mechanics.js`, `tests/boss-simulation.test.js`
+
+## O ciclo
+
+Uma região avisa, acende, esfria e apaga; outra acende. `CICLO` = aviso 1,2 s · acesa 4,5 s · esfriando 1,0 s · livre 2,0 s. Total **8,7 s**.
+
+**Esfriar já devolve o chão** — a casa para de ferir um segundo antes de a marca sumir, e não o contrário. Errar essa ordem puniria quem leu certo.
+
+## Duas coisas que só apareceram medindo
+
+**As irmãs nasciam juntas e morriam juntas.** Um teste de continuidade mostrou trégua de vários segundos: as regiões de um mesmo ato eram criadas no mesmo quadro e percorriam o ciclo em sincronia. A correção não é uma defasagem fixa — essa empurra cada renascimento mais para longe. É **fase por fatia do ciclo** (`CICLO_TOTAL / alvo`), aplicada só à primeira leva; depois disso o renascimento é imediato, porque a região que morreu já morreu na sua fase.
+
+Resultado medido: pior trégua de **1,2 s** em todos os biomas, que é exatamente a janela de aviso da região seguinte. A pressão se emenda sozinha.
+
+**A mistura aditiva matava a cor.** A primeira versão do desenho pintava o chão perigoso com `AdditiveBlending`, somando luz sobre um piso já iluminado: qualquer matiz saturava para branco e o perigo virava mancha pálida. Com mistura normal a cor sobrevive, e o brilho fica por conta da fagulha e do anel, que continuam aditivos.
+
+Só aí a paleta virou problema de verdade: o lavanda do `ruina` sobre o chão roxo do Vale lia como "ladrilho mais claro". Virou âmbar.
+
+## Por que a marca tem friso
+
+Âmbar chapado ficou parecido com as caixas de madeira — medi as distâncias de cor e **nenhuma cor quente escapa** delas (70 a 89 em todas as candidatas). A resposta não era matiz, era forma: o jogo já ensinou no telégrafo de ataque que casa com contorno aceso machuca. A brasa fala a mesma língua, com preenchimento sólido em vez de vazado para dizer "é agora, não daqui a pouco".
+
+## A emenda ao I2, aferida
+
+O modelo de marca do teste de simulação era de tiro único: avisa, resolve, some. A brasa arde continuamente, então precisou de um segundo modelo de anúncio. O invariante **não mudou** — "o dano é legível no instante em que pode te tocar" — mas agora é aferido de duas formas.
+
+Três assertivas novas, e a terceira é a que importa:
+
+1. Nenhuma queimadura sem a janela de aviso cumprida por inteiro.
+2. A brasa **de fato queima** alguém na simulação — um teste que passa porque o perigo nunca acendeu não prova nada.
+3. Um piloto que lê o chão se queima **menos** que um que o ignora. É a prova de que o perigo é evitável, não imposto.
+
+E o degrau à prova de xeque-mate do `carveSafeHouse`: se o último refúgio estiver em brasa, a brasa apaga. É rede, não ferramenta — o teste assere que o contador ficou em **zero** em todas as fases.
+
+## Onde o perigo toca o jogo
+
+Cinco pontos estreitos, nenhum deles alterando `walkable()`:
+
+| Ponto | O que mudou |
+|---|---|
+| `dangerMap()` | casa acesa entra com tempo 0, e `pathStep` já recusa tempo 0 — a horda contorna sem uma linha a mais |
+| `updateBossAI` | **nada**: ele chama com `new Map()`, então o guardião é imune ao perigo do próprio mundo. Vulkar não se queima, e o invariante I3 (chefe iscável) fica intacto |
+| `safeHouses` | chão aceso não é refúgio |
+| `carveSafeHouse` | o terceiro degrau, acima |
+| `spawnEnemy` | ninguém nasce em brasa |
+
+O dano reusa `applyFlame` com `enemy: true`: acerta o jogador, respeita `snare`, e para antes de ferir a horda. Empurrar inimigo para o fogo fica para a meta-progressão.

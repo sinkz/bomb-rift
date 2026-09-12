@@ -144,16 +144,27 @@ export function playerReach(game, steps) {
 export const escapeSteps = (game, duration) => Math.min(8, Math.max(1, Math.floor(duration / Math.max(.08, game.player.step * (game.player.slow > 0 ? 1.6 : 1))) - 1));
 export function safeHouses(game, cells, duration) {
   const danger = new Set(cells.map(c => `${c.x},${c.z}`));
-  return playerReach(game, escapeSteps(game, duration)).filter(c => !danger.has(`${c.x},${c.z}`));
+  // Chao aceso nao e refugio: uma casa em brasa e tao fatal quanto uma marcada.
+  return playerReach(game, escapeSteps(game, duration)).filter(c => !danger.has(`${c.x},${c.z}`) && !game.harmful?.(c.x, c.z));
 }
 export function carveSafeHouse(game, cells, duration) {
   const reach = playerReach(game, escapeSteps(game, duration)), danger = new Set(cells.map(c => `${c.x},${c.z}`));
   // Marks already on the floor count as danger too: two overlapping patterns
   // must never add up to a checkmate.
   const pending = new Set(game.warnings.filter(w => w.damage !== 0).flatMap(w => w.cells).map(c => `${c.x},${c.z}`));
-  if (reach.some(c => !danger.has(`${c.x},${c.z}`) && !pending.has(`${c.x},${c.z}`))) return cells;
-  const boss = game.boss || game.player, clear = reach.filter(c => !pending.has(`${c.x},${c.z}`));
+  const livre = c => !danger.has(`${c.x},${c.z}`) && !pending.has(`${c.x},${c.z}`) && !game.harmful?.(c.x, c.z);
+  if (reach.some(livre)) return cells;
+  const boss = game.boss || game.player;
+  const clear = reach.filter(c => !pending.has(`${c.x},${c.z}`) && !game.harmful?.(c.x, c.z));
   const refuge = (clear.length ? clear : reach).slice().sort((a,c) => distance(c,boss) - distance(a,boss))[0];
+  // Terceiro degrau, e o unico que mexe no mundo em vez de na marca: se o
+  // refugio que sobrou esta em brasa, a brasa apaga. Entregar xeque-mate seria
+  // pior que perder uma casa de perigo. Nunca deve acontecer -- o orcamento e
+  // dimensionado para isso, e o teste assere que o contador fica em zero.
+  if (game.harmful?.(refuge.x, refuge.z)) {
+    game.hazardField.remove(refuge.x, refuge.z);
+    game.hazardRescues = (game.hazardRescues || 0) + 1;
+  }
   return cells.filter(c => c.x !== refuge.x || c.z !== refuge.z);
 }
 

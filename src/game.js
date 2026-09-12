@@ -1,4 +1,6 @@
 import { WORLDS, stageFor, RELICS, relicById, entranceFor } from './campaign.js';
+import { HazardField } from './hazards.js';
+import { directorFor } from './hazard-cycle.js';
 import { normalizeMeta, startingStats, settleLegacy } from './legacy.js';
 import { emptyMetrics, captureRun, scoreReport } from '../shared/scoring.js';
 import { DIFFICULTIES, CAMPAIGN_STAGES, aggregateExpedition, difficultyUnlocked } from '../shared/expedition.js';
@@ -45,6 +47,8 @@ export class Game {
     this.forgeCount = 0; this.skillLevels = {}; this.masteries = []; this.wardTimer = 0; this.pendingLevels = 0; this.earnedShards = 0;
     this.combo = 0; this.comboTimer = 0; this.relics = []; this.echoes = []; this.miniSpawned = false;
     this.champion = null; this.transition = null;
+    this.hazardField = this.hazardField || new HazardField();
+    this.hazardField.clear(); this.hazardDirector = null;
     this.hazardClock = 10; this.resultClaimed = false; this.result = null; this.relicDropCount = 0;
     this.materials = { scrap: 0, cores: 0 }; this.cratesBroken = 0;
     this.player = { x: 1, z: 1, hp: 100 + (this.meta.health || 0) * 10, maxHp: 100 + (this.meta.health || 0) * 10,
@@ -274,6 +278,7 @@ export class Game {
   spawnEnemy(forcedType = null) {
     const candidates = [];
     for (let z = 1; z < this.height - 1; z++) for (let x = 1; x < this.width - 1; x++) {
+      if (this.harmful(x, z)) continue;
       if (this.walkable(x, z) && distance({ x, z }, this.player) > 5 && !this.enemies.some(e => e.x === x && e.z === z)) candidates.push({ x, z });
     }
     if (!candidates.length) return;
@@ -285,6 +290,45 @@ export class Game {
     if (type === 'mimic') { enemy.awake = false; enemy.intent = 'disguise'; }
     this.enemies.push(enemy); return enemy;
   }
+  /**
+   * Um passo da brasa errante. O diretor decide o que acontece; aqui a gente
+   * so traduz em dano e em evento de cena. Ele so roda no duelo, e so depois
+   * de o guardiao chegar -- a coreografia de entrada e dele sozinho.
+   */
+  stepHazards(dt) {
+    const diretor = this.hazardDirector;
+    if (!diretor || !this.boss) return;
+    const acontecimentos = diretor.update(dt, {
+      width: this.width, height: this.height,
+      tile: (x, z) => this.tile(x, z),
+      random: this.random,
+      player: this.player,
+      ato: this.boss.phase || 1,
+      // Nunca sobre bomba armada nem sobre item no chao: soterrar recompensa
+      // seria punir quem foi buscar.
+      blocked: new Set([
+        ...this.bombs.map(b => `${b.x},${b.z}`),
+        ...this.pickups.map(p => `${p.x},${p.z}`),
+      ]),
+    });
+    for (const ocorrencia of acontecimentos) {
+      if (ocorrencia.tipo === 'bate') {
+        // Reusa o caminho de dano que ja existe: flame.enemy = true acerta o
+        // jogador, respeita 'snare' e para antes de ferir a horda. Perigo nao
+        // e arma do jogador -- isso fica para a meta-progressao.
+        const regra = this.hazardField.rules[ocorrencia.kind];
+        this.applyFlame({
+          id: this.nextId++, cells: ocorrencia.cells, damage: regra.damage,
+          effect: regra.effect, hit: new Set(), enemy: true, hazard: true,
+        });
+        continue;
+      }
+      this.emit('hazard' + ocorrencia.tipo[0].toUpperCase() + ocorrencia.tipo.slice(1),
+        { cells: ocorrencia.cells, kind: ocorrencia.kind, color: this.biome.color });
+    }
+  }
+  /** Essa casa fere AGORA? Perigo persistente nao e terreno: walkable() nao muda. */
+  harmful(x, z) { return this.hazardField.has(x, z); }
   dangerMap() {
     const result = new Map(), times = new Map(this.bombs.map(b => [b.id, b.fuse]));
     const blasts = new Map(this.bombs.map(b => [b.id, this.blastCells(b)]));
@@ -299,6 +343,7 @@ export class Game {
     const add = (cells, time) => { for (const c of cells) { const key = `${c.x},${c.z}`; result.set(key, Math.min(result.get(key) ?? Infinity, time)); } };
     for (const b of this.bombs) add(blasts.get(b.id), times.get(b.id));
     for (const echo of this.echoes) add(echo.cells, echo.timer);
+    for (const celula of this.hazardField.list()) add([celula], 0);
     return result;
   }
   occupied(x, z, self) {
@@ -578,6 +623,7 @@ export class Game {
     this.boss = { id: this.nextId++, x, z, type: 'boss', variant: this.biome.guardian || this.biome.id, name: this.biome.boss, hp, maxHp: hp, cooldown: 3.2, attackCooldown: 4, hitFlash: 0, attackIndex: 0, enraged: false };
     Object.assign(this.boss, { phase: 1, lastMove: null, comboQueue: [], signatureBeat: 0, riteCounter: grudge ? 2 : 3, retreat: 0, dodgeCooldown: 0, grudge });
     this.boss.entranceTimer = .5; this.boss.intent = 'spawn';
+    if (this.stage.kind === 'duel') this.hazardDirector = directorFor(this.biome, this.hazardField);
     this.spawnClock = this.spawnInterval;
     this.emit('boss');
   }
@@ -617,6 +663,7 @@ export class Game {
     this.earnedShards += this.stage.reward + Math.floor(this.kills / 5);
     this.materials.cores++;
     this.result = { victory: true, stage: this.round, shards: this.earnedShards, outcome };
+    this.hazardDirector?.limpar(); this.hazardDirector = null;
     this.phase = 'intermission'; this.anchors = []; this.warnings = []; this.flames = []; this.bombs = []; this.echoes = [];
     // Unico anuncio de fase vencida. Antes so 'bossDefeated' abria a tela, entao
     // cacada e perseguicao terminavam sem nada: 12 das 18 fases travavam aqui.
@@ -821,6 +868,7 @@ export class Game {
       this.elapsed = Math.min(ROUND_SECONDS, this.elapsed + dt);
       if (this.elapsed >= ROUND_SECONDS) this.stage.kind === 'hunt' ? this.spawnChampion() : this.spawnBoss();
     }
+    this.stepHazards(dt);
     this.hazardClock -= dt;
     if (this.hazardClock <= 0) { this.hazardClock = Math.max(5, 12 - this.stage.local); this.environmentAttack(); }
     this.spawnClock -= dt;

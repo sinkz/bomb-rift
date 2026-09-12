@@ -843,6 +843,7 @@ export class ArenaScene {
     if (this.hitStop > 0) { this.hitStop = Math.max(0, this.hitStop - dt); dt *= .16; }
     if (this.atmosphere.reduced !== this.reducedMotion) this.applyAtmosphere();
     this.runTimers(dt);
+    for (const extra of this.extras) extra.frame?.(this, dt);
     this.time += dt; const t = this.time, game = this.game;
     const p = game.player, [px, pz] = this.at(p.x, p.z);
     this.playerMesh.position.x = THREE.MathUtils.damp(this.playerMesh.position.x, px, 25, dt);
