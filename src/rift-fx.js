@@ -12,27 +12,39 @@ import { CERIMONIA } from './finale.js';
 
 const ORDEM_DE_RENDER = 4;
 
-export function criarRiftFX() {
+export function criarRiftFX(fontes) {
   let disco = null, anel = null, cenaAtual = null;
   let vida = 0, duracao = 0, centro = null, cor = null;
 
+  function carregar(url) {
+    if (!url) return null;
+    const t = new THREE.TextureLoader().load(url);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.generateMipmaps = false;
+    t.minFilter = THREE.LinearFilter;
+    return t;
+  }
+
   function garantir(cena) {
     if (disco && cenaAtual === cena) return;
-    // O buraco: um disco escuro que engole a luz em vez de somar a ela. E por
-    // isso que ele NAO e aditivo como o resto dos efeitos do jogo.
-    disco = new THREE.Mesh(
-      new THREE.CircleGeometry(1, 48),
-      new THREE.MeshBasicMaterial({ color: 0x07050d, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }),
-    );
+    const plano = new THREE.PlaneGeometry(1, 1);
+
+    // Duas camadas porque a fenda faz duas coisas opostas: o miolo TIRA luz e os
+    // filamentos SOMAM. Uma textura branca-com-alpha nao consegue ser as duas,
+    // entao sao duas, assadas em blender/bake_rift.py.
+    disco = new THREE.Mesh(plano, new THREE.MeshBasicMaterial({
+      color: 0x07050d, transparent: true, opacity: 0, depthWrite: false, toneMapped: false,
+      map: carregar(fontes?.riftCore),
+    }));
     disco.rotation.x = -Math.PI / 2;
     disco.renderOrder = ORDEM_DE_RENDER;
     disco.visible = false;
 
-    // A boca: o anel de luz na borda do buraco, esse sim aditivo.
-    anel = new THREE.Mesh(
-      new THREE.RingGeometry(.86, 1, 48),
-      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
-    );
+    // Os filamentos: aneis turbulentos girando na boca do buraco.
+    anel = new THREE.Mesh(plano, new THREE.MeshBasicMaterial({
+      transparent: true, opacity: 0, depthWrite: false, toneMapped: false,
+      blending: THREE.AdditiveBlending, map: carregar(fontes?.riftGlow),
+    }));
     anel.rotation.x = -Math.PI / 2;
     anel.renderOrder = ORDEM_DE_RENDER + 1;
     anel.visible = false;
@@ -44,11 +56,11 @@ export function criarRiftFX() {
   return {
     handle(cena, evento) {
       if (evento.type === 'arena') { if (disco) { disco.visible = false; anel.visible = false; } vida = 0; return; }
-      if (evento.type !== 'bossDefeated' && evento.type !== 'championDefeated') return;
+      if (evento.type !== 'bossDefeated') return;
       if (evento.x === undefined) return;
       garantir(cena);
 
-      const cerimonia = evento.type === 'bossDefeated' ? CERIMONIA.slain : CERIMONIA.champion;
+      const cerimonia = CERIMONIA.slain;
       duracao = cerimonia.espera;
       vida = duracao;
       cor = new THREE.Color(cena.game.biome?.color || 0xbfa2ff);
@@ -89,11 +101,11 @@ export function criarRiftFX() {
       // Abre rapido, segura, e fecha no fim: a boca tem de estar larga enquanto
       // o corpo cai, e fechada quando a tela de vitoria sobe.
       const abertura = k < .18 ? k / .18 : k > .82 ? (1 - k) / .18 : 1;
-      const raio = 2.6 * abertura;
+      const raio = 1.75 * abertura;
 
-      disco.scale.setScalar(Math.max(.001, raio));
+      disco.scale.setScalar(Math.max(.001, raio * 2));
       disco.material.opacity = .92 * abertura;
-      anel.scale.setScalar(Math.max(.001, raio * (1 + .04 * Math.sin(cena.time * 7))));
+      anel.scale.setScalar(Math.max(.001, raio * 2 * (1 + .04 * Math.sin(cena.time * 7))));
       anel.material.opacity = .85 * abertura;
       anel.rotation.z += dt * .9;
 
