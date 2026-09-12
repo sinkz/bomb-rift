@@ -232,9 +232,11 @@ test('a dificuldade muda como o guardiao pensa, nao so quanto ele aguenta', () =
 // licao da brasa: teste que passa por omissao nao prova nada.
 test('o cerco aperta sem sufocar, e a dificuldade muda o comportamento na pratica', () => {
   const { respiro } = intencaoImport;
-  const arremessosPor = {};
-  for (const dificuldade of ['easy', 'medium', 'hard']) {
-    const g = new Game({ random: seededRandom(31), meta: { unlockedStage: 40 } });
+  // Somado em varias sementes: numa luta so a diferenca entre recarga de 5s e
+  // de 7s cabe dentro do acaso, e o teste viraria moeda.
+  const arremessosPor = { easy: 0, medium: 0, hard: 0 };
+  for (const dificuldade of ['easy', 'medium', 'hard']) for (const semente of [31, 77, 123]) {
+    const g = new Game({ random: seededRandom(semente), meta: { unlockedStage: 40 } });
     g.difficulty = dificuldade;
     assert(g.start(3));
     g.enemies = []; g.pickups = []; g.spawnClock = Infinity; g.hazardClock = Infinity;
@@ -251,12 +253,13 @@ test('o cerco aperta sem sufocar, e a dificuldade muda o comportamento na pratic
       if (g.boss) arMinimo = Math.min(arMinimo, respiro(g, g.boss));
     }
     // A garantia do cerco: apertar ate o jogador ter pouco ar, nunca ate zero.
-    assert(arMinimo > 0, `${dificuldade}: o guardiao sufocou o jogador (${arMinimo} saidas)`);
-    arremessosPor[dificuldade] = arremessos;
+    assert(arMinimo > 0, `${dificuldade} semente ${semente}: o guardiao sufocou o jogador (${arMinimo} saidas)`);
+    arremessosPor[dificuldade] += arremessos;
   }
   assert.equal(arremessosPor.easy, 0, 'no easy o guardiao arremessou');
   assert(arremessosPor.hard > arremessosPor.medium,
-    `hard devia arremessar mais que medium: ${arremessosPor.hard} vs ${arremessosPor.medium}`);
+    `hard devia arremessar mais que medium: ${arremessosPor.hard} vs ${arremessosPor.medium}. ` +
+    'Se caiu abaixo, provavelmente o cerco esta colando ele no jogador e sufocando o arremesso -- ver INTENCAO.alcance.');
 });
 
 // Relatado jogando: "passei em cima e nao tomei dano". Eram duas causas somadas

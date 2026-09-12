@@ -210,7 +210,7 @@ function updateBuild() {
   const entries = SKILLS.filter(s => game.skillLevels[s.id]);
   setText($('#build-count'), `${entries.length} HABILIDADE${entries.length === 1 ? '' : 'S'}`);
   if (!entries.length) setHTML($('#skill-list'), `<div class="empty-build"><div class="empty-slots">${[0, 1, 2, 3].map(() => `<span>${icon('Plus')}</span>`).join('')}</div><p>Cada escolha cria um novo caminho.</p></div>`);
-  else setHTML($('#skill-list'), entries.map(s => `<div class="build-skill" style="--skill-color:${s.color}" title="${s.desc}"><span>${icon(s.icon)}</span><strong>${s.name}</strong><b>${game.skillLevels[s.id]}</b></div>`).join(''));
+  else setHTML($('#skill-list'), entries.map(s => `<div class="build-skill" style="--skill-color:${s.color}" title="${s.desc}"><span>${icon(s.icon)}</span><div class="build-skill-nome"><strong>${s.name}</strong><small>${s.branch}</small></div><b>${game.skillLevels[s.id]}</b></div>`).join(''));
   icons();
 }
 let lastHud = '';

@@ -20,6 +20,27 @@ export function seededRandom(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 
+// Gerador curto e deterministico: mesma entrada, mesma arena. Nao usa o fluxo
+// aleatorio da partida de proposito (ver reshapeArena).
+function variacaoDaArena(semente) {
+  let s = semente >>> 0;
+  const proximo = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+  const v = {
+    desvio: Math.floor(proximo() * 5) - 2,
+    segunda: proximo() < .55,
+    passo: proximo() < .5 ? 3 : 4,
+    fase: Math.floor(proximo() * 3),
+    ladoA: proximo() < .75,
+    ladoB: proximo() < .75,
+  };
+  // Uma diagonal sozinha nao parte a arena; garante ao menos uma.
+  if (!v.ladoA && !v.ladoB) v.ladoA = true;
+  return v;
+}
+
 export class Game {
   constructor({ random = Math.random, meta = {}, campaignMode = false } = {}) {
     this.random = random;
@@ -122,7 +143,10 @@ export class Game {
         if (!this.resultClaimed || stage !== this.expedition.stages.length + 1 || stage > CAMPAIGN_STAGES) return false;
       } else {
         if (stage !== 1) return false;
-        this.expedition = { stages: [], lives: 1, purchases: 0, ended: false, report: null, routed: [] };
+        // 'salt' e o que faz a mesma fase se transformar diferente em cada
+        // expedicao. Sorteado UMA vez aqui, e nao a cada remodelagem: puxar do
+        // fluxo aleatorio no meio da luta deslocaria todo o resto da simulacao.
+        this.expedition = { stages: [], lives: 1, purchases: 0, ended: false, report: null, routed: [], salt: Math.floor(this.random() * 1e9) };
         this.meta.unlockedStage = 1;
       }
     }
@@ -687,12 +711,24 @@ export class Game {
     for (const b of this.bombs) blocked.add(`${b.x},${b.z}`);
     for (const item of this.pickups) blocked.add(`${item.x},${item.z}`);
 
+    // Assinatura como esqueleto, semente como carne.
+    //
+    // A FORMA continua sendo a do guardiao -- a Caldeira sempre abre faixas, a
+    // Mare sempre parte na diagonal -- porque e isso que torna a luta dele
+    // reconhecivel. O que a semente muda e ONDE: quais faixas, qual diagonal,
+    // com que espacamento. Forma fixa e voce resolve o duelo uma vez; semente
+    // pura e nenhuma luta e "a do Vulkar".
+    // Derivado do tempero da expedicao e da fase -- NAO do fluxo aleatorio da
+    // partida. Assim a mesma fase muda entre expedicoes sem embaralhar spawn,
+    // sorteio de habilidade ou qualquer outra coisa que dependa da ordem.
+    const v = variacaoDaArena((this.expedition?.salt || 0) + this.round * 7919);
     const opens = [], walls = [];
     for (let z = 1; z < this.height - 1; z++) for (let x = 1; x < this.width - 1; x++) {
       if (blocked.has(`${x},${z}`)) continue;
-      const onShape = shape === 'row' ? z === cz : shape === 'column' ? x === cx
-        : shape === 'diagonal' ? Math.abs((x - cx) - (z - cz)) <= 1 || Math.abs((x - cx) + (z - cz)) <= 1
-        : (x % 4 === 2 && z % 4 === 2);
+      const onShape = shape === 'row' ? (z === cz + v.desvio || (v.segunda && z === cz - v.desvio))
+        : shape === 'column' ? (x === cx + v.desvio || (v.segunda && x === cx - v.desvio))
+        : shape === 'diagonal' ? ((v.ladoA && Math.abs((x - cx) - (z - cz) - v.desvio) <= 1) || (v.ladoB && Math.abs((x - cx) + (z - cz) - v.desvio) <= 1))
+        : (x % v.passo === v.fase && z % v.passo === v.fase);
       const ring = Math.max(Math.abs(x - cx), Math.abs(z - cz));
       if (onShape || ring <= 4) { if (this.grid[z][x] !== 0) opens.push({ x, z, to: 0 }); }
       else if (this.grid[z][x] === 0 && ring > 5 && (x + z) % 3 === 0) walls.push({ x, z, to: 1 });

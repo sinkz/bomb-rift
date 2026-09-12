@@ -363,3 +363,19 @@ body.in-atlas #app>main,body.in-atlas #app>.site-header{display:none}
 /* Protegido: a plaqueta acende, mas o nome continua sendo o nome. Trocar
    "VOCÊ" por "PROTEGIDO" fazia a identidade sumir na hora de apanhar. */
 .player-tag.protegido #player-tag-name { color: #ffe6b0; text-shadow: 0 0 8px rgba(255,214,140,.7); }
+
+/* O painel da build mostrava o nome da habilidade em 9px cinza, e a descricao
+   so no title -- que nao existe no toque. Um teste de olhos frescos resumiu:
+   "os icones sao MUITO pequenos, nao comunicam nada sem ler texto". */
+.build-skill .build-skill-nome { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.build-skill .build-skill-nome strong {
+  font-size: 11px; font-weight: 500; color: #e4dbe9; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.build-skill .build-skill-nome small {
+  font: 400 7px/1 var(--display, sans-serif); letter-spacing: 1.1px;
+  color: color-mix(in srgb, var(--skill-color) 70%, #8d8394); text-transform: uppercase;
+}
+.build-skill > span { width: 29px; height: 29px; }
+.build-skill svg { width: 15px; height: 15px; }
+.build-skill > b { font-size: 12px; }

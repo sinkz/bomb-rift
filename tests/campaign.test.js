@@ -229,3 +229,42 @@ test('todo duelo abre espaco de verdade sobre a cacada do proprio mundo', () => 
     assert(livres(duelo) > livres(perseguicao), `mundo ${mundo + 1}: o duelo nao e a maior arena do mundo`);
   }
 });
+
+// Restricao do dono: "cada batalha com os guardioes deve ser unica, o mapa vai
+// mudar diferente em cada ocasiao". A decisao foi assinatura como esqueleto,
+// semente como carne -- a FORMA continua sendo a do guardiao, o ONDE varia.
+test('o duelo se transforma diferente a cada expedicao, sem perder a assinatura', () => {
+  const { stageFor } = campanha;
+  const planoCom = salt => {
+    const g = new Game({ random: seededRandom(4), meta: { unlockedStage: 18 } });
+    g.start(3);
+    g.enemies = []; g.pickups = []; g.bombs = [];
+    g.expedition = { stages: [], lives: 1, purchases: 0, ended: false, routed: [], salt };
+    g.drainEvents();
+    const plano = g.reshapeArena();
+    return plano.map(c => `${c.x},${c.z},${c.to}`).sort().join('|');
+  };
+
+  const planos = [11, 222, 3333, 44444].map(planoCom);
+  const distintos = new Set(planos);
+  assert(distintos.size > 1, 'a arena se transformou igual em todas as expedicoes');
+  assert(planos.every(p => p.length), 'alguma expedicao nao transformou nada');
+
+  // Mesmo tempero, mesma arena: a variacao e deterministica, nao caotica.
+  assert.equal(planoCom(11), planos[0], 'o mesmo tempero deu arenas diferentes');
+});
+
+test('a variacao nao mexe no fluxo aleatorio da partida', () => {
+  // Puxar do random() no meio da remodelagem deslocaria spawn, oferta de
+  // habilidade e tudo mais que depende da ORDEM dos sorteios.
+  const sequencia = salt => {
+    const g = new Game({ random: seededRandom(9), meta: { unlockedStage: 18 } });
+    g.start(3);
+    g.enemies = []; g.pickups = []; g.bombs = [];
+    g.expedition = { stages: [], lives: 1, purchases: 0, ended: false, routed: [], salt };
+    g.reshapeArena();
+    return [g.random(), g.random(), g.random()].map(n => n.toFixed(9)).join(',');
+  };
+  assert.equal(sequencia(1), sequencia(999999),
+    'o tempero da arena consumiu numeros do fluxo da partida');
+});
