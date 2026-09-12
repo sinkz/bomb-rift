@@ -239,10 +239,38 @@ def flame(t):
     return noise
 
 
+def bolt(t):
+    """Projetil: cabeca quente e redonda com rastro afinando. Diferente do
+    'spark', que e simetrico -- este tem FRENTE, e por isso serve para dizer
+    para onde a coisa esta indo."""
+    geo = t.n('ShaderNodeNewGeometry')
+    sep = t.n('ShaderNodeSeparateXYZ')
+    t.link(geo, 'Position', sep, 'Vector')
+    # A cauda vive em Y negativo: comprime la e deixa a cabeca redonda.
+    cauda = t.n('ShaderNodeMapRange', interpolation_type='SMOOTHSTEP',
+                in_From_Min=-1.0, in_From_Max=0.35, in_To_Min=3.6, in_To_Max=1.0)
+    t.link(sep, 'Y', cauda, 'Value')
+    largura = t.math('MULTIPLY', out_of=sep, socket='X')
+    t.link(cauda, 'Result', largura, 1)
+    comb = t.n('ShaderNodeCombineXYZ')
+    t.link(largura, 'Value', comb, 'X')
+    t.link(sep, 'Y', comb, 'Y')
+    dist = t.n('ShaderNodeVectorMath', operation='LENGTH')
+    t.link(comb, 'Vector', dist, 0)
+    queda = t.n('ShaderNodeMapRange', interpolation_type='SMOOTHSTEP',
+                in_From_Min=0.08, in_From_Max=0.9, in_To_Min=1.0, in_To_Max=0.0)
+    t.link(dist, 'Value', queda, 'Value')
+    nucleo = t.math('POWER', out_of=queda, socket='Result', b=6.0, clamp=True)
+    total = t.math('ADD', out_of=queda, socket='Result', clamp=True)
+    t.link(nucleo, 'Value', total, 1)
+    t.finish(total)
+    return None
+
+
 SPRITES = [
     ('glow', glow, 1), ('spark', spark, 1), ('ember', ember, 1),
     ('crack', crack, 1), ('ring', ring, 1), ('flame', flame, 1),
-    ('smoke', smoke, 1),
+    ('smoke', smoke, 1), ('bolt', bolt, 1),
 ]
 
 for name, fn, frames in SPRITES:

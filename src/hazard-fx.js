@@ -21,6 +21,7 @@ const chave = (x, z) => `${x},${z}`;
 
 export function criarHazardFX(particleSources) {
   let malha = null, halo = null, dummy = null, cenaAtual = null, textura = null, kindAtual = null;
+  let relogioQuadro = 0, quadro = 0, flip = null;
   // casa -> { kind, fase, idade, cor }
   const marcas = new Map();
 
@@ -57,9 +58,20 @@ export function criarHazardFX(particleSources) {
     // aceso machuca -- a brasa fala a mesma lingua, com preenchimento solido
     // em vez de vazado para dizer "e agora, nao daqui a pouco". E e o que a
     // separa das caixas de madeira, que tem cor parecida e nenhum friso.
+    // O halo usa o FLIPBOOK -- 16 quadros de fumaca evoluindo, assados no
+    // Blender junto com os sprites. Um sprite parado dizia "o chao esta aceso";
+    // o flipbook diz "o chao esta vivo". Todas as casas compartilham o material,
+    // o que so funciona porque cada mundo tem um perigo so.
+    if (particleSources?.flipbook && !flip) {
+      flip = new THREE.TextureLoader().load(particleSources.flipbook);
+      flip.colorSpace = THREE.SRGBColorSpace;
+      flip.generateMipmaps = false;
+      flip.minFilter = THREE.LinearFilter;
+      flip.repeat.set(1 / 4, 1 / 4);
+    }
     halo = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({
       transparent: true, opacity: .5, depthWrite: false,
-      blending: THREE.AdditiveBlending, toneMapped: false,
+      blending: THREE.AdditiveBlending, toneMapped: false, map: flip || null,
     }), CAPACIDADE);
     halo.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     halo.frustumCulled = false;
@@ -124,6 +136,14 @@ export function criarHazardFX(particleSources) {
 
     frame(cena, dt) {
       const m = garantirMalha(cena);
+      if (flip && !cena.reducedMotion) {
+        relogioQuadro -= dt;
+        if (relogioQuadro <= 0) {
+          relogioQuadro = .085;
+          quadro = (quadro + 1) % 16;
+          flip.offset.set((quadro % 4) / 4, 3 / 4 - Math.floor(quadro / 4) / 4);
+        }
+      }
       let n = 0;
 
       for (const marca of marcas.values()) {

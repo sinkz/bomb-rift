@@ -106,3 +106,25 @@ As seis passaram de 70%, **mantendo o matiz do mundo**: o tema fica intacto e a 
 Passei várias capturas em dúvida se o gelo aparecia, porque estava recortando o **centro** da arena. A assinatura da Coroa Glacial é `borda`: o perigo nasce no **anel do perímetro**. A prova só veio quando passei a projetar as casas acesas para coordenadas de tela e recortar exatamente em cima delas.
 
 Vale como método: para conferir efeito posicional, pergunte ao jogo onde ele está em vez de apontar a câmera para onde você acha que deveria estar.
+
+---
+
+## Adendo 2026-09-12: o arremesso ganhou corpo, e o flipbook achou lugar
+
+Duas pontas soltas que eu mesmo deixei, encontradas conferindo o que faltava.
+
+### O arremesso era meio mudo
+
+Correção ao diagnóstico inicial: a **animação já funcionava**. O evento `warning` dispara `actor.prepare()` em `scene.js`, então o guardião fazia o gesto. O que não existia era o **projétil** — nada viajava dele até a marca, e quem jogasse veria a marca nascer sozinha e leria como defeito.
+
+`src/throw-fx.js` resolve, e a decisão que importa é a duração: o projétil **recebe a duração do telégrafo** em vez de ter velocidade própria, então pousa exatamente quando a marca estoura. Velocidade fixa faria ele chegar cedo ou tarde conforme a distância, e a promessa do telégrafo quebraria.
+
+Um sprite novo foi assado no Blender — `bolt`, cabeça quente com cauda afinando. Ele tem **frente**, que é o que o `spark` (simétrico) não tem, e é por isso que serve para dizer para onde a coisa vai. Entrou na oitava célula do atlas, que estava vazia desde o primeiro assamento — nenhum arquivo cresceu de tamanho.
+
+O que mais ajuda a leitura não é o projétil em si, que é rápido: é o **rastro de brasas** ligando o guardião ao ponto de impacto.
+
+### O flipbook finalmente é usado
+
+Dezesseis quadros de fumaça assados junto com os sprites, que eu chamei de "o pulo do gato" num relatório e nunca liguei em lugar nenhum — oversell meu.
+
+O lugar certo apareceu sozinho: o **halo do chão em brasa**. Ele era um sprite parado que dizia "o chão está aceso"; agora percorre os 16 quadros e diz "o chão está vivo". Funciona porque cada mundo tem um perigo só, então todas as casas acesas compartilham o material e basta mover o `offset` da textura uma vez por quadro de cena — sem shader por instância.

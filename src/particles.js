@@ -6,7 +6,7 @@ import * as THREE from 'three';
 // gradiente de cor. Aqui cada particula carrega a propria cor e o proprio alpha.
 
 // Ordem das celulas no atlas 4x2 (assado em blender/bake_particles.py).
-export const SPRITE = { glow: 0, spark: 1, ember: 2, crack: 3, ring: 4, flame: 5, smoke: 6 };
+export const SPRITE = { glow: 0, spark: 1, ember: 2, crack: 3, ring: 4, flame: 5, smoke: 6, bolt: 7 };
 const GRID = [4, 2];
 const MAX = 1200;
 

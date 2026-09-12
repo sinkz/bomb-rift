@@ -72,6 +72,8 @@ export class Sound {
     notes.bossFlee = [420, 70, 1.1, 'sine'];
     notes.arenaReshape = [70, 190, 1.5, 'triangle'];
     notes.arenaCleared = [64, 168, 1.1, 'sawtooth'];
+    // O arremesso: um assobio que sobe enquanto o projetil viaja.
+    notes.bossThrow = [180, 520, .9, 'square'];
     // Entrada do guardiao: um grave que cresce e quatro batidas por cima.
     notes.bossEntrance = [92, 54, 2.2, 'sine'];
     notes.entranceRumble = [46, 32, 1.9, 'triangle'];

@@ -102,7 +102,7 @@ export function arremessar(game, boss) {
   boss.throwCooldown = intencaoDe(game).recarga;
   game.warnings.push({ id: game.nextId++, bossId: boss.id, cells, duration: duracao, timer: duracao, damage: 16 });
   game.emit('warning', { id: boss.id, cells, duration: duracao, name: 'ARREMESSO', move: 'throw', phase: boss.phase || 1 });
-  game.emit('bossThrow', { id: boss.id, x: boss.x, z: boss.z, target: { x: p.x, z: p.z }, color: game.biome.color });
+  game.emit('bossThrow', { id: boss.id, x: boss.x, z: boss.z, target: { x: p.x, z: p.z }, color: game.biome.color, duration: duracao });
   return true;
 }
 
