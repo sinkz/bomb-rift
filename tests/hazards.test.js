@@ -127,3 +127,32 @@ test('perigo nunca e terreno: o planejador so devolve casas de chao', () => {
     }
   }
 });
+
+// A leitura do perigo e cor, e cor e saturacao. As cores originais eram tons
+// palidos da familia do proprio bioma e liam como ladrilho decorativo -- so a
+// lava, saturada desde o inicio, lia como ameaca. Este teste trava o piso para
+// que um ajuste de paleta futuro nao devolva o perigo ao cenario.
+test('todo perigo e saturado o bastante para nao virar decoracao', () => {
+  const saturacao = hex => {
+    const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    return mx ? (mx - mn) / mx : 0;
+  };
+  const matiz = hex => {
+    const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (!d) return 0;
+    const x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (x * 60 + 360) % 360;
+  };
+  for (const [kind, regra] of Object.entries(HAZARD_RULES)) {
+    assert(saturacao(regra.color) >= .7,
+      `${kind} tem so ${Math.round(saturacao(regra.color) * 100)}% de saturacao -- vai ler como cenario`);
+  }
+  // E o matiz continua sendo o do mundo: saturar nao pode custar o tema.
+  const esperado = { lava: 21, gelo: 195, vazio: 171, espinho: 101, trilho: 45, ruina: 29 };
+  for (const [kind, alvo] of Object.entries(esperado)) {
+    const d = Math.abs(matiz(HAZARD_RULES[kind].color) - alvo);
+    assert(Math.min(d, 360 - d) <= 12, `${kind} saiu do matiz do mundo`);
+  }
+});

@@ -81,3 +81,28 @@ A tupla da fase 3 foi de `17, 13` para `17, 15` (o `stageFor` expande +1 por lad
 - no easy ele **não arremessou nenhuma vez**, no hard arremessou mais que no medium — a dificuldade muda o comportamento na prática, não só na tabela.
 
 E as seis entradas são aferidas: batidas em ordem crescente, nenhuma depois do fim, exatamente uma chegada e ela é a última, e pelo menos 0,8 s de tela depois do pouso — senão a animação de entrada não aparece e voltaríamos ao problema que a cerimônia resolveu.
+
+---
+
+## Adendo: a regra das cores do perigo
+
+Capturando os seis mundos, o perigo aparecia em todos — mas em cinco deles lia como **ladrilho decorativo**, não como ameaça. A medição achou o padrão:
+
+| perigo | saturação original | como lia |
+|---|---|---|
+| lava | **79%** | perigo |
+| ruína | 63% | cenário |
+| vazio | 52% | cenário |
+| trilho | 49% | cenário |
+| espinho | 38% | cenário |
+| gelo | 37% | cenário |
+
+A lava era a única saturada, e era a única que lia como ameaça. **O que separa perigo de cenário não é o matiz — é a saturação.** Tom pálido da família do próprio bioma vira decoração, por mais contraste de luminância que tenha.
+
+As seis passaram de 70%, **mantendo o matiz do mundo**: o tema fica intacto e a leitura muda. Um teste trava o piso de saturação e a tolerância de matiz, para que um ajuste de paleta futuro não devolva o perigo ao cenário.
+
+### Nota de campo
+
+Passei várias capturas em dúvida se o gelo aparecia, porque estava recortando o **centro** da arena. A assinatura da Coroa Glacial é `borda`: o perigo nasce no **anel do perímetro**. A prova só veio quando passei a projetar as casas acesas para coordenadas de tela e recortar exatamente em cima delas.
+
+Vale como método: para conferir efeito posicional, pergunte ao jogo onde ele está em vez de apontar a câmera para onde você acha que deveria estar.

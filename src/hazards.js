@@ -13,15 +13,21 @@
  * Regras por tipo. Cada uma e uma estrategia: o que o chao faz com quem pisa.
  * `effect: 'snare'` reusa o caminho que applyFlame ja conhece e nao emite dano.
  */
+// A regra das cores, achada capturando os seis mundos em 2026-09-11: o que
+// separa "perigo" de "cenario" nao e o matiz, e a SATURACAO. As cores primeiras
+// eram tons palidos da familia do proprio bioma -- gelo azul-claro sobre chao
+// azul, vazio teal sobre chao teal -- e liam como ladrilho decorativo. A lava,
+// unica saturada desde o inicio, era a unica que lia como ameaca.
+//
+// Entao todas passam de 70% de saturacao, mantendo o matiz do mundo: o tema
+// fica intacto e a leitura muda. Ha um teste que trava esse piso.
 export const HAZARD_RULES = {
   lava:   { damage: 16, effect: null,    tick: 0.55, color: 0xff7d35, sprite: 'ember', nome: 'lava' },
-  gelo:   { damage: 0,  effect: 'snare', tick: 0.9,  color: 0x9edefa, sprite: 'crack', nome: 'gelo' },
-  vazio:  { damage: 12, effect: null,    tick: 0.7,  color: 0x6ee7dc, sprite: 'glow',  nome: 'vazio' },
-  espinho:{ damage: 10, effect: null,    tick: 0.8,  color: 0xa2e58d, sprite: 'spark', nome: 'espinhos' },
-  trilho: { damage: 14, effect: null,    tick: 0.5,  color: 0xefd17a, sprite: 'spark', nome: 'trilho' },
-  // Ambar, nao lavanda: com mistura normal o matiz sobrevive, e lavanda sobre o
-  // chao roxo do Vale lia como 'ladrilho mais claro', nao como perigo.
-  ruina:  { damage: 11, effect: null,    tick: 0.75, color: 0xffab5e, sprite: 'smoke', nome: 'desmoronamento' },
+  gelo:   { damage: 0,  effect: 'snare', tick: 0.9,  color: 0x3ecfff, sprite: 'crack', nome: 'gelo' },
+  vazio:  { damage: 12, effect: null,    tick: 0.7,  color: 0x22e6cb, sprite: 'glow',  nome: 'vazio' },
+  espinho:{ damage: 10, effect: null,    tick: 0.8,  color: 0x7bf246, sprite: 'spark', nome: 'espinhos' },
+  trilho: { damage: 14, effect: null,    tick: 0.5,  color: 0xffc71c, sprite: 'spark', nome: 'trilho' },
+  ruina:  { damage: 11, effect: null,    tick: 0.75, color: 0xff9430, sprite: 'smoke', nome: 'desmoronamento' },
 };
 
 /** Qual perigo cada mundo respira. Fica aqui, e nao em WORLDS, para o conceito
