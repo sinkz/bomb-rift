@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, seededRandom } from '../src/game.js';
 import { stageFor, RELICS, CAMPAIGN_LENGTH } from '../src/campaign.js';
+import * as campanha from '../src/campaign.js';
 
 const game = (stage = 1, seed = 42) => {
   const g = new Game({ random: seededRandom(seed), meta: { unlockedStage: stage, health: 2, power: 1, shards: 7 } });
@@ -176,5 +177,55 @@ test('os tres desfeitos de vitoria anunciam stageCleared exatamente uma vez', ()
     assert.equal(limpou.length, 1, `${kind} devia anunciar stageCleared uma vez, anunciou ${limpou.length}`);
     assert.equal(g.phase, 'intermission', `${kind} devia terminar em intermission`);
     assert.equal(g.result.victory, true);
+  }
+});
+
+// As seis coreografias de entrada. O ritmo foi medido e aprovado no MORTHOS,
+// entao o orcamento e o mesmo em todos; o que varia e a voz do mundo.
+test('todo guardiao tem entrada, e todas cabem no orcamento aprovado', () => {
+  const { BOSS_ENTRANCES, WORLDS, entranceFor } = campanha;
+  for (const mundo of WORLDS) {
+    const entrada = entranceFor(mundo);
+    assert(entrada, `${mundo.id} sem entrada`);
+    assert.equal(entrada.duration, 2.9, `${mundo.id} fugiu do orcamento de 2,9s`);
+
+    const batidas = entrada.beats;
+    assert(batidas.length >= 4, `${mundo.id} tem so ${batidas.length} batidas`);
+    // Em ordem crescente, e nenhuma depois do fim.
+    for (let i = 1; i < batidas.length; i++) {
+      assert(batidas[i].at > batidas[i - 1].at, `${mundo.id}: batidas fora de ordem`);
+    }
+    assert(batidas.at(-1).at < entrada.duration, `${mundo.id}: batida depois do fim da transicao`);
+
+    // Exatamente uma batida traz o guardiao, e e a ultima.
+    const chegadas = batidas.filter(b => b.arrive);
+    assert.equal(chegadas.length, 1, `${mundo.id} tem ${chegadas.length} chegadas`);
+    assert.equal(chegadas[0], batidas.at(-1), `${mundo.id}: a chegada nao e a ultima batida`);
+    assert.equal(chegadas[0].kind, 'slam', `${mundo.id}: a chegada devia ser um pouso`);
+
+    // O guardiao precisa de tempo de tela depois de pousar, senao a animacao de
+    // entrada nao aparece e voltamos ao problema que a cerimonia resolveu.
+    assert(entrada.duration - chegadas[0].at >= .8, `${mundo.id}: so ${(entrada.duration - chegadas[0].at).toFixed(2)}s depois do pouso`);
+
+    for (const b of batidas) assert(['rumble', 'fissure', 'summon', 'slam'].includes(b.kind), `${mundo.id}: batida desconhecida ${b.kind}`);
+  }
+  assert.equal(Object.keys(BOSS_ENTRANCES).length, WORLDS.length);
+});
+
+// O duelo tem de ser a maior arena do proprio mundo, com folga sentida. Sem
+// isso a luta que deveria ser o apice acontece num quintal do tamanho do da
+// cacada -- que era exatamente o caso do mundo 1 ate 2026-09-11.
+test('todo duelo abre espaco de verdade sobre a cacada do proprio mundo', () => {
+  const { stageFor, STAGES_PER_WORLD } = campanha;
+  const livres = s => (s.width - 2) * (s.height - 2);
+  for (let mundo = 0; mundo < 6; mundo++) {
+    const cacada = stageFor(mundo * STAGES_PER_WORLD + 1);
+    const perseguicao = stageFor(mundo * STAGES_PER_WORLD + 2);
+    const duelo = stageFor(mundo * STAGES_PER_WORLD + 3);
+    assert.equal(cacada.kind, 'hunt');
+    assert.equal(duelo.kind, 'duel');
+    const salto = livres(duelo) - livres(cacada);
+    assert(salto >= 55, `mundo ${mundo + 1}: o duelo cresce so ${salto} casas sobre a cacada`);
+    assert(livres(duelo) > livres(perseguicao), `mundo ${mundo + 1}: o duelo nao e a maior arena do mundo`);
   }
 });

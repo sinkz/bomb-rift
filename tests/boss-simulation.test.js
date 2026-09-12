@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Game, seededRandom } from '../src/game.js';
 import { MIN_TELEGRAPH, escapeSteps, safeHouses } from '../src/boss-mechanics.js';
 import { CICLO } from '../src/hazard-cycle.js';
+import * as intencaoImport from '../src/boss-intent.js';
 
 // Headless fight simulator. Every world is fought from full health down to the
 // desperation phase while an invariant checker watches every event the guardian
@@ -51,7 +52,7 @@ function trapped(g) {
   return `no way out of ${key(p)} within ${budget} steps`;
 }
 function fight(stage, seed, { pilot = null, seconds = 70 } = {}) {
-  const g = boot(stage, seed), announced = new Map(), brasa = new Map(), report = { faults: [], impacts: 0, casts: 0, moves: new Set(), phases: [], contact: 0, blind: 0, burned: 0, scorched: 0 };
+  const g = boot(stage, seed), announced = new Map(), brasa = new Map(), report = { faults: [], impacts: 0, casts: 0, moves: new Set(), phases: [], contact: 0, blind: 0, burned: 0, scorched: 0, toques: [] };
   let clock = 0;
   for (let i = 0; i < seconds * 20 && g.boss; i++) {
     // The horde is muted so only the guardian can be blamed for a hit.
@@ -87,8 +88,8 @@ function fight(stage, seed, { pilot = null, seconds = 70 } = {}) {
         }
       }
       if (event.type === 'hurt') {
-        const onBoss = g.boss && g.boss.x === event.x && g.boss.z === event.z;
-        if (onBoss) report.contact++;
+        const encostado = g.boss && distance(g.boss, event) <= 1;
+        if (encostado) { report.contact++; report.toques.push(clock); }
         else {
           // Fire only hurts while its own mark is resolving: never before, and
           // never long after the flame that the mark promised has burned out.
@@ -197,4 +198,63 @@ test('ler o chao paga: quem desvia da brasa se queima muito menos', () => {
       `stage ${stage}: atento levou ${atento.scorched} e distraido ${distraido.scorched}`);
   }
   assert(mediu > 0, 'a brasa nao alcancou o piloto distraido em nenhuma fase');
+});
+
+// O toque de proximidade e pressao, nao moedor. Se a recarga falhar, o jogador
+// cercado perde a vida em um segundo e a luta vira injusta sem aviso nenhum.
+test('o toque do guardiao respeita a propria recarga', () => {
+  for (const stage of [3, 12, 18]) {
+    const report = fight(stage, 41 + stage);
+    const toques = report.toques;
+    for (let i = 1; i < toques.length; i++) {
+      const intervalo = toques[i] - toques[i - 1];
+      assert(intervalo >= 1.4, `stage ${stage}: dois toques a ${intervalo.toFixed(2)}s um do outro`);
+    }
+  }
+});
+
+// A dificuldade tem de chegar na CABECA do guardiao, nao so na vida dele.
+// Ate 2026-09-11 a IA era identica nos tres niveis.
+test('a dificuldade muda como o guardiao pensa, nao so quanto ele aguenta', () => {
+  const { INTENCAO } = intencaoImport;
+  const niveis = ['easy', 'medium', 'hard'];
+  for (let i = 1; i < niveis.length; i++) {
+    const antes = INTENCAO[niveis[i - 1]], agora = INTENCAO[niveis[i]];
+    assert(agora.cerco <= antes.cerco, `${niveis[i]} devia cercar tao cedo quanto ${niveis[i - 1]}`);
+    assert(agora.toque <= antes.toque, `${niveis[i]} devia tocar tao cedo quanto ${niveis[i - 1]}`);
+  }
+  assert.equal(INTENCAO.easy.arremesso, 0, 'no easy o guardiao nao arremessa');
+  assert(INTENCAO.hard.arremesso > 0 && INTENCAO.hard.recarga < INTENCAO.medium.recarga,
+    'no hard ele arremessa mais vezes');
+});
+
+// Prova que a intencao nova ACONTECE, e nao so existe no codigo. E a mesma
+// licao da brasa: teste que passa por omissao nao prova nada.
+test('o cerco aperta sem sufocar, e a dificuldade muda o comportamento na pratica', () => {
+  const { respiro } = intencaoImport;
+  const arremessosPor = {};
+  for (const dificuldade of ['easy', 'medium', 'hard']) {
+    const g = new Game({ random: seededRandom(31), meta: { unlockedStage: 40 } });
+    g.difficulty = dificuldade;
+    assert(g.start(3));
+    g.enemies = []; g.pickups = []; g.spawnClock = Infinity; g.hazardClock = Infinity;
+    g.elapsed = 119.9; g.tick(.2);
+    while (g.phase === 'transition') g.tick(.2);
+    g.player.invincible = 1e9;
+
+    let arremessos = 0, arMinimo = Infinity;
+    for (let i = 0; i < 70 * 20 && g.boss; i++) {
+      g.enemies = []; g.spawnClock = Infinity; g.hazardClock = Infinity;
+      if (g.boss.hp > 4) g.boss.hp = Math.max(4, g.boss.hp - .5);
+      g.tick(1 / 20);
+      for (const e of g.drainEvents()) if (e.type === 'bossThrow') arremessos++;
+      if (g.boss) arMinimo = Math.min(arMinimo, respiro(g, g.boss));
+    }
+    // A garantia do cerco: apertar ate o jogador ter pouco ar, nunca ate zero.
+    assert(arMinimo > 0, `${dificuldade}: o guardiao sufocou o jogador (${arMinimo} saidas)`);
+    arremessosPor[dificuldade] = arremessos;
+  }
+  assert.equal(arremessosPor.easy, 0, 'no easy o guardiao arremessou');
+  assert(arremessosPor.hard > arremessosPor.medium,
+    `hard devia arremessar mais que medium: ${arremessosPor.hard} vs ${arremessosPor.medium}`);
 });

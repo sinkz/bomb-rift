@@ -1,3 +1,5 @@
+import { passoDeCerco, querArremessar, arremessar, toqueDoGuardiao, intencaoDe } from './boss-intent.js';
+
 // Bosses commit to attacks instead of borrowing the horde's evasive AI.
 const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
 const distance = (a,b) => Math.abs(a.x-b.x)+Math.abs(a.z-b.z);
@@ -15,7 +17,7 @@ function freeSteps(game, b) {
 export function updateBossAI(game, dt, hazards = null) {
   const b = game.boss; if (!b) return;
   b.cooldown -= dt;
-  for (const key of ['hitFlash','slow','frozen','stagger','castTimer','recovery','dodgeCooldown']) b[key] = Math.max(0,(b[key] || 0)-dt);
+  for (const key of ['hitFlash','slow','frozen','stagger','castTimer','recovery','dodgeCooldown','throwCooldown']) b[key] = Math.max(0,(b[key] || 0)-dt);
   if (b.stagger || b.frozen) { b.intent = 'stagger'; return; }
   if (b.entranceTimer > 0) {
     b.entranceTimer = Math.max(0,b.entranceTimer-dt);
@@ -38,6 +40,8 @@ export function updateBossAI(game, dt, hazards = null) {
   }
   b.intent = 'hunt';
   if (b.cooldown > 0) return;
+  // Kite eterno passa a custar caro. E golpe telegrafado como qualquer outro.
+  if (querArremessar(game, b) && arremessar(game, b)) return;
   // Late guardians in fury flinch away from a fuse about to reach them, but only
   // once every few seconds: baiting a boss onto a bomb stays the core counter-play.
   if ((b.phase || 1) >= 2 && game.round >= 7 && b.dodgeCooldown <= 0) {
@@ -48,7 +52,11 @@ export function updateBossAI(game, dt, hazards = null) {
     }
   }
   // Ignore predicted explosions: the boss remains baitable into player bombs.
-  const step = game.pathStep(b,game.player,new Map());
+  // A partir do ato que a dificuldade manda, ele prefere o passo que FECHA
+  // saidas ao passo que encurta distancia. Caminho minimo vira desempate.
+  const regra = intencaoDe(game);
+  const cerco = (b.phase || 1) >= regra.cerco ? passoDeCerco(game, b) : null;
+  const step = cerco || game.pathStep(b,game.player,new Map());
   if (step) {
     moveBoss(game,b,step);
   } else {
@@ -77,5 +85,5 @@ export function updateBossAI(game, dt, hazards = null) {
       game.emit('warning',{id:b.id,cells:[next],duration,name:'RUPTURA',phase:b.phase||1});
     }
   }
-  if(b.x===game.player.x&&b.z===game.player.z)game.hurt(24);
+  toqueDoGuardiao(game, b, dt);
 }

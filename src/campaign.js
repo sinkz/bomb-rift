@@ -16,15 +16,76 @@ export const STAGE_KINDS = ['hunt', 'chase', 'duel'];
 // proposito: queremos avaliar o ritmo numa luta antes de espalhar para os seis.
 // Os tempos sao em segundos desde o inicio da transicao.
 export const BOSS_ENTRANCES = {
+  // Aprovada jogando, e depois replicada para os seis. O orcamento e o mesmo em
+  // todos -- 2,9s de coreografia -- porque o ritmo foi medido e aprovado nele.
+  // O que muda e a VOZ de cada mundo, nao a duracao.
+  //
+  // 'arrive' cria o guardiao ainda dentro da transicao: ele chega, roda a
+  // animacao de entrada e o letreiro sobe com ele, e so entao o jogo destrava.
   ruins: {
     duration: 2.9,
     beats: [
       { at: 0, kind: 'rumble' },
       { at: .6, kind: 'fissure' },
       { at: 1.15, kind: 'summon', count: 3 },
-      // 'arrive' cria o guardiao aqui, ainda dentro da transicao: ele pousa,
-      // roda a animacao de entrada e so entao o jogo destrava.
       { at: 1.8, kind: 'slam', arrive: true },
+    ],
+  },
+  // A fornalha respira antes de abrir: o chao treme, racha, e o que sai da
+  // racha e a escolta. Sem invocacao propria -- a Caldeira cospe, nao chama.
+  forge: {
+    duration: 2.9,
+    beats: [
+      { at: 0, kind: 'rumble' },
+      { at: .5, kind: 'fissure' },
+      { at: 1.05, kind: 'fissure' },
+      { at: 1.5, kind: 'summon', count: 2 },
+      { at: 1.9, kind: 'slam', arrive: true },
+    ],
+  },
+  // O vazio nao chega: ele se abre. Quase sem tremor, muita invocacao -- o que
+  // assusta na Mare e o numero, nao o barulho.
+  abyss: {
+    duration: 2.9,
+    beats: [
+      { at: 0, kind: 'rumble' },
+      { at: .75, kind: 'summon', count: 2 },
+      { at: 1.3, kind: 'summon', count: 2 },
+      { at: 1.85, kind: 'slam', arrive: true },
+    ],
+  },
+  // As raizes vem primeiro e o corpo depois: duas ondas de fenda antes de
+  // qualquer coisa pisar na arena.
+  garden: {
+    duration: 2.9,
+    beats: [
+      { at: 0, kind: 'fissure' },
+      { at: .55, kind: 'fissure' },
+      { at: 1.1, kind: 'rumble' },
+      { at: 1.45, kind: 'summon', count: 3 },
+      { at: 1.85, kind: 'slam', arrive: true },
+    ],
+  },
+  // O trovao avisa antes de cair. Fenda seca, pausa, e o impacto.
+  storm: {
+    duration: 2.9,
+    beats: [
+      { at: 0, kind: 'fissure' },
+      { at: .7, kind: 'rumble' },
+      { at: 1.2, kind: 'summon', count: 2 },
+      { at: 1.95, kind: 'slam', arrive: true },
+    ],
+  },
+  // O inverno demora. Tremor longo, uma fenda so, e a chegada mais tardia de
+  // todas -- a Coroa tem paciencia.
+  frost: {
+    duration: 2.9,
+    beats: [
+      { at: 0, kind: 'rumble' },
+      { at: .9, kind: 'rumble' },
+      { at: 1.4, kind: 'fissure' },
+      { at: 1.7, kind: 'summon', count: 2 },
+      { at: 2.05, kind: 'slam', arrive: true },
     ],
   },
 };
@@ -33,7 +94,11 @@ export const CAMPAIGN_LENGTH = WORLDS.length * STAGES_PER_WORLD;
 const STAGES = [
   ['O primeiro eco', 15, 13, 'classic', 'Inimigos distraídos. Um campeão fecha a caçada.'],
   ['Pátio esquecido', 15, 13, 'courtyard', 'Praça aberta. O guardião aparece — e não fica.'],
-  ['Campanário partido', 17, 13, 'crossroads', 'A arena se parte quando ele chega. Sem fuga agora.'],
+  // 17x15 e nao 17x13: medido em 2026-09-11, o primeiro duelo era o UNICO da
+  // campanha que quase nao crescia sobre a cacada do proprio mundo -- +26 casas
+  // contra +60 a +102 nos outros cinco. Nao era a arena que era pequena, era o
+  // salto que nao acontecia. E e o primeiro duelo que o jogador conhece.
+  ['Campanário partido', 17, 15, 'crossroads', 'A arena se parte quando ele chega. Sem fuga agora.'],
   ['Boca da fornalha', 17, 13, 'courtyard', 'Lava anunciada no chão. Observe antes de correr.'],
   ['Engrenagens em brasa', 17, 15, 'lanes', 'Besouros blindados e um sentinela de ferro.'],
   ['Trono de escória', 19, 15, 'crossroads', 'Corredores em chamas. Vulkar espera no coração da caldeira.'],
