@@ -17,6 +17,8 @@ import { Game, SKILLS, ROUND_SECONDS } from './game.js';
 import { ArenaScene } from './scene.js';
 import { bossSources } from './boss-sources.js';
 import { particleSources } from './particle-sources.js';
+import { finaleFor } from './finale.js';
+import { criarFinaleFX } from './finale-fx.js';
 import { Sound } from './audio.js';
 import { REFUGE_TRACKS } from './refuge-tracks.js';
 import '@fontsource/silkscreen/latin-400.css';
@@ -171,8 +173,9 @@ function showIntermission() {
   const teaser = nextStage ? `<div class="next-stage" style="--world-color:${nextStage.world.color}"><span class="micro">A PRÓXIMA FENDA</span><strong>${nextStage.name}</strong><small>${nextStage.world.name} · ${nextStage.world.boss} · ${nextStage.description}</small></div>` : '';
   // Cada tipo de fase termina com a sua propria manchete: dizer que o guardiao
   // caiu numa cacada onde ele nunca apareceu seria mentira.
-  const headline = { champion: 'O CAMPEÃO CAIU.', routed: `${game.biome.boss} FUGIU.`, slain: `${game.biome.boss} CAIU.` }[game.result?.outcome] || `${game.biome.boss} CAIU.`;
-  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${headline}</span><h2 id="modal-title">Uma fenda a menos.</h2><p>${game.stage.name}${worldDone ? ` · ${game.biome.name} concluído` : ''}</p>${progress}${legacyResultCard()}${teaser}${lifeShop(game)}<p class="victory-map-note">Skills, relíquias e cristais reiniciam na próxima fase. Vidas extras continuam nesta tentativa.</p><button class="primary-button full-width" data-action="world-map">Continuar no atlas ${icon('ArrowRight')}</button><button class="secondary-button full-width" data-action="home">Voltar ao refúgio</button>`, { closable: false });
+  const cerimonia = finaleFor(game.result?.outcome, game.biome);
+  const headline = cerimonia.manchete;
+  modal('intermission', `<div class="modal-emblem victory">${icon('Trophy')}</div><span class="eyebrow orange">${headline}</span><h2 id="modal-title">${cerimonia.titulo}</h2>${cerimonia.fala ? `<p class="finale-fala">&ldquo;${cerimonia.fala}&rdquo;</p>` : ''}<p>${game.stage.name}${worldDone ? ` · ${game.biome.name} concluído` : ''}</p>${progress}${legacyResultCard()}${teaser}${lifeShop(game)}<p class="victory-map-note">Skills, relíquias e cristais reiniciam na próxima fase. Vidas extras continuam nesta tentativa.</p><button class="primary-button full-width" data-action="world-map">Continuar no atlas ${icon('ArrowRight')}</button><button class="secondary-button full-width" data-action="home">Voltar ao refúgio</button>`, { closable: false });
 }
 function showDead() {
   modal('dead', `<div class="modal-emblem">${icon('Skull')}</div><span class="eyebrow orange">TODA LENDA COMEÇA COM ALGUMAS EXPLOSÕES.</span><h2 id="modal-title">O pavio apagou.<br><span>A faísca continua.</span></h2><p>Sua build ficou na fenda. As essências e as evoluções permanentes vieram com você.</p><div class="results-row"><div><strong>${String(game.round).padStart(2, '0')}</strong><span>RODADA</span></div><div><strong>${game.kills}</strong><span>ABATES</span></div><div><strong>+${game.earnedShards}</strong><span>ESSÊNCIAS</span></div></div><button class="primary-button full-width" data-action="start">Mais uma expedição ${icon('RotateCcw')}</button><button class="secondary-button full-width" data-action="world-map">Voltar ao atlas ${icon('ArrowRight')}</button><button class="text-button" data-action="meta">Investir em evolução permanente ${icon('Sprout')}</button>`, { closable: false });
@@ -234,6 +237,7 @@ function updateHud() {
   $('#pause-button').disabled = !game.active && game.phase !== 'paused'; icons();
 }
 
+let celebracao = null;
 function handleEvents() {
   let venceuFase = false;
   for (const event of game.drainEvents()) {
@@ -269,7 +273,12 @@ function handleEvents() {
     }
     if (event.type === 'nextRound') announce(`RODADA ${game.round} · ${game.biome.name.toUpperCase()}`);
   }
-  if (venceuFase) { claimRun(); showIntermission(); }
+  if (venceuFase) {
+    claimRun();
+    const { espera } = finaleFor(game.result?.outcome, game.biome);
+    clearTimeout(celebracao);
+    celebracao = setTimeout(showIntermission, espera * 1000);
+  }
 }
 
 const actions = {
@@ -390,7 +399,8 @@ function warmAudio() { sound.prefetch(); sound.init(); updateSound(); }
 if (document.readyState === 'complete') (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio);
 else addEventListener('load', () => (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio), { once: true });
 
-try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources, particleSources }); game.drainEvents(); updateHud(); }
+try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources, particleSources });
+  scene.use(criarFinaleFX()); game.drainEvents(); updateHud(); }
 catch (error) { fatal = true; console.error(error); modal('error', `<div class="modal-emblem">${icon('CircleHelp')}</div><h2 id="modal-title">A fenda não conseguiu abrir.</h2><p>Este jogo precisa de WebGL 2. Ative a aceleração de hardware e tente um navegador atualizado, como Chrome ou Edge.</p><p class="small-note">Detalhe: ${String(error.message).replace(/[<>&]/g, '')}</p>`, { closable: false }); }
 
 let lastTime = performance.now(); let accumulator = 0;

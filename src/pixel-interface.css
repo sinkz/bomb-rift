@@ -350,3 +350,12 @@ body.in-atlas #app>main,body.in-atlas #app>.site-header{display:none}
 #atlas .window-heading .difficulty-options{display:flex;gap:8px;margin:0;flex:1;min-width:0;max-width:520px}
 #atlas .window-heading .difficulty-options button{flex:1;min-width:0;padding:7px 10px}
 #atlas .window-heading .difficulty-options button span{display:none}
+
+/* Epitafio do guardiao na tela de fase concluida: fala do mundo, nao do sistema. */
+.modal .finale-fala {
+  margin: 2px 0 0;
+  font-style: italic;
+  color: var(--muted, #a294b4);
+  font-size: .95em;
+  text-wrap: balance;
+}
