@@ -235,11 +235,14 @@ function updateHud() {
 }
 
 function handleEvents() {
+  let venceuFase = false;
   for (const event of game.drainEvents()) {
     scene?.handle(event); hud.handle(event); sound.play(event.type);
     if (event.type === 'upgrade') showUpgrade();
     if (event.type === 'skill') { closeModal(); updateBuild(); }
-    if (event.type === 'bossDefeated') { claimRun(); showIntermission(); }
+    // Marca e resolve depois do laco: assim o VFX da morte e a fala do finale
+    // chegam na cena antes de o modal cobrir a arena.
+    if (event.type === 'stageCleared') venceuFase = true;
     if (event.type === 'miniboss') announce('SENTINELA DA FENDA · RELÍQUIA GARANTIDA', 'danger');
     // Os tres momentos narrativos do novo ritmo de campanha.
     if (event.type === 'champion') hud.cinematic('O CAMPEÃO DESPERTA', 'Derrote-o para atravessar a fenda.', { color: '#ffb05a', hold: 2200 });
@@ -266,6 +269,7 @@ function handleEvents() {
     }
     if (event.type === 'nextRound') announce(`RODADA ${game.round} · ${game.biome.name.toUpperCase()}`);
   }
+  if (venceuFase) { claimRun(); showIntermission(); }
 }
 
 const actions = {

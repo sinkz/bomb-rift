@@ -157,3 +157,24 @@ test('perseguicao e cacada nao ganham entrada cinematica', () => {
   assert.equal(chase.phase, 'boss');
   assert(chase.boss, 'a perseguicao deve trazer o guardiao na hora');
 });
+
+// Regressao: quando clearStage foi extraido de defeatBoss para atender aos tres
+// tipos de fase, so 'bossDefeated' continuou abrindo a tela de fase concluida.
+// Cacada e perseguicao venciam e travavam sem UI -- 12 das 18 fases.
+test('os tres desfeitos de vitoria anunciam stageCleared exatamente uma vez', () => {
+  const casos = [
+    ['hunt', 1, g => { g.spawnChampion(); const c = g.champion; c.hp = 0; g.defeatChampion(c); }],
+    ['chase', 2, g => { g.spawnBoss(); g.damageEnemy(g.boss, 1e6); tick(g, 4); }],
+    ['duel', 3, g => { g.spawnBoss(); tick(g, 6); g.boss.hp = 0; g.defeatBoss(g.boss); }],
+  ];
+  for (const [kind, stage, vencer] of casos) {
+    const g = game(stage);
+    assert.equal(g.stage.kind, kind);
+    g.drainEvents();
+    vencer(g);
+    const limpou = g.drainEvents().filter(e => e.type === 'stageCleared');
+    assert.equal(limpou.length, 1, `${kind} devia anunciar stageCleared uma vez, anunciou ${limpou.length}`);
+    assert.equal(g.phase, 'intermission', `${kind} devia terminar em intermission`);
+    assert.equal(g.result.victory, true);
+  }
+});

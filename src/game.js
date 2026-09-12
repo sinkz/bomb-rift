@@ -618,6 +618,9 @@ export class Game {
     this.materials.cores++;
     this.result = { victory: true, stage: this.round, shards: this.earnedShards, outcome };
     this.phase = 'intermission'; this.anchors = []; this.warnings = []; this.flames = []; this.bombs = []; this.echoes = [];
+    // Unico anuncio de fase vencida. Antes so 'bossDefeated' abria a tela, entao
+    // cacada e perseguicao terminavam sem nada: 12 das 18 fases travavam aqui.
+    this.emit('stageCleared', { outcome });
   }
   defeatBoss() {
     if (!this.boss || !this.active) return;
