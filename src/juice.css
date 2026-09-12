@@ -51,3 +51,56 @@
 @media(max-width:1190px){.launch-content{grid-template-columns:minmax(320px,1fr) minmax(280px,1fr);gap:30px}.launch-ranking{grid-column:1/-1;display:grid;grid-template-columns:1fr 1.2fr;gap:0 40px;padding:20px 0}.ranking-heading{margin-bottom:10px}.launch-ranking .ranking-note{grid-column:1}.launch-ranking .launch-tip{grid-column:2;grid-row:1/span 4;margin:0;border:0;padding:0}.launch-content{min-height:auto}.launch-guardian{min-height:565px}.launch h1{font-size:94px}.launch-footer>span:last-child{display:none}}
 @media(max-width:650px){.launch{padding:0 20px}.launch-header{height:68px}.launch-edition{font-size:7px;letter-spacing:1px;gap:6px}.launch-edition svg{width:19px}.launch-edition i{display:none}.launch-header>div{gap:3px}.launch-header button{padding:7px}.launch-header button:first-child{font-size:0;gap:0}.launch-header button:last-child{display:none}.launch-content{display:flex;flex-direction:column;align-items:stretch;padding:28px 0;gap:20px}.launch-story{position:relative;z-index:2}.launch-kicker{font-size:7px;letter-spacing:1.5px;margin-bottom:18px}.launch h1{font-size:78px}.launch h1 i{font-size:29px}.launch-tagline{font-size:22px;margin-top:27px}.launch-description{font-size:12px;max-width:270px;margin-bottom:24px}.launch-play{padding:17px 12px}.launch-play>span{font-size:10px}.launch-play kbd{font-size:7px}.launch-record{margin-top:23px}.launch-record strong{font-size:12px}.launch-guardian{min-height:440px;overflow:hidden}.launch-boss{height:285px;width:100%;margin-top:-4px}.launch-boss-caption h2{font-size:34px}.launch-faisca{display:none}.launch-ranking{display:block;padding-top:20px;margin-top:8px}.launch-ranking .launch-tip{margin-top:24px;padding-top:15px;border-top:1px solid #bda2c21f}.launch-footer{flex-wrap:wrap;gap:8px;padding:14px 0;font-size:7px;min-height:85px}.launch-footer button{font-size:7px}.ranking-empty p{font-size:12px}}
 @media(max-width:430px){.atlas-header{gap:8px}.atlas-brand{font-size:18px}.atlas-brand>span{display:none}.atlas-header-tools{gap:4px}.atlas-header-tools button:first-child{display:flex}}
+/* Tinta do bioma nas bordas da arena: reforça a identidade do mundo sem cobrir o tabuleiro. */
+#scene{--biome-tint:#bfa2ff}
+#scene:after{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;mix-blend-mode:screen;opacity:.5;background:radial-gradient(ellipse 72% 62% at 50% 48%,transparent 58%,color-mix(in srgb,var(--biome-tint) 22%,transparent) 100%)}
+.reduced-motion #scene:after{opacity:.3}
+
+/* ── Momento narrativo ───────────────────────────────────────────────────────
+   Centro da tela, palavra por palavra. Interrompe a leitura de proposito, entao
+   fica reservado a viradas: o guardiao fugindo, a arena mudando, o ato final.
+   Nao captura ponteiro: o jogo continua jogavel por baixo. */
+.cinematic{position:absolute;inset:0;z-index:6;display:grid;place-content:center;justify-items:center;gap:10px;
+  pointer-events:none;opacity:0;text-align:center;padding:0 24px;
+  background:radial-gradient(ellipse at center,color-mix(in srgb,var(--cinematic-color,#ffd39b) 9%,transparent),transparent 62%)}
+.cinematic.visible{opacity:1}
+.cinematic strong{display:block;font:600 clamp(26px,4.6vw,62px)/1.05 var(--pixel,Oxanium);letter-spacing:2px;
+  color:#fff5e2;text-shadow:0 4px 0 #120d1a,0 0 34px color-mix(in srgb,var(--cinematic-color,#ffd39b) 60%,transparent)}
+.cinematic strong i{display:inline-block;font-style:normal;opacity:0}
+.cinematic.visible strong i{animation:cinematic-word .5s cubic-bezier(.2,.9,.2,1) both;animation-delay:calc(var(--step) * .07s)}
+.cinematic small{display:block;font:500 clamp(11px,1.3vw,16px)/1.5 var(--body,'DM Sans');letter-spacing:1px;
+  color:color-mix(in srgb,var(--cinematic-color,#ffd39b) 85%,#fff);max-width:34ch;opacity:0;
+  padding:5px 14px;background:#0d0a14cc;border:1px solid color-mix(in srgb,var(--cinematic-color,#ffd39b) 30%,transparent);
+  text-shadow:0 1px 3px #000}
+.cinematic.visible small{animation:cinematic-sub .6s ease-out .34s both}
+.cinematic::before{content:"";position:absolute;left:50%;top:50%;width:min(74vw,860px);height:2px;transform:translate(-50%,-50%) scaleX(0);
+  background:linear-gradient(90deg,transparent,var(--cinematic-color,#ffd39b),transparent);opacity:.75}
+.cinematic.visible::before{animation:cinematic-rule .7s cubic-bezier(.2,.9,.2,1) both}
+/* A fuga puxa para tras; o duelo empurra para frente. */
+.cinematic.flee strong{text-shadow:0 4px 0 #120d1a,0 0 44px color-mix(in srgb,var(--cinematic-color) 75%,transparent)}
+.cinematic.flee.visible strong i{animation-name:cinematic-flee}
+.cinematic.duel.visible strong i{animation-name:cinematic-duel}
+@keyframes cinematic-word{from{opacity:0;transform:translateY(16px) scale(.92)}to{opacity:1;transform:none}}
+@keyframes cinematic-flee{from{opacity:0;transform:translateY(-10px) scale(1.12);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}
+@keyframes cinematic-duel{from{opacity:0;transform:translateY(26px) scale(1.3)}60%{opacity:1;transform:translateY(-3px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes cinematic-sub{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes cinematic-rule{from{transform:translate(-50%,-50%) scaleX(0)}to{transform:translate(-50%,-50%) scaleX(1)}}
+/* Sem movimento: o texto aparece, mas nao se move nem borra. */
+.reduced-motion .cinematic.visible strong i,.reduced-motion .cinematic.visible small,.reduced-motion .cinematic.visible::before{animation:cinematic-still .2s both}
+@keyframes cinematic-still{from{opacity:0}to{opacity:1;transform:translate(-50%,-50%) scaleX(1)}}
+.reduced-motion .cinematic.visible strong i,.reduced-motion .cinematic.visible small{transform:none}
+
+/* A queda do guardiao: o letreiro mais pesado do jogo. O nome cai em vez de
+   subir, o epitafio entra depois, e o eco -- a promessa dos outros guardioes --
+   fecha por ultimo, com a cor do mundo. */
+.cinematic.queda strong{letter-spacing:.06em}
+.cinematic.queda.visible strong i{animation:cinematic-queda .62s cubic-bezier(.16,.8,.24,1) both;animation-delay:calc(var(--step) * .09s)}
+.cinematic-eco{display:block;margin-top:.55em;font:400 clamp(10px,1.5vw,13px)/1.5 var(--pixel,monospace);
+  letter-spacing:.22em;color:var(--cinematic-color,#ffd39b);opacity:.9;text-transform:uppercase}
+.cinematic.visible .cinematic-eco{animation:cinematic-eco .8s ease-out .95s both}
+@keyframes cinematic-queda{from{opacity:0;transform:translateY(-26px) scale(1.12);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+@keyframes cinematic-eco{from{opacity:0;letter-spacing:.5em}to{opacity:.9;letter-spacing:.22em}}
+@media (prefers-reduced-motion:reduce){
+  .cinematic.queda.visible strong i{animation:none}
+  .cinematic.visible .cinematic-eco{animation:none}
+}

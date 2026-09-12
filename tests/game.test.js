@@ -64,18 +64,32 @@ test('the opening has a smaller, slower horde and longer boss telegraphs than la
   const late = new Game({ random: seededRandom(42), meta: { unlockedStage: 9 } }); late.start(9);
   assert.equal(early.enemies.length, 2); assert(early.enemies.length < late.enemies.length);
   assert(early.spawnInterval > late.spawnInterval); assert(early.enemyLimit < late.enemyLimit);
-  early.spawnBoss(); late.spawnBoss(); early.bossAttack(); late.bossAttack();
-  assert(early.warnings[0].timer > late.warnings[0].timer);
-  assert.equal(early.drainEvents().find(e => e.type === 'warning').duration, early.warnings[0].timer);
+  // Guardiao direto nos dois lados: createBoss pula a transformacao, que tem teste proprio.
+  const earlyBoss = new Game({ random: seededRandom(42), meta: { unlockedStage: 9 } }); earlyBoss.start(3);
+  earlyBoss.phase = 'boss'; earlyBoss.createBoss(); late.phase = 'boss'; late.createBoss();
+  earlyBoss.bossAttack(); late.bossAttack();
+  assert(earlyBoss.warnings[0].timer > late.warnings[0].timer);
+  assert.equal(earlyBoss.drainEvents().find(e => e.type === 'warning').duration, earlyBoss.warnings[0].timer);
+  early.spawnBoss(); late.bossAttack();
 });
 test('dash stops at walls and requires cooldown', () => {
   const g = arena(); g.player.facing = [1, 0]; g.grid[1][4] = 1;
   assert(g.dash()); assert.equal(g.player.x, 3); assert(!g.dash()); assert(g.player.invincible > 0);
 });
-test('boss appears at exactly 120 seconds, never earlier, and suspends the survival timer', () => {
-  const g = arena(); g.tick(119.99); assert.equal(g.boss, null); assert.equal(g.phase, 'playing');
-  g.tick(.01); assert.equal(g.phase, 'boss'); assert(g.boss); assert.equal(g.elapsed, ROUND_SECONDS);
-  const maxHp = g.boss.maxHp; advance(g, .5); assert.equal(g.boss.maxHp, maxHp); assert.equal(g.elapsed, 120);
+test('the finale appears at exactly 120 seconds, never earlier, and suspends the survival timer', () => {
+  // Cacada: o campeao fecha a fase. Nascer aos 60s quebraria o piso de 120
+  // segundos que o servidor exige em toda vitoria.
+  const g = arena(); assert.equal(g.stage.kind, 'hunt');
+  g.tick(119.99); assert.equal(g.finale, null); assert.equal(g.phase, 'playing');
+  g.tick(.01); assert.equal(g.phase, 'boss'); assert(g.champion); assert.equal(g.elapsed, ROUND_SECONDS);
+  const maxHp = g.finale.maxHp; advance(g, .5); assert.equal(g.finale.maxHp, maxHp); assert.equal(g.elapsed, 120);
+  // Duelo: a arena se transforma antes, e so entao o guardiao entra.
+  const duel = new Game({ random: seededRandom(42), meta: { unlockedStage: 9 } }); duel.start(3);
+  duel.enemies = []; duel.spawnClock = Infinity;
+  duel.tick(119.99); assert.equal(duel.boss, null);
+  duel.tick(.01); assert.equal(duel.phase, 'transition', 'o duelo passa pela transformacao da arena');
+  while (duel.phase === 'transition') duel.tick(1 / 60);
+  assert.equal(duel.phase, 'boss'); assert(duel.boss);
 });
 test('boss victory unlocks a fresh stage and resets temporary build', () => {
   const g = arena(); g.player.damage = 8; g.skillLevels.power = 6; g.spawnBoss(); g.defeatBoss();
@@ -186,10 +200,54 @@ test('boss enrages once at half health without adding reinforcements', () => {
   g.tick(.01); assert.equal(g.enemies.length, 0);
   assert.equal(g.drainEvents().filter(e => e.type === 'bossEnraged').length, 1);
 });
-test('boss alternates targeted ground attacks and a cross blocked by stone', () => {
-  const g = arena(); g.spawnBoss(); g.bossAttack();
-  assert(g.warnings[0].cells.some(c => c.x === g.player.x && c.z === g.player.z));
-  const {x,z}=g.boss;g.player.x=x;g.player.z=z+2;g.grid[z][x+1] = 1; g.bossAttack();
-  assert(g.warnings[1].cells.some(c => c.x === x && c.z === z));
-  assert(!g.warnings[1].cells.some(c => c.x > x));
+// The old boss alternated two patterns with attackIndex % 2. It now draws from a
+// per-guardian repertoire, so the contract is "never the same pattern twice in a
+// row" instead of a fixed alternation; the cross still stops at stone.
+test('boss draws patterns without repeating and keeps the cross blocked by stone', () => {
+  const g = arena(); g.spawnBoss(); const ids = [];
+  for (let i = 0; i < 10; i++) { g.warnings = []; const chosen = g.bossAttack(); if (chosen) ids.push(chosen.id); }
+  assert(ids.length >= 6); assert(new Set(ids).size > 1);
+  assert(ids.every((id, i) => !i || id !== ids[i - 1]), `repeated a pattern: ${ids.join(',')}`);
+  const h = arena(); h.spawnBoss(); const b = h.boss, {x,z} = b;
+  h.player.x = x; h.player.z = z + 2; h.grid[z][x+1] = 1; b.lastMove = 'toque'; h.warnings = [];
+  assert.equal(h.bossAttack().id, 'cruz');
+  const cells = h.warnings.at(-1).cells;
+  assert(cells.some(c => c.x === x && c.z === z));
+  assert(!cells.some(c => c.x > x));
+});
+
+// Relatado jogando: "acabaram as caixas e eu tive que esperar 40 segundos
+// matando monstros fracos demais". O mapa acabar passa a ter consequencia.
+test('limpar o mapa faz a fenda responder, uma vez so e com os inimigos duros', () => {
+  const g = new Game({ random: seededRandom(9), meta: { unlockedStage: 18 } });
+  assert(g.start(1));
+  g.player.invincible = 999;
+  g.enemies = []; g.spawnClock = Infinity; g.hazardClock = Infinity;
+  g.elapsed = 30;
+  assert(g.cratesTotal > 0, 'a arena nasceu sem caixas');
+
+  // Ainda ha caixas: nada acontece.
+  g.drainEvents();
+  g.checkArenaCleared();
+  assert.equal(g.surge, false);
+  assert.deepEqual(g.drainEvents().filter(e => e.type === 'arenaCleared'), []);
+
+  // Limpa o mapa por baixo dos panos e deixa a fenda notar.
+  g.cratesBroken = g.cratesTotal;
+  assert.equal(g.cratesLeft, 0);
+  g.checkArenaCleared();
+
+  const anuncio = g.drainEvents().filter(e => e.type === 'arenaCleared');
+  assert.equal(anuncio.length, 1, 'a fenda devia responder uma vez');
+  assert(anuncio[0].count > 0, 'a fenda nao mandou ninguem');
+  assert.equal(g.enemies.length, anuncio[0].count);
+  // Os duros do bioma, nao o slime de sempre.
+  const duros = [...new Set(g.biome.enemies)];
+  assert.equal(anuncio[0].enemy, duros[duros.length - 1]);
+  // E o ritmo aperta depois disso.
+  assert(g.surge, 'o surto nao ficou marcado');
+
+  // Nunca duas vezes.
+  g.checkArenaCleared();
+  assert.deepEqual(g.drainEvents().filter(e => e.type === 'arenaCleared'), []);
 });

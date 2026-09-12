@@ -13,17 +13,31 @@ export class Sound {
     } catch { /* Defaults also work when storage is disabled. */ }
   }
   save() { try { localStorage.setItem('bomb-rift-audio-v1', JSON.stringify({ effects: this.enabled, music: this.musicEnabled, volume: this.volume, refugeTrack: this.refugeTrack })); } catch {} }
-  init() {
-    if (!this.ctx) {
-      const Context = window.AudioContext || window.webkitAudioContext; if (!Context) return;
-      this.ctx = new Context();
-      const limiter = this.ctx.createDynamicsCompressor(); limiter.threshold.value = -8; limiter.ratio.value = 8; limiter.connect(this.ctx.destination);
-      this.master = this.ctx.createGain(); this.master.gain.value = .19; this.master.connect(limiter);
-      this.music = new Music(this.ctx, limiter);
-      if(this.refugeTracks.length){this.recorded=new RecordedMusic(this.ctx,limiter,this.refugeTracks);this.recorded.select(this.refugeTrack);}
-    }
-    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+  // Building the graph and resuming it are separate steps: a suspended context can
+  // already fetch and decode, so the refuge track is ready the instant autoplay is allowed.
+  prepare() {
+    if (this.ctx) return this.ctx;
+    const Context = window.AudioContext || window.webkitAudioContext; if (!Context) return null;
+    this.ctx = new Context();
+    const limiter = this.ctx.createDynamicsCompressor(); limiter.threshold.value = -8; limiter.ratio.value = 8; limiter.connect(this.ctx.destination);
+    this.master = this.ctx.createGain(); this.master.gain.value = .19; this.master.connect(limiter);
+    this.music = new Music(this.ctx, limiter);
+    if(this.refugeTracks.length){this.recorded=new RecordedMusic(this.ctx,limiter,this.refugeTracks);this.recorded.select(this.refugeTrack);}
+    // Keep the resumed state honest for the launch screen label.
+    this.ctx.addEventListener?.('statechange', () => { this.running = this.ctx.state === 'running'; });
+    return this.ctx;
   }
+  // Decode ahead of the first gesture so the refuge does not open in silence for
+  // the seconds it takes to download and decode a three-megabyte master.
+  prefetch() { this.prepare(); if (this.musicEnabled && this.refugeTrack) this.recorded?.load(); }
+  init() {
+    this.prepare();
+    if (!this.ctx) return;
+    this.prefetch();
+    if (this.ctx.state === 'suspended') this.ctx.resume().then(() => { this.running = true; }).catch(() => {});
+    else this.running = this.ctx.state === 'running';
+  }
+  get ready() { return this.ctx?.state === 'running'; }
   play(name) {
     if (!this.enabled || this.muted || !this.ctx || this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
@@ -46,6 +60,24 @@ export class Sound {
     notes.arenaShift = [90, 42, .55, 'triangle'];
     notes.bossImpact = [95, 32, .32, 'triangle'];
     notes.wardReady = [420, 680, .16, 'sine'];
+    // Guardian acts: the signature wind-up and the desperation turn have to be
+    // audible even when the player is reading the floor instead of the health bar.
+    notes.bossSignature = [70, 210, 1.2, 'sawtooth'];
+    notes.bossDesperation = [180, 38, 1.4, 'sawtooth'];
+    notes.bossDash = [300, 85, .28, 'square'];
+    notes.bossDodge = [430, 640, .14, 'sine'];
+    notes.arenaRite = [150, 520, .9, 'triangle'];
+    // Ritmo novo da campanha: campeao, fuga e a arena se partindo.
+    notes.champion = [140, 300, .9, 'sawtooth'];
+    notes.bossFlee = [420, 70, 1.1, 'sine'];
+    notes.arenaReshape = [70, 190, 1.5, 'triangle'];
+    notes.arenaCleared = [64, 168, 1.1, 'sawtooth'];
+    // Entrada do guardiao: um grave que cresce e quatro batidas por cima.
+    notes.bossEntrance = [92, 54, 2.2, 'sine'];
+    notes.entranceRumble = [46, 32, 1.9, 'triangle'];
+    notes.entranceFissure = [190, 58, .95, 'sawtooth'];
+    notes.entranceSummon = [280, 640, .5, 'square'];
+    notes.entranceSlam = [150, 26, .75, 'triangle'];
     if (name === 'explosion' || name === 'enemyExplosion') {
       const length = this.ctx.sampleRate * .35, buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate), data = buffer.getChannelData(0);
       for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 2;

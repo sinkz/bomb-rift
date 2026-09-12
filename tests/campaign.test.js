@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, seededRandom } from '../src/game.js';
 import { stageFor, RELICS, CAMPAIGN_LENGTH } from '../src/campaign.js';
+import * as campanha from '../src/campaign.js';
 
 const game = (stage = 1, seed = 42) => {
   const g = new Game({ random: seededRandom(seed), meta: { unlockedStage: stage, health: 2, power: 1, shards: 7 } });
@@ -69,10 +70,20 @@ test('relic collection equips without corrupting numeric currency and avoids dup
   const g=game();g.addPickup(1,1,'relic','magnet');g.collect();assert(g.relics.includes('magnet'));assert.equal(g.crystals,0);assert.equal(g.xp,0);assert.equal(g.player.magnet,3.25);
   for(const r of RELICS) g.equipRelic(r.id);g.dropRelic(1,1);assert.equal(g.pickups[0].type,'crystal');
 });
-test('miniboss spawns once at 60s, drops a relic and grants bonus essence', () => {
-  const g=game(2);g.elapsed=59.98;g.tick(.01);assert(!g.enemies.some(e=>e.type==='sentinel'));g.tick(.02);
-  const mini=g.enemies.find(e=>e.type==='sentinel');assert(mini);assert(g.miniSpawned);g.tick(.1);assert.equal(g.enemies.filter(e=>e.type==='sentinel').length,1);
-  g.applyFlame({cells:[{x:mini.x,z:mini.z}],damage:999,hit:new Set()});assert(g.pickups.some(p=>p.type==='relic'));assert.equal(g.earnedShards,3);
+test('the champion closes a hunt stage at 120s, drops a relic and never appears elsewhere', () => {
+  // Cacada: nada aos 60s. O campeao nasce aos 120s, no lugar do guardiao.
+  const g=game(1);assert.equal(g.stage.kind,'hunt');
+  g.elapsed=59.98;g.tick(.05);assert(!g.enemies.some(e=>e.type==='sentinel'),'nao ha sentinela aos 60s');
+  g.elapsed=119.98;g.tick(.05);
+  const champ=g.champion;assert(champ,'o campeao fecha a cacada');assert.equal(g.phase,'boss');
+  assert(champ.maxHp>12,'o campeao e mais duro que um sentinela comum');
+  g.tick(.1);assert.equal(g.enemies.filter(e=>e.type==='sentinel').length,1,'so um campeao por fase');
+  g.applyFlame({cells:[{x:champ.x,z:champ.z}],damage:9999,hit:new Set()});
+  assert(g.pickups.some(p=>p.type==='relic'));assert(g.earnedShards>=3);
+  assert.equal(g.phase,'intermission');assert.equal(g.result.outcome,'champion');assert.equal(g.bosses,0);
+  // Perseguicao e duelo nao tem campeao nenhum.
+  for(const stage of [2,3]){const other=game(stage);other.elapsed=119.98;other.tick(.05);
+    assert.equal(other.champion,null,`a fase ${stage} nao tem campeao`);}
 });
 test('world hazards are announced, bounded, pause-safe and distinct', () => {
   const g=game(4);g.environmentAttack();assert(g.warnings.length);const warning=g.warnings[0];assert.equal(warning.timer,1.65);assert(warning.cells.every(c=>g.tile(c.x,c.z)===0));
@@ -84,4 +95,137 @@ test('wisp telegraphs a ranged attack without needing an open charge lane', () =
   const g=game(7);g.player.x=3;g.player.z=3;g.grid[3][3]=0;
   const w={id:999,type:'wisp',x:7,z:3,hp:5,maxHp:5,cooldown:5,castCooldown:0,hitFlash:0};g.enemies=[w];g.tick(.01);
   assert.equal(w.intent,'cast');assert(g.warnings.some(w=>w.cells.some(c=>c.x===3&&c.z===3)));assert(g.drainEvents().some(e=>e.type==='enemyCast'));
+});
+
+// A entrada cinematica do primeiro guardiao. So o duelo tem, e so em 'ruins':
+// e um teste de ritmo antes de espalhar a coreografia para os seis mundos.
+test('a entrada do primeiro guardiao congela a arena, invoca escolta e so entao cria o chefe', () => {
+  const g = game(3);
+  assert.equal(g.stage.kind, 'duel');
+  assert.equal(g.biome.id, 'ruins');
+
+  g.spawnBoss();
+  // Primeiro a arena se parte; o chefe ainda nao existe.
+  assert.equal(g.phase, 'transition');
+  assert.equal(g.transition.kind, 'duel');
+  assert.equal(g.boss, null);
+
+  tick(g, 1.7);
+  // Terminada a remodelagem, encadeia na entrada em vez de criar o chefe.
+  assert.equal(g.phase, 'transition');
+  assert.equal(g.transition.kind, 'entrance');
+  assert.equal(g.boss, null);
+
+  const batidas = [];
+  const hpInicial = g.player.hp;
+  let bossNoPouso = null, congeladoNoPouso = null;
+  for (let i = 0; i < 5 * 60 && g.phase === 'transition'; i++) {
+    g.tick(1 / 60);
+    for (const event of g.drainEvents()) {
+      if (event.type !== 'bossEntranceBeat') continue;
+      batidas.push(event);
+      // O guardiao tem de chegar NA batida do pouso, nao no fim da transicao:
+      // e o que lhe da tempo de tela para rodar a animacao de entrada.
+      if (event.kind === 'slam') { bossNoPouso = !!g.boss; congeladoNoPouso = g.phase; }
+    }
+  }
+  assert.equal(bossNoPouso, true, 'o guardiao devia chegar na batida do pouso');
+  assert.equal(congeladoNoPouso, 'transition', 'o jogo devia seguir congelado quando ele pousa');
+
+  assert.deepEqual(batidas.map(b => b.kind), ['rumble', 'fissure', 'summon', 'slam']);
+  // I2 vale de graca aqui: o jogo nao simula nada durante a transicao.
+  assert.equal(g.player.hp, hpInicial);
+
+  const escolta = batidas.find(b => b.kind === 'summon').escort;
+  assert.equal(escolta.length, 3);
+  for (const unit of escolta) {
+    assert(g.walkable(unit.x, unit.z), 'escolta nasceu em parede');
+    assert(Math.abs(unit.x - g.player.x) + Math.abs(unit.z - g.player.z) > 5, 'escolta nasceu perto demais do jogador');
+  }
+  assert.equal(new Set(escolta.map(u => `${u.x},${u.z}`)).size, 3, 'escolta empilhada na mesma casa');
+
+  assert.equal(g.phase, 'boss');
+  assert(g.boss, 'o guardiao nao chegou ao fim da entrada');
+  // Orcamento de abertura: 1,6 de remodelagem + 2,9 de entrada + 0,5 de tregua.
+  assert.equal(g.boss.entranceTimer, .5);
+  assert.deepEqual({ x: g.boss.x, z: g.boss.z }, g.bossSeat);
+});
+
+test('perseguicao e cacada nao ganham entrada cinematica', () => {
+  const chase = game(2);
+  assert.equal(chase.stage.kind, 'chase');
+  chase.spawnBoss();
+  assert.equal(chase.phase, 'boss');
+  assert(chase.boss, 'a perseguicao deve trazer o guardiao na hora');
+});
+
+// Regressao: quando clearStage foi extraido de defeatBoss para atender aos tres
+// tipos de fase, so 'bossDefeated' continuou abrindo a tela de fase concluida.
+// Cacada e perseguicao venciam e travavam sem UI -- 12 das 18 fases.
+test('os tres desfeitos de vitoria anunciam stageCleared exatamente uma vez', () => {
+  const casos = [
+    ['hunt', 1, g => { g.spawnChampion(); const c = g.champion; c.hp = 0; g.defeatChampion(c); }],
+    ['chase', 2, g => { g.spawnBoss(); g.damageEnemy(g.boss, 1e6); tick(g, 4); }],
+    ['duel', 3, g => { g.spawnBoss(); tick(g, 6); g.boss.hp = 0; g.defeatBoss(g.boss); }],
+  ];
+  for (const [kind, stage, vencer] of casos) {
+    const g = game(stage);
+    assert.equal(g.stage.kind, kind);
+    g.drainEvents();
+    vencer(g);
+    const limpou = g.drainEvents().filter(e => e.type === 'stageCleared');
+    assert.equal(limpou.length, 1, `${kind} devia anunciar stageCleared uma vez, anunciou ${limpou.length}`);
+    assert.equal(g.phase, 'intermission', `${kind} devia terminar em intermission`);
+    assert.equal(g.result.victory, true);
+  }
+});
+
+// As seis coreografias de entrada. O ritmo foi medido e aprovado no MORTHOS,
+// entao o orcamento e o mesmo em todos; o que varia e a voz do mundo.
+test('todo guardiao tem entrada, e todas cabem no orcamento aprovado', () => {
+  const { BOSS_ENTRANCES, WORLDS, entranceFor } = campanha;
+  for (const mundo of WORLDS) {
+    const entrada = entranceFor(mundo);
+    assert(entrada, `${mundo.id} sem entrada`);
+    assert.equal(entrada.duration, 2.9, `${mundo.id} fugiu do orcamento de 2,9s`);
+
+    const batidas = entrada.beats;
+    assert(batidas.length >= 4, `${mundo.id} tem so ${batidas.length} batidas`);
+    // Em ordem crescente, e nenhuma depois do fim.
+    for (let i = 1; i < batidas.length; i++) {
+      assert(batidas[i].at > batidas[i - 1].at, `${mundo.id}: batidas fora de ordem`);
+    }
+    assert(batidas.at(-1).at < entrada.duration, `${mundo.id}: batida depois do fim da transicao`);
+
+    // Exatamente uma batida traz o guardiao, e e a ultima.
+    const chegadas = batidas.filter(b => b.arrive);
+    assert.equal(chegadas.length, 1, `${mundo.id} tem ${chegadas.length} chegadas`);
+    assert.equal(chegadas[0], batidas.at(-1), `${mundo.id}: a chegada nao e a ultima batida`);
+    assert.equal(chegadas[0].kind, 'slam', `${mundo.id}: a chegada devia ser um pouso`);
+
+    // O guardiao precisa de tempo de tela depois de pousar, senao a animacao de
+    // entrada nao aparece e voltamos ao problema que a cerimonia resolveu.
+    assert(entrada.duration - chegadas[0].at >= .8, `${mundo.id}: so ${(entrada.duration - chegadas[0].at).toFixed(2)}s depois do pouso`);
+
+    for (const b of batidas) assert(['rumble', 'fissure', 'summon', 'slam'].includes(b.kind), `${mundo.id}: batida desconhecida ${b.kind}`);
+  }
+  assert.equal(Object.keys(BOSS_ENTRANCES).length, WORLDS.length);
+});
+
+// O duelo tem de ser a maior arena do proprio mundo, com folga sentida. Sem
+// isso a luta que deveria ser o apice acontece num quintal do tamanho do da
+// cacada -- que era exatamente o caso do mundo 1 ate 2026-09-11.
+test('todo duelo abre espaco de verdade sobre a cacada do proprio mundo', () => {
+  const { stageFor, STAGES_PER_WORLD } = campanha;
+  const livres = s => (s.width - 2) * (s.height - 2);
+  for (let mundo = 0; mundo < 6; mundo++) {
+    const cacada = stageFor(mundo * STAGES_PER_WORLD + 1);
+    const perseguicao = stageFor(mundo * STAGES_PER_WORLD + 2);
+    const duelo = stageFor(mundo * STAGES_PER_WORLD + 3);
+    assert.equal(cacada.kind, 'hunt');
+    assert.equal(duelo.kind, 'duel');
+    const salto = livres(duelo) - livres(cacada);
+    assert(salto >= 55, `mundo ${mundo + 1}: o duelo cresce so ${salto} casas sobre a cacada`);
+    assert(livres(duelo) > livres(perseguicao), `mundo ${mundo + 1}: o duelo nao e a maior arena do mundo`);
+  }
 });
