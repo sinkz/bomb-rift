@@ -359,3 +359,7 @@ body.in-atlas #app>main,body.in-atlas #app>.site-header{display:none}
   font-size: .95em;
   text-wrap: balance;
 }
+
+/* Protegido: a plaqueta acende, mas o nome continua sendo o nome. Trocar
+   "VOCÊ" por "PROTEGIDO" fazia a identidade sumir na hora de apanhar. */
+.player-tag.protegido #player-tag-name { color: #ffe6b0; text-shadow: 0 0 8px rgba(255,214,140,.7); }

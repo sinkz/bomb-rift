@@ -120,7 +120,7 @@ export function toqueDoGuardiao(game, boss, dt) {
   const alcanca = dist === 0 || (dist === 1 && (boss.phase || 1) >= regra.toque);
   if (!alcanca) return false;
   boss.touchCooldown = 1.5;
-  game.hurt(dist === 0 ? 24 : 14);
+  game.hurt(dist === 0 ? 24 : 14, { de: { x: boss.x, z: boss.z, tipo: 'boss' } });
   game.emit('bossTouch', { id: boss.id, x: game.player.x, z: game.player.z, color: game.biome.color });
   return true;
 }

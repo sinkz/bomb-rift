@@ -164,7 +164,9 @@ export class GameHud {
     if (this.game.phase === 'menu') return;
     const p = scene.projectPlayer(); const tag = this.el['player-tag'];
     tag.style.transform = `translate(${p.x}px,${p.y}px) translate(-50%,-100%)`;
-    setText(this.el['player-tag-name'], this.game.player.invincible > .1 ? '✦ PROTEGIDO' : 'VOCÊ');
+    const protegido = this.game.player.invincible > .1;
+    setText(this.el['player-tag-name'], protegido ? 'VOCÊ ✦' : 'VOCÊ');
+    this.el['player-tag']?.classList.toggle('protegido', protegido);
     const cast = this.game.warnings.find(w => w.duration);
     document.querySelector('#boss-cast-fill').style.width = cast ? `${(1 - cast.timer / cast.duration) * 100}%` : '0%';
     this.bossBar.classList.toggle('casting', !!cast);

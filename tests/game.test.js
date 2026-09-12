@@ -251,3 +251,56 @@ test('limpar o mapa faz a fenda responder, uma vez so e com os inimigos duros', 
   g.checkArenaCleared();
   assert.deepEqual(g.drainEvents().filter(e => e.type === 'arenaCleared'), []);
 });
+
+// Medido duas vezes por caminhos diferentes -- playtest de olhos frescos e
+// medicao minha -- e sempre a mesma conclusao: a fase era uma reta. O teto ia
+// de 5 a 7 em dois minutos e o spawn de 11s para 9,7s, entao a pressao no
+// minuto 2 era a mesma do minuto 1.
+test('a mare de inimigos sobe ate o finale em vez de ser uma reta', () => {
+  const g = new Game({ random: seededRandom(5), meta: { unlockedStage: 18 } });
+  assert(g.start(1));
+
+  const em = t => { g.elapsed = t; return { teto: g.enemyLimit, intervalo: g.spawnInterval }; };
+  const inicio = em(0), meio = em(60), fim = em(115);
+
+  assert(meio.teto > inicio.teto, 'o teto nao cresceu ate a metade');
+  assert(fim.teto >= inicio.teto + 7, `o teto so foi de ${inicio.teto} a ${fim.teto}`);
+  assert(fim.intervalo < inicio.intervalo * .35,
+    `o spawn mal apertou: ${inicio.intervalo.toFixed(1)}s -> ${fim.intervalo.toFixed(1)}s`);
+  // Convexa: o ultimo terco tem de apertar mais que o primeiro.
+  const primeiro = em(40).teto - inicio.teto, ultimo = fim.teto - em(75).teto;
+  assert(ultimo > primeiro, `a mare devia acelerar no fim: +${primeiro} contra +${ultimo}`);
+});
+
+test('no finale a horda recua para o guardiao ser o protagonista', () => {
+  const g = new Game({ random: seededRandom(5), meta: { unlockedStage: 18 } });
+  assert(g.start(3));
+  g.elapsed = 115;
+  const semChefe = { teto: g.enemyLimit, intervalo: g.spawnInterval };
+  g.spawnBoss();
+  while (g.phase === 'transition') g.tick(.2);
+  assert(g.boss, 'o guardiao nao chegou');
+  g.elapsed = 115;
+  assert(g.enemyLimit < semChefe.teto, 'a horda nao recuou no finale');
+  assert(g.spawnInterval > semChefe.intervalo, 'o spawn nao afrouxou no finale');
+});
+
+// Um bicho so por 87% da fase era o que fazia o mundo 1 parecer o mesmo do
+// inicio ao fim: o 'ember' do Vale so aparecia aos 104s.
+test('o segundo tipo de inimigo entra cedo, e o bioma mantem o comum mais frequente', () => {
+  const g = new Game({ random: seededRandom(5), meta: { unlockedStage: 18 } });
+  assert(g.start(1));
+  const tipos = [...new Set(g.biome.enemies)];
+  assert(tipos.length > 1, 'o bioma de teste precisa de mais de um tipo');
+
+  const poolEm = t => {
+    g.elapsed = t;
+    const vistos = new Set();
+    for (let i = 0; i < 60; i++) { g.enemies = []; const e = g.spawnEnemy(); if (e) vistos.add(e.type); }
+    return vistos;
+  };
+  assert.deepEqual([...poolEm(5)], [tipos[0]], 'a fase devia abrir com um tipo so');
+  const aos40 = poolEm(40);
+  assert(aos40.has(tipos[1]), `o segundo tipo devia estar liberado aos 40s, veio ${[...aos40]}`);
+  assert(aos40.has(tipos[0]), 'o comum sumiu quando o segundo entrou');
+});

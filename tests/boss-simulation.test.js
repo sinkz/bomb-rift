@@ -306,3 +306,32 @@ test('o gelo prende quem fica em cima, sem tirar vida', () => {
   assert.equal(g.player.hp, antes, 'o gelo tirou vida');
   assert(g.player.slow > 0, 'o gelo nao prendeu');
 });
+
+// Medido em 2026-09-12: com a brasa respeitando a invencibilidade dos golpes,
+// lava (tique .55) e ruina (tique .75) tiravam a MESMA coisa numa luta cheia,
+// porque o 1,4s dos golpes e maior que qualquer tique. A afinacao por bioma
+// existia no codigo e nao chegava na vida do jogador. Agora ela chega.
+test('cada perigo machuca no proprio ritmo, mesmo apanhando do guardiao', () => {
+  const medir = (stage, kind) => {
+    const g = boot(stage, 5);
+    g.restoreHealth(999);
+    g.player.invincible = 0;
+    g.hazardField.clear();
+    g.hazardField.add(g.player.x, g.player.z, kind);
+    const antes = g.player.hp;
+    for (let i = 0; i < 3 / (1 / 60); i++) {
+      // Golpe do guardiao no meio do caminho: e ele que antes engolia os tiques.
+      if (i === 30) g.hurt(1, { iframes: 1.4 });
+      g.player.invincible = Math.max(0, g.player.invincible - 1 / 60);
+      g.queimarJogador(1 / 60);
+    }
+    return antes - g.player.hp;
+  };
+
+  const lava = medir(6, 'lava');       // 16 a cada .55s -> ~5 mordidas em 3s
+  const espinho = medir(6, 'espinho'); // 10 a cada .80s -> ~3 mordidas em 3s
+  assert(lava > espinho * 1.5,
+    `a lava devia machucar bem mais que o espinho: ${lava} vs ${espinho}`);
+  // E o golpe do guardiao no meio nao pode ter blindado o jogador contra o chao.
+  assert(lava >= 16 * 4, `a lava so tirou ${lava} em 3s -- a invencibilidade ainda engole tiques`);
+});

@@ -74,8 +74,20 @@ export class Game {
     this.emit('extraLife'); return true;
   }
   get intelligence() { return Math.min(.9, this.challenge.intelligence + (this.round - 1) * .065 + this.elapsed / 120 * (this.round === 1 ? .04 : .08)); }
-  get enemyLimit() { return 4 + Math.min(14, this.round) + Math.floor(this.elapsed / 60); }
-  get spawnInterval() { return (Math.max(3, 11 - (this.round - 1) * .6 - this.elapsed / 90) + (this.boss ? 4 : 0)) * this.challenge.spawn * (this.surge && !this.boss ? .45 : 1); }
+  get enemyLimit() {
+    // Convexa: quase plana no comeco, dispara no ultimo terco. E o que
+    // transforma os 30s finais numa corrida ate o chefe em vez de sala de espera.
+    const mare = Math.round(9 * Math.min(1, this.elapsed / ROUND_SECONDS) ** 1.7);
+    // No finale a horda recua: o guardiao tem de ser o protagonista da luta, e
+    // nao mais um no meio de catorze.
+    return 4 + Math.min(14, this.round) + (this.finale ? Math.min(3, mare) : mare);
+  }
+  get spawnInterval() {
+    const base = Math.max(1.6, 10 - (this.round - 1) * .4 - 8.4 * Math.min(1, this.elapsed / ROUND_SECONDS) ** 1.35);
+    // Durante o finale o ritmo afrouxa de novo, pelo mesmo motivo do teto.
+    const ritmo = this.finale ? Math.max(6, base + 4) : base;
+    return ritmo * this.challenge.spawn * (this.surge && !this.finale ? .45 : 1);
+  }
   get forgeCost() { return Math.floor((20 + this.forgeCount * 10) * (this.masteries.includes('alchemy') ? .75 : 1)); }
   get active() { return this.phase === 'playing' || this.phase === 'boss'; }
   generateArena() {
@@ -287,7 +299,11 @@ export class Game {
     }
     if (!candidates.length) return;
     const cell = candidates[Math.floor(this.random() * candidates.length)];
-    const pool = this.round === 1 && this.elapsed < 65 ? ['slime'] : this.biome.enemies;
+    const tipos = [...new Set(this.biome.enemies)];
+    const liberados = new Set(tipos.slice(0, Math.min(tipos.length, 1 + Math.floor(this.elapsed / 32))));
+    // Filtra a lista ORIGINAL, nao a de tipos unicos: o bioma repete o inimigo
+    // comum de proposito para ele continuar sendo o mais frequente.
+    const pool = this.biome.enemies.filter(t => liberados.has(t));
     const type = forcedType || pool[Math.floor(this.random() * pool.length)];
     const hp = Math.ceil((({ slime: 2, ember: 3, beetle: 5, wisp: 3, sentinel: 12, spore: 3, weaver: 3, oracle: 4, mimic: 4 }[type] || 2) + Math.floor((this.round - 1) * .35)) * this.challenge.hp);
     const enemy = { id: this.nextId++, ...cell, type, hp, maxHp: hp, cooldown: 1 + this.random(), hitFlash: 0, intent: 'hunt', awareness: this.random(), chargeCooldown: 3, castCooldown: 4, slow: 0, windup: 0, chargeSteps: 0 };
@@ -349,7 +365,18 @@ export class Game {
       if (p.invincible <= 0) { p.slow = 2; this.emit('snared', { x: p.x, z: p.z }); }
       return;
     }
-    this.hurt(regra.damage, { iframes: regra.tick * .8 });
+    // Fura a invencibilidade, e nao concede nenhuma.
+    //
+    // Medido em 2026-09-12: com o comportamento normal, a lava (tique .55) e a
+    // ruina (tique .75) tiravam a MESMA coisa numa luta cheia -- 48 contra 47
+    // em cinco segundos. Nao era o tique que governava, era o 1,4s de
+    // invencibilidade dos golpes do guardiao e da horda, que e maior que
+    // qualquer tique de brasa. A afinacao por bioma existia no codigo e nao
+    // chegava na vida do jogador.
+    //
+    // Agora o unico relogio da queimadura e o burnTimer, entao cada mundo
+    // machuca do jeito que a regra dele diz.
+    this.hurt(regra.damage, { iframes: 0, pierce: true, de: { x: p.x, z: p.z, tipo: 'chao' } });
     this.emit('hazardBurn', { x: p.x, z: p.z, kind: celula.kind, color: this.biome.color });
   }
   /** Quantas caixas ainda ha no mapa. */
@@ -462,13 +489,25 @@ export class Game {
     const actual = Math.max(0, Math.min(amount, this.player.maxHp - this.player.hp));
     this.player.hp += actual; this.stats.healed += actual; return actual;
   }
-  hurt(amount, { iframes = 1.4 } = {}) {
-    if (!this.active || this.player.invincible > 0) return;
+  /**
+   * @param {object} opcoes
+   * @param {number} opcoes.iframes  invencibilidade concedida. ZERO significa
+   *   nao mexer na que ja existe -- e o que o chao em brasa usa, porque ferir
+   *   voce nao pode te proteger do guardiao no mesmo instante.
+   * @param {boolean} opcoes.pierce  ignora a invencibilidade em vez de respeita-la.
+   */
+  hurt(amount, { iframes = 1.4, pierce = false, de = null } = {}) {
+    if (!this.active) return;
+    if (!pierce && this.player.invincible > 0) return;
     if (this.player.ward > 0) { this.stats.blocked++; this.player.ward--; this.player.invincible = .9; if (this.masteries.includes('ward')) this.restoreHealth(10); this.emit('blocked', { x: this.player.x, z: this.player.z }); return; }
     amount = Math.ceil(amount * this.challenge.damage * (1 - (this.player.armor || 0)));
     const actual = Math.min(this.player.hp, amount); this.stats.damageTaken += actual; if (actual > 0) this.stats.hitsTaken++;
-    this.player.hp = Math.max(0, this.player.hp - amount); this.player.invincible = iframes;
-    this.emit('hurt', { x: this.player.x, z: this.player.z, amount });
+    this.player.hp = Math.max(0, this.player.hp - amount);
+    if (iframes > 0) this.player.invincible = iframes;
+    // 'de' e a casa que originou o golpe, quando ha uma. Relatado jogando:
+    // "levei dano mas nao fica claro DE ONDE" -- sem isso a cena so sabe onde
+    // voce estava, que e justamente a informacao que o jogador ja tem.
+    this.emit('hurt', { x: this.player.x, z: this.player.z, amount, de: de ? { x: de.x, z: de.z, tipo: de.tipo || de.type || null } : null });
     if (!this.player.hp && this.player.revive) {
       this.stats.revives++; this.player.revive = false; this.restoreHealth(Math.ceil(this.player.maxHp / 2)); this.player.invincible = 3;
       this.emit('revive', { x: this.player.x, z: this.player.z });
@@ -521,7 +560,11 @@ export class Game {
     flame.resolved = true;
     if (!flame.friendly && flame.cells.some(c => c.x === this.player.x && c.z === this.player.z)) {
       if (flame.effect === 'snare') { if (this.player.invincible <= 0) { this.player.slow = 2; this.emit('snared', {x:this.player.x,z:this.player.z}); } }
-      else this.hurt(flame.enemy ? flame.damage ?? 25 : 20);
+      else {
+        const perto = flame.cells.reduce((a, c) =>
+          Math.abs(c.x - this.player.x) + Math.abs(c.z - this.player.z) < Math.abs(a.x - this.player.x) + Math.abs(a.z - this.player.z) ? c : a, flame.cells[0]);
+        this.hurt(flame.enemy ? flame.damage ?? 25 : 20, { de: { ...perto, tipo: flame.hazard ? 'chao' : flame.enemy ? 'golpe' : 'bomba' } });
+      }
     }
     if (!this.active || flame.enemy) return;
     const targets = [...this.enemies, ...(this.boss ? [this.boss] : [])];
@@ -967,7 +1010,7 @@ export class Game {
       if (enemy.windup > 0) {
         enemy.windup = Math.max(0, enemy.windup - dt);
         if (!enemy.windup) { enemy.chargeSteps = enemy.chargeCells.length; enemy.intent = 'charge'; enemy.cooldown = 0; this.emit('enemyCharge', enemy); }
-        else { if (enemy.x === p.x && enemy.z === p.z) this.hurt(12); continue; }
+        else { if (enemy.x === p.x && enemy.z === p.z) this.hurt(12, { de: { x: enemy.x, z: enemy.z, tipo: enemy.type } }); continue; }
       }
       if (enemy.cooldown <= 0) {
         if (enemy.chargeSteps > 0) {
@@ -987,7 +1030,7 @@ export class Game {
           }
         }
       }
-      if (enemy.x === p.x && enemy.z === p.z) this.hurt(enemy.type === 'boss' ? 30 : chargedThisTick || enemy.intent === 'charge' ? 20 : 12);
+      if (enemy.x === p.x && enemy.z === p.z) this.hurt(enemy.type === 'boss' ? 30 : chargedThisTick || enemy.intent === 'charge' ? 20 : 12, { de: { x: enemy.x, z: enemy.z, tipo: enemy.type } });
     }
     if (this.boss && this.active) {
       const b = this.boss, phase = bossPhaseFor(b);
