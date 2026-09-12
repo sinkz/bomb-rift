@@ -47,7 +47,7 @@ export class ArenaScene {
     this.objects = new Map(); this.blocks = new Map(); this.pulses = [];
     this.cameraSpan = 10.7; this.targetSpan = 10.7; this.zoom = 1; this.cameraFocus = new THREE.Vector3();
     this.staticSlots = new Map(); this.enemyModels = new Map();
-    this.quality = true; this.hitStop = 0; this.bossEntry = null; this.timers = []; this.scorches = []; this.scorchCursor = 0; this.arenaSize = { width: 21, height: 19 };
+    this.quality = true; this.hitStop = 0; this.bossEntry = null; this.timers = []; this.extras = []; this.scorches = []; this.scorchCursor = 0; this.arenaSize = { width: 21, height: 19 };
     this.style = fxFor('ruins'); this.eventColor = new THREE.Color(0xffffff); this.heroSpark = 0;
     this.dummy = new THREE.Object3D(); this.zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
     this.retiredBoss = null; this.bossSources = bossSources; this.bossStatus = bossSources ? 'deferred' : 'procedural';
@@ -559,13 +559,33 @@ export class ArenaScene {
     for (const c of cells) { const [x, z] = this.at(c.x, c.z); mesh(group, 'box', material, x, .045, z, width, .015, width, false); }
     return group;
   }
+  // Despacho. O corpo foi fatiado por assunto em 2026-09-11: eram 249 linhas
+  // numa corrente de ~60 ifs, o pior metodo do projeto. As fatias mantem a
+  // ordem original de execucao -- sao movimento de codigo, nao reescrita.
   handle(event) {
+    this.handleFrame(event);
+    this.handleCombat(event);
+    this.handleGuardianEntry(event);
+    this.handleAbilities(event);
+    this.handleArenaLife(event);
+    // Ponto de extensao: feature nova registra um modulo em vez de acrescentar
+    // mais um if aqui dentro. Ver scene.use().
+    for (const extra of this.extras) extra.handle(this, event);
+  }
+  // Injeta um modulo de efeitos. Ele recebe a cena e o evento, e nao precisa
+  // ser conhecido por scene.js -- quem monta a cena decide o que entra.
+  use(modulo) { if (modulo?.handle) this.extras.push(modulo); return this; }
+  // Estado base da cena: arena, ator do guardiao e a pose do heroi.
+  handleFrame(event) {
     if (['start','nextRound','boss'].includes(event.type)) this.prepareBoss();
     if (event.type === 'arena') this.buildArena();
     this.animateBoss(event);
     if (['bomb', 'dash', 'hurt', 'skill'].includes(event.type)) this.heroAction = { kind: event.type, age: 0, duration: event.type === 'skill' ? .65 : .3 };
     if (event.type === 'arena') { this.heroAction = null; this.skillAura = null; }
     if (event.type === 'start') { this.zoom = 1; this.pulse(this.game.player.x, this.game.player.z, 0xffd58b, 2, .9); }
+  }
+  // Explosao, coleta, dano e habilidade -- o que o jogador causa e sofre.
+  handleCombat(event) {
     if (event.type === 'crate' || event.type === 'clear') {
       const block = this.blocks.get(`${event.x},${event.z}`); if (block) { this.removeBlock(block); this.blocks.delete(`${event.x},${event.z}`); }
       // Caixas viram tábuas e lascas, não cubos: peças chatas, giro alto e uma nuvem de pó por baixo.
@@ -626,6 +646,9 @@ export class ArenaScene {
       const p = this.game.player, color = colors[event.id] || skillById(event.id)?.color || '#d9b7ff'; this.skillAura = { color, life: 1.3 };
       this.pulse(p.x, p.z, color, 1.8, .75); this.pulse(p.x, p.z, color, .9, 1.1); this.burst(p.x, p.z, color, 24, 2.5);
     }
+  }
+  // Chegada e queda do guardiao, incluindo a coreografia de entrada.
+  handleGuardianEntry(event) {
     if (event.type === 'bossEnraged') { const b = this.game.boss; if (b) { const color = new THREE.Color(this.game.biome.color); this.pulse(b.x, b.z, color, 4, 1.4); this.pulse(b.x, b.z, color, 2.5, .8); this.burst(b.x, b.z, color, 35, 4); this.shake = this.reducedMotion ? 0 : .25; this.hit(.04); } }
     // A entrada do primeiro guardiao e uma coreografia de quatro batidas. O jogo
     // esta congelado em phase 'transition', entao nada disso pode ferir ninguem.
@@ -702,6 +725,9 @@ export class ArenaScene {
       this.impactLight(event.x, event.z, 0xffd695, 52, 11, 2);
       this.scorch(event.x, event.z, 1.8); this.shake = this.reducedMotion ? 0 : .45; this.hit(.12);
     }
+  }
+  // Maestrias, arcos, impactos e ancoras.
+  handleAbilities(event) {
     if (event.type === 'mastery') {
       this.skillAura={color:event.color,life:2.5};
       for (const [i,size] of [1.2,2.3,3.5].entries()) this.pulse(event.x,event.z,event.color,size,1.4,i*.1);
@@ -739,6 +765,9 @@ export class ArenaScene {
         this.pulse(event.target.x,event.target.z,0xaaffe0,2.8,1);
       }
     }
+  }
+  // A arena viva: perigo, remodelagem, campeao e os golpes do guardiao.
+  handleArenaLife(event) {
     if (event.type === 'wardReady') this.pulse(event.x,event.z,0xb3e5d4,.8,.7);
     // O cenario ataca sozinho, sem inimigo por perto. A brasa sobe do chao no
     // instante do anuncio para separar 'o mapa te quer morto' de 'alguem te
