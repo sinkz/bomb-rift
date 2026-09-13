@@ -35,3 +35,23 @@
    esquiva: as duas sao recarga, a bomba e o gesto principal. */
 #touch-sigil { color: #cfe9ff; }
 #touch-sigil:active { background: #46566be6; }
+
+/* Retrato estreito: o painel de recursos saia 21px pela direita em 390x844,
+   medido com bombRiftDev. Encolher e melhor que esconder -- a contagem de
+   sucata e nucleos continua sendo informacao, so nao pode empurrar a barra
+   para fora da tela.
+
+   (O #event-feed tambem acusava 6px pela esquerda e NAO e defeito: ele fica em
+   opacity 0 com translateX(-16px) no repouso, e desliza para dentro quando um
+   aviso aparece. A medicao pegou um elemento que nao esta desenhado.) */
+@media (max-width: 700px) {
+  .in-run .material-hud {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 2px;
+  }
+  .in-run .arena-top { min-width: 0; }
+  .in-run .arena-top > * { min-width: 0; }
+}
