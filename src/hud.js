@@ -4,6 +4,7 @@ import { SKILLS } from './game.js';
 import { skillArt } from './skill-art.js';
 import { GEAR, OUTFITS, RESOURCES } from './legacy.js';
 import { rpgArt } from './rpg-art.js';
+import { seloPorId } from './sigils.js';
 import { relicById } from './campaign.js';
 import { PHASE_LABELS } from './boss-mechanics.js';
 
@@ -26,7 +27,7 @@ export class GameHud {
           <div class="material-hud"><small>MATERIAIS DA EXPEDIÇÃO</small><div class="material-strip">${['scrap', 'cores'].map(id => `<span style="--resource-color:${RESOURCES[id].color}" title="${RESOURCES[id].name}: coleta desta fase">${rpgArt(id)}<b id="combat-${id}">0</b></span>`).join('')}</div></div>
           <div class="combo-hud" id="combo-hud"><strong id="combat-combo">2×</strong><span>CAOS EM CADEIA</span><div><span id="combo-fill"></span></div></div>
         </div>
-        <div class="ability-dock"><button class="action-slot bomb-action" data-action="bomb" aria-label="Colocar bomba"><span class="action-key">ESPAÇO</span><span class="action-art" style="--skill-color:#ffab6b">${skillArt('capacity')}</span><span class="action-counter" id="combat-bombs">2/2</span><strong>BOMBA</strong><div class="action-mini" id="combat-bomb-pips"></div></button><button class="action-slot dash-action" data-action="dash" aria-label="Esquivar"><span class="action-key">SHIFT</span><span class="action-art" style="--skill-color:#76ead1">${skillArt('dash')}</span><span class="cooldown-wipe" id="dash-wipe"></span><span class="cooldown-number" id="combat-dash"></span><strong>ESQUIVA</strong><small id="dash-ready-label">PRONTA</small></button><span class="dock-divider"></span><button class="action-slot forge-action" data-action="forge" id="combat-forge" aria-label="Forjar habilidade"><span class="action-key">E</span><span class="forge-rune">${icon('Sparkles')}</span><strong>EVOLUIR</strong><small>${icon('Gem')}<b id="combat-forge-cost">20</b></small></button></div>
+        <div class="ability-dock"><button class="action-slot bomb-action" data-action="bomb" aria-label="Colocar bomba"><span class="action-key">ESPAÇO</span><span class="action-art" style="--skill-color:#ffab6b">${skillArt('capacity')}</span><span class="action-counter" id="combat-bombs">2/2</span><strong>BOMBA</strong><div class="action-mini" id="combat-bomb-pips"></div></button><button class="action-slot dash-action" data-action="dash" aria-label="Esquivar"><span class="action-key">SHIFT</span><span class="action-art" style="--skill-color:#76ead1">${skillArt('dash')}</span><span class="cooldown-wipe" id="dash-wipe"></span><span class="cooldown-number" id="combat-dash"></span><strong>ESQUIVA</strong><small id="dash-ready-label">PRONTA</small></button><button class="action-slot sigil-action hidden" data-action="sigil" id="combat-sigil" aria-label="Usar selo"><span class="action-key">Q</span><span class="action-art" id="combat-sigil-art"></span><span class="cooldown-wipe" id="sigil-wipe"></span><span class="cooldown-number" id="combat-sigil-cd"></span><strong id="combat-sigil-name">SELO</strong><small id="sigil-ready-label">PRONTO</small></button><span class="dock-divider"></span><button class="action-slot forge-action" data-action="forge" id="combat-forge" aria-label="Forjar habilidade"><span class="action-key">E</span><span class="forge-rune">${icon('Sparkles')}</span><strong>EVOLUIR</strong><small>${icon('Gem')}<b id="combat-forge-cost">20</b></small></button></div>
         <div class="hud-rail hud-rail-bl">
           <div id="event-feed" class="event-feed" role="status" aria-live="polite"></div>
           <div class="build-hud"><button data-action="build" class="build-heading"><span>${icon('Swords')} SUA BUILD</span><kbd>B</kbd></button><div class="build-runes" id="combat-build"></div><p id="combat-build-hint">SEU PODER COMEÇA AQUI</p></div>
@@ -88,6 +89,24 @@ export class GameHud {
     setText(e['combat-dash'], p.dashCooldown > 0 ? formatNumber(p.dashCooldown, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '');
     setText(e['dash-ready-label'], p.dashCooldown > 0 ? 'RECARREGANDO' : 'PRONTA');
     e['dash-wipe'].style.height = `${p.dashCooldown / p.dashMax * 100}%`;
+    // Quem ainda nao comprou um selo joga com duas acoes, e o dock nao mostra
+    // uma terceira vaga vazia pedindo atencao.
+    const selo = this.game.sigil ? seloPorId(this.game.sigil) : null;
+    e['combat-sigil'].classList.toggle('hidden', !selo);
+    document.querySelector('#touch-sigil')?.classList.toggle('hidden', !selo);
+    if (selo) {
+      const recarga = this.game.sigilCooldown || 0;
+      if (this.seloDesenhado !== selo.id) {
+        this.seloDesenhado = selo.id;
+        e['combat-sigil'].style.setProperty('--skill-color', selo.cor);
+        setHTML(e['combat-sigil-art'], skillArt(selo.art));
+        e['combat-sigil-art'].style.setProperty('--skill-color', selo.cor);
+        setText(e['combat-sigil-name'], selo.nome.toUpperCase());
+      }
+      setText(e['combat-sigil-cd'], recarga > 0 ? formatNumber(recarga, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '');
+      setText(e['sigil-ready-label'], recarga > 0 ? 'RECARREGANDO' : 'PRONTO');
+      e['sigil-wipe'].style.height = `${recarga / selo.recarga * 100}%`;
+    }
     setText(e['combat-forge-cost'], g.forgeCost); e['combat-forge'].disabled = !g.active || g.crystals < g.forgeCost;
     e['combat-forge'].classList.toggle('forge-ready', !e['combat-forge'].disabled);
     setText(e['combat-status'], !e['combat-forge'].disabled ? 'NOVA HABILIDADE DISPONÍVEL · E' : 'EXPLORADOR DA FENDA');
@@ -143,6 +162,7 @@ export class GameHud {
     if (event.type === 'pickup' && event.entityType === 'crystal') this.pop(this.el['combat-crystals'].parentElement, 'loot-pop');
     if (event.type === 'boss') { setText(document.querySelector('#boss-quote'), `“${g.biome.quote}”`); this.bossBar.dataset.act = 1; this.pop(this.bossBar, 'boss-awakens'); this.notice(g.biome.boss, g.biome.title, g.biome.color); }
     if (event.type === 'mastery') this.notice('DESPERTAR · '+event.name,event.desc,event.color,event.id);
+    if (event.type === 'oath') this.notice('JURAMENTO · '+event.name,`Honre e ela desperta na quarta escolha: ${event.mastery}`,event.color,event.id);
     if (event.type === 'arenaRite') this.notice(event.name,event.hint,event.color);
     if (event.type === 'anchorBroken') this.notice('GUARDIÃO ATORDOADO','4s para atacar · +50% de dano','#aaffe0');
     if (event.type === 'warning') { setText(document.querySelector('#boss-attack-name'), event.name); this.bossBar.querySelector('.boss-attack-readout').classList.toggle('signature', !!event.signature); }
@@ -174,6 +194,9 @@ export class GameHud {
     const dashReady = this.game.player.dashCooldown <= 0;
     if (dashReady && this.dashWasCharging) this.pop(this.root.querySelector('.dash-action'), 'dash-recharged');
     this.dashWasCharging = !dashReady;
+    const seloPronto = this.game.sigil && (this.game.sigilCooldown || 0) <= 0;
+    if (seloPronto && this.seloCarregando) this.pop(this.root.querySelector('.sigil-action'), 'dash-recharged');
+    this.seloCarregando = this.game.sigil && !seloPronto;
     const ids = new Set();
     for (const enemy of [...this.game.enemies, ...(this.game.boss ? [this.game.boss] : [])]) {
       if (enemy.hp === enemy.maxHp && !enemy.windup && enemy.intent !== 'evade' && enemy.type !== 'sentinel' && enemy.intent !== 'cast' && !enemy.slow && !enemy.mending && enemy.intent !== 'ambush') continue;

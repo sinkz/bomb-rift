@@ -2,8 +2,9 @@ import { PROGRESSION_EN } from './progression-en.js';
 import { REFUGE_EN } from './refuge-en.js';
 import { RANKING_EN } from './ranking-en.js';
 import { EXPEDITION_EN } from './expedition-en.js';
+import { SIGILS_EN } from './sigils-en.js';
 // Authored English copy. Portuguese source strings are stable catalog keys.
-export const EN = { ...PROGRESSION_EN, ...REFUGE_EN, ...RANKING_EN, ...EXPEDITION_EN,
+export const EN = { ...PROGRESSION_EN, ...REFUGE_EN, ...RANKING_EN, ...EXPEDITION_EN, ...SIGILS_EN,
   'VULNERÁVEL · ATAQUE AGORA': 'VULNERABLE · ATTACK NOW',
   'GOLPE PREPARANDO · SAIA DA MARCA': 'ATTACK INCOMING · LEAVE THE MARK',
   'CONTRA-ATAQUE!': 'COUNTERATTACK!',

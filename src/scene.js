@@ -899,19 +899,21 @@ export class ArenaScene {
   // Ancoras, inimigos, chefe, bombas, itens, chamas.
   stepEntidades(dt, q) {
     const { t, game, p, px, pz, live } = q;
-    if (game.masteries?.length || p.ward) {
+    // O anel dourado de maestria saiu daqui. Ele era FIXO para as quinze, entao
+    // despertar o Zero absoluto (gelo) e a Supernova (fogo) deixava voce
+    // visualmente identico -- a queixa exata de quem jogou. Quem desenha a
+    // maestria agora e src/mastery-fx.js, com uma cor por despertar, injetado
+    // por scene.use(). Sobra aqui o escudo, que e outro assunto: ele conta
+    // cargas, nao build.
+    if (p.ward) {
       const id='player-mastery'; live.add(id);
       const aura=this.ensureObject(id,()=>{
         const group=new THREE.Group();
-        mesh(group,'ring',mat(0xf5dba1,0xe1a953,.7),0,.045,0,.48,.48,.48,false).rotation.x=Math.PI/2;
-        for(let i=0;i<5;i++){const a=i*Math.PI*2/5;mesh(group,'crystal',mat(0xffe4a2,0xffcc6d,.8),Math.sin(a)*.5,.09,Math.cos(a)*.5,.045,.06,.045,false);}
         const shield=mesh(group,'ring',mat(0xa7ffe2,0x62e8cb,.8),0,.65,0,.52,.52,.52,false);shield.name='ward';
         return group;
       },p);
       aura.position.set(this.playerMesh.position.x,0,this.playerMesh.position.z);
       aura.rotation.y=this.reducedMotion?0:t*.65;
-      aura.getObjectByName('ward').visible=!!p.ward;
-      aura.children.slice(0,6).forEach(child=>child.visible=!!game.masteries?.length);
     }
     for(const anchor of game.anchors || []) {
       live.add(anchor.id);

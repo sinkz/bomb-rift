@@ -55,6 +55,9 @@ export class Sound {
     notes.webBurst = [790, 190, .24, 'sine'];
     notes.echo = [140, 55, .3, 'triangle'];
     notes.mastery = [440, 1760, 1.1, 'triangle'];
+    // Sobe, como o despertar -- mas curto e seco: e uma acao sua, nao um climax.
+    notes.oath = [330, 880, .55, 'triangle'];
+    notes.sigil = [520, 1180, .3, 'square'];
     notes.chainArc = [780, 150, .15, 'triangle'];
     notes.anchorBroken = [220, 1100, .7, 'sine'];
     notes.arenaShift = [90, 42, .55, 'triangle'];

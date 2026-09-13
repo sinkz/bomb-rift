@@ -5,3 +5,33 @@
 .skill-option:has(.awakening-next){border-color:#edc17a;box-shadow:0 0 24px #edc17a22}.mastery-progress.awakened .mastery-pips i{background:#ffdc93}
 @media(max-width:700px){.mastery-progress{padding:9px;min-height:0}.mastery-progress small{font-size:10px}}
 @media(prefers-reduced-motion:no-preference){.awakening-next .next{animation:mastery-glimmer 1.4s ease-in-out infinite alternate}@keyframes mastery-glimmer{to{box-shadow:0 0 18px #ffe1a0;filter:brightness(1.4)}}}
+
+/* A jurada. Ela ocupa sempre uma das tres vagas e fecha uma escolha mais cedo,
+   entao precisa se distinguir das outras duas no mesmo golpe de vista. */
+.mastery-progress.sworn {
+  border-color: color-mix(in srgb, var(--skill-color) 60%, transparent);
+  background: color-mix(in srgb, var(--skill-color) 12%, transparent);
+}
+.mastery-progress.sworn b { letter-spacing: .04em; }
+
+/* O selo no dock de acoes. Herda a forma da esquiva -- sao irmaos: as duas
+   unicas acoes com recarga -- e so muda a cor, que vem do selo equipado. Some
+   por completo para quem nao equipou nenhum: uma vaga vazia pedindo atencao
+   seria pior que nenhuma. */
+.action-slot.sigil-action .action-art { color: var(--skill-color, #ffab6b); }
+.action-slot.sigil-action small { color: color-mix(in srgb, var(--skill-color, #ffab6b) 78%, #fff); }
+/* A tecla vem em top:-9px por padrao e este slot tem overflow:hidden para a
+   cortina da recarga -- a combinacao decapitava o Q. A esquiva ja tinha
+   resolvido assim; o selo segue o mesmo caminho. */
+.action-slot.sigil-action .action-key {
+  top: 0;
+  font-size: clamp(5px, .5vw, 6px);
+  border-radius: 0 0 4px 4px;
+  padding: 2px 5px;
+}
+.action-slot.sigil-action { overflow: hidden; }
+
+/* O botao de toque do selo. Menor que o da bomba e do mesmo tamanho do da
+   esquiva: as duas sao recarga, a bomba e o gesto principal. */
+#touch-sigil { color: #cfe9ff; }
+#touch-sigil:active { background: #46566be6; }

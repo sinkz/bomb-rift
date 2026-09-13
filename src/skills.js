@@ -1,11 +1,14 @@
+import { despertaEm } from './oath.js';
+
 // Run-only skills. The fifth selection awakens a mastery; healing is consumable.
+// Quem jurou a uma delas desperta na QUARTA -- ver src/oath.js.
 export const MASTERY_LEVEL = 5;
 export const SKILLS = [
-  { id: 'power', name: 'Pólvora instável', icon: 'Flame', branch: 'DESTRUIÇÃO', desc: '+1 de dano em todas as explosões.', color: '#ff985c', max: 8, mastery: 'Sol azul', awakening: 'Explosões azuis e mais +2 de dano.' },
+  { id: 'power', name: 'Pólvora instável', icon: 'Flame', branch: 'DESTRUIÇÃO', desc: '+1 de dano em todas as explosões.', color: '#ff985c', max: MASTERY_LEVEL, mastery: 'Sol azul', awakening: 'Explosões azuis e mais +2 de dano.' },
   { id: 'range', name: 'Rastro de fogo', icon: 'Expand', branch: 'DESTRUIÇÃO', desc: '+1 bloco de alcance para suas bombas.', color: '#ff985c', max: 5, mastery: 'Lança de cerco', awakening: 'A explosão atravessa a primeira caixa em cada direção.' },
   { id: 'capacity', name: 'Bolsos sem fundo', icon: 'Bomb', branch: 'ARSENAL', desc: '+1 bomba simultânea. Mais caos, mais possibilidades.', color: '#b5a0ff', max: 5, mastery: 'Grande final', awakening: 'A bomba que ocupa a última vaga ganha +4 de dano.' },
   { id: 'speed', name: 'Passos fantasma', icon: 'Wind', branch: 'MOBILIDADE', desc: 'Mova-se 10% mais rápido pela masmorra.', color: '#72dcc5', max: 5, mastery: 'Intangível', awakening: 'A proteção de cada esquiva passa a durar 1 segundo.' },
-  { id: 'health', name: 'Coração de pedra', icon: 'Heart', branch: 'VITALIDADE', desc: '+25 de vida máxima e recupera 35 de vida.', color: '#fb7993', max: 6, mastery: 'Fortaleza viva', awakening: 'Recupera toda a vida e ganha 20% de armadura adicional.' },
+  { id: 'health', name: 'Coração de pedra', icon: 'Heart', branch: 'VITALIDADE', desc: '+25 de vida máxima e recupera 35 de vida.', color: '#fb7993', max: MASTERY_LEVEL, mastery: 'Fortaleza viva', awakening: 'Recupera toda a vida e ganha 20% de armadura adicional.' },
   { id: 'magnet', name: 'Chamado da fenda', icon: 'Magnet', branch: 'COLETA', desc: 'Atrai cristais a uma distância maior.', color: '#72dcc5', max: 5, mastery: 'Órbita vital', awakening: '+3 de raio de coleta. Cada cristal coletado cura 1 de vida.' },
   { id: 'fuse', name: 'Pavio curto', icon: 'Timer', branch: 'ARSENAL', desc: 'Bombas explodem 12% mais rápido.', color: '#b5a0ff', max: 5, mastery: 'Primeira faísca', awakening: 'Plantar uma bomba com todas as vagas livres concede +3 de dano a ela.' },
   { id: 'dash', name: 'Salto dimensional', icon: 'Zap', branch: 'MOBILIDADE', desc: 'Reduz em 18% a recarga da esquiva.', color: '#72dcc5', max: 5, mastery: 'Dança da fenda', awakening: 'Cada abate devolve 0,6s da recarga da esquiva.' },
@@ -23,6 +26,11 @@ export const skillById = id => SKILLS.find(s => s.id === id);
 export function masteryProgress(game, id) {
   const skill = skillById(id), level = game.skillLevels[id] || 0;
   if (!skill?.mastery) return '<small class="mastery-consumable">CURA IMEDIATA</small>';
-  const awakened = level >= 5, next = level === 4;
-  return `<span class="mastery-progress ${awakened ? 'awakened' : next ? 'awakening-next' : ''}"><span class="mastery-pips" aria-hidden="true">${Array.from({length:5}, (_, i) => `<i class="${i < level ? 'filled' : i === level ? 'next' : ''}"></i>`).join('')}</span><b>${awakened ? 'DESPERTA' : `${Math.min(5, level + 1)}/5`} · ${skill.mastery}</b><small>${next ? 'NESTA ESCOLHA: ' : awakened ? '' : 'NA QUINTA ESCOLHA: '}${skill.awakening}</small></span>`;
+  // O alvo e de quem joga, nao do catalogo: a jurada fecha em quatro. Mostrar
+  // cinco pips para ela seria prometer um degrau que nao existe mais.
+  const alvo = despertaEm(game, id);
+  const jurada = game.oath === id && !game.oathBroken;
+  const awakened = level >= alvo, next = level === alvo - 1;
+  const ordinal = alvo === 4 ? 'QUARTA' : 'QUINTA';
+  return `<span class="mastery-progress ${awakened ? 'awakened' : next ? 'awakening-next' : ''}${jurada ? ' sworn' : ''}"><span class="mastery-pips" aria-hidden="true">${Array.from({length:alvo}, (_, i) => `<i class="${i < level ? 'filled' : i === level ? 'next' : ''}"></i>`).join('')}</span><b>${awakened ? 'DESPERTA' : `${Math.min(alvo, level + 1)}/${alvo}`} · ${skill.mastery}${jurada && !awakened ? ' · JURADA' : ''}</b><small>${next ? 'NESTA ESCOLHA: ' : awakened ? '' : `NA ${ordinal} ESCOLHA: `}${skill.awakening}</small></span>`;
 }

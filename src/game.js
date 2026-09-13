@@ -1,6 +1,8 @@
 import { WORLDS, stageFor, RELICS, relicById, entranceFor } from './campaign.js';
 import { HazardField } from './hazards.js';
 import { directorFor } from './hazard-cycle.js';
+import { viraJuramento, vagaReservada, despertaEm, tetoDe } from './oath.js';
+import { acionarSelo, seloPronto } from './sigils.js';
 import { normalizeMeta, startingStats, settleLegacy } from './legacy.js';
 import { emptyMetrics, captureRun, scoreReport } from '../shared/scoring.js';
 import { DIFFICULTIES, CAMPAIGN_STAGES, aggregateExpedition, difficultyUnlocked } from '../shared/expedition.js';
@@ -65,7 +67,8 @@ export class Game {
     this.elapsed = 0; this.totalTime = 0; this.kills = 0; this.bosses = 0;
     this.stats = { ...emptyMetrics(), bossStartedAt: null };
     this.crystals = 0; this.collected = 0; this.level = 1; this.xp = 0; this.nextXp = 36;
-    this.forgeCount = 0; this.skillLevels = {}; this.masteries = []; this.wardTimer = 0; this.pendingLevels = 0; this.earnedShards = 0;
+    this.forgeCount = 0; this.skillLevels = {}; this.masteries = []; this.oath = null; this.oathBroken = false;
+    this.sigil = this.meta.sigil || null; this.sigilCooldown = 0; this.wardTimer = 0; this.pendingLevels = 0; this.earnedShards = 0;
     this.combo = 0; this.comboTimer = 0; this.relics = []; this.echoes = []; this.miniSpawned = false;
     this.champion = null; this.transition = null;
     this.hazardField = this.hazardField || new HazardField();
@@ -214,6 +217,26 @@ export class Game {
     }
     this.collect(); return true;
   }
+  /**
+   * A terceira ativa. Bomba e esquiva sao as outras duas, e ate aqui eram as
+   * unicas -- as vinte e cinco melhorias do jogo sao todas numeros passivos.
+   *
+   * O game nao sabe o que cada selo faz: ele so pergunta ao src/sigils.js e
+   * conta ao resto do mundo que aconteceu. Um selo novo nao mexe nesta funcao.
+   */
+  useSigil() {
+    const selo = acionarSelo(this);
+    if (!selo) return false;
+    this.stats.sigils = (this.stats.sigils || 0) + 1;
+    this.emit('sigil', {
+      id: selo.id, name: selo.nome, color: selo.cor, recarga: selo.recarga,
+      x: this.player.x, z: this.player.z,
+      cells: this.apagadasPeloSelo || null,
+    });
+    this.apagadasPeloSelo = null;
+    return true;
+  }
+  get sigilReady() { return seloPronto(this); }
   plantBomb() {
     if (!this.active || this.bombs.length >= this.player.capacity) return false;
     const p = this.player;
@@ -869,11 +892,17 @@ export class Game {
     this.phase = 'upgrade'; this.rollOffers(); this.emit('upgrade'); return true;
   }
   rollOffers() {
-    const available = SKILLS.filter(s => (this.skillLevels[s.id] || 0) < s.max && (s.id !== 'heal' || this.player.hp < this.player.maxHp));
+    const available = SKILLS.filter(s => (this.skillLevels[s.id] || 0) < tetoDe(this, s) && (s.id !== 'heal' || this.player.hp < this.player.maxHp));
     if (!available.length) available.push(SKILLS.find(s => s.id === 'heal'));
     this.offers = [];
+    // A vaga do juramento vem antes de tudo. Enquanto a jurada nao desperta,
+    // ela ocupa uma das tres -- e a unica forma medida de a maestria acontecer:
+    // com a continuacao por peso sozinha, um piloto dedicado despertava em 23%
+    // das partidas. Ver src/oath.js.
+    const jurada = vagaReservada(this.oath, available);
+    if (jurada) { this.offers.push(jurada); available.splice(available.indexOf(jurada), 1); }
     // One continuation plus two discoveries makes a five-pick build achievable.
-    const owned = available.filter(s=>s.mastery && this.skillLevels[s.id] > 0 && this.skillLevels[s.id] < 5);
+    const owned = jurada ? [] : available.filter(s=>s.mastery && this.skillLevels[s.id] > 0 && this.skillLevels[s.id] < 5);
     if (owned.length) {
       const weighted = owned.flatMap(s=>Array.from({length:this.skillLevels[s.id]},()=>s));
       const chosen=weighted[Math.floor(this.random()*weighted.length)];
@@ -907,7 +936,12 @@ export class Game {
         this.phase = this.upgradeReturn;
     const skill = skillById(id);
     this.emit('skill', { id, color: skill.color });
-    if (skill.mastery && this.skillLevels[id] === 5 && !this.masteries.includes(id)) {
+    if (viraJuramento(this.stats.choices, this.oath, skill)) {
+      this.oath = id;
+      this.emit('oath', { id, name: skill.name, mastery: skill.mastery, color: skill.color, x: p.x, z: p.z });
+    }
+    if (this.oath && id !== this.oath && !this.masteries.includes(this.oath)) this.oathBroken = true;
+    if (skill.mastery && this.skillLevels[id] === despertaEm(this, id) && !this.masteries.includes(id)) {
       this.masteries.push(id);
       if (id==='power') { p.fire='azure'; p.damage+=2; }
       if (id==='range') p.pierce=Math.max(1,p.pierce||0);
@@ -1021,7 +1055,14 @@ export class Game {
     }
     this.echoes = this.echoes.filter(e => e.timer > 0);
     if (!this.active) return;
-    for (const b of [...this.bombs]) { b.fuse -= dt; if (b.fuse <= 0) this.explode(b); }
+    for (const b of [...this.bombs]) {
+      b.fuse -= dt;
+      // O Ferrao troca o pavio por um gatilho de contato. Uma linha aqui e todo
+      // o custo dele -- plantBomb continua sem saber que selos existem.
+      if (b.sting && this.enemies.some(e => Math.abs(e.x - b.x) + Math.abs(e.z - b.z) <= 1)) { this.explode(b); continue; }
+      if (b.fuse <= 0) this.explode(b);
+    }
+    this.sigilCooldown = Math.max(0, (this.sigilCooldown || 0) - dt);
     for (const f of this.flames) f.life -= dt;
     this.flames = this.flames.filter(f => f.life > 0);
     if (!this.active) return;
