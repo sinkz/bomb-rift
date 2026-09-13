@@ -135,10 +135,19 @@ test('no pattern is ever a checkmate: a clean tile is in reach the moment it is 
   }
 });
 
+// Agregado por fase, nao uma semente so. Uma unica partida produz contagens
+// pequenas -- houve caso de "7 contra 9" e de "1 contra 1" -- e ai QUALQUER
+// mudanca na arena vira a comparacao sem que a propriedade tenha mudado. Somar
+// sementes mede o que o teste quer dizer: desviar paga, em media.
+const SEMENTES = [11, 29, 53, 97];
 test('reading the marks pays: a moving player is hit far less than a statue', () => {
   for (const stage of STAGES) {
-    const statue = fight(stage, 11), pilot = fight(stage, 11, { pilot: dodge });
-    assert(pilot.burned + pilot.contact < statue.burned + statue.contact, `stage ${stage}: ${pilot.burned + pilot.contact} vs ${statue.burned + statue.contact}`);
+    let estatua = 0, piloto = 0;
+    for (const seed of SEMENTES) {
+      const s = fight(stage, seed), p = fight(stage, seed, { pilot: dodge });
+      estatua += s.burned + s.contact; piloto += p.burned + p.contact;
+    }
+    assert(piloto < estatua, `stage ${stage}: piloto ${piloto} contra estatua ${estatua} somando ${SEMENTES.length} sementes`);
   }
 });
 
@@ -187,15 +196,22 @@ test('ler o chao paga: quem desvia da brasa se queima muito menos', () => {
   // Nem toda fase queima o piloto distraido: arena grande com pouca brasa pode
   // simplesmente nao cruzar o caminho dele. Onde cruzar, atento tem de levar
   // menos -- e tem de cruzar em alguma.
+  // Somado por fase, pelo mesmo motivo do teste acima: com uma semente so a
+  // conta chegou a ser "atento 1, distraido 1", e um empate em UM nao diz nada
+  // sobre ler o chao.
   let mediu = 0;
   for (const stage of [3, 6, 12, 18]) {
-    const atento = fight(stage, 77 + stage, { pilot: dodge });
-    const distraido = fight(stage, 77 + stage, { pilot: cego });
-    assert.equal(atento.blind, 0, `stage ${stage}: dano sem marca no piloto atento`);
-    if (!distraido.scorched) continue;
+    let atentoTotal = 0, distraidoTotal = 0;
+    for (const seed of SEMENTES) {
+      const atento = fight(stage, seed + stage, { pilot: dodge });
+      const distraido = fight(stage, seed + stage, { pilot: cego });
+      assert.equal(atento.blind, 0, `stage ${stage} seed ${seed}: dano sem marca no piloto atento`);
+      atentoTotal += atento.scorched; distraidoTotal += distraido.scorched;
+    }
+    if (!distraidoTotal) continue;
     mediu++;
-    assert(atento.scorched < distraido.scorched,
-      `stage ${stage}: atento levou ${atento.scorched} e distraido ${distraido.scorched}`);
+    assert(atentoTotal < distraidoTotal,
+      `stage ${stage}: atento levou ${atentoTotal} e distraido ${distraidoTotal} somando ${SEMENTES.length} sementes`);
   }
   assert(mediu > 0, 'a brasa nao alcancou o piloto distraido em nenhuma fase');
 });

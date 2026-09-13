@@ -5,7 +5,7 @@ import { despertaEm } from './oath.js';
 export const MASTERY_LEVEL = 5;
 export const SKILLS = [
   { id: 'power', name: 'Pólvora instável', icon: 'Flame', branch: 'DESTRUIÇÃO', desc: '+1 de dano em todas as explosões.', color: '#ff985c', max: MASTERY_LEVEL, mastery: 'Sol azul', awakening: 'Explosões azuis e mais +2 de dano.' },
-  { id: 'range', name: 'Rastro de fogo', icon: 'Expand', branch: 'DESTRUIÇÃO', desc: '+1 bloco de alcance para suas bombas.', color: '#ff985c', max: 5, mastery: 'Lança de cerco', awakening: 'A explosão atravessa a primeira caixa em cada direção.' },
+  { id: 'range', name: 'Rastro de fogo', icon: 'Expand', branch: 'DESTRUIÇÃO', desc: '+1 bloco de alcance. A partir da quarta escolha, também +1 de dano.', color: '#ff985c', max: 5, mastery: 'Lança de cerco', awakening: 'A explosão atravessa a primeira caixa em cada direção.' },
   { id: 'capacity', name: 'Bolsos sem fundo', icon: 'Bomb', branch: 'ARSENAL', desc: '+1 bomba simultânea. Mais caos, mais possibilidades.', color: '#b5a0ff', max: 5, mastery: 'Grande final', awakening: 'A bomba que ocupa a última vaga ganha +4 de dano.' },
   { id: 'speed', name: 'Passos fantasma', icon: 'Wind', branch: 'MOBILIDADE', desc: 'Mova-se 10% mais rápido pela masmorra.', color: '#72dcc5', max: 5, mastery: 'Intangível', awakening: 'A proteção de cada esquiva passa a durar 1 segundo.' },
   { id: 'health', name: 'Coração de pedra', icon: 'Heart', branch: 'VITALIDADE', desc: '+25 de vida máxima e recupera 35 de vida.', color: '#fb7993', max: MASTERY_LEVEL, mastery: 'Fortaleza viva', awakening: 'Recupera toda a vida e ganha 20% de armadura adicional.' },

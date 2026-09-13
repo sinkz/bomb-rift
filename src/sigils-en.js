@@ -55,6 +55,9 @@ export const SIGILS_EN = {
   'Desça um ramo até o fim: é lá que mora o <b>selo</b>, a terceira habilidade, usada com <b>Q</b>. Só um entra na expedição.':
     'Go all the way down a branch: that is where the <b>sigil</b> lives, the third ability, used with <b>Q</b>. Only one joins the expedition.',
 
+  '+1 bloco de alcance. A partir da quarta escolha, também +1 de dano.':
+    '+1 block of blast reach. From the fourth pick on, also +1 damage.',
+
   // Interface do juramento
   'O JURAMENTO · ESCOLHA COM QUEM VOCÊ FICA': 'THE OATH · CHOOSE WHO YOU STAY WITH',
   'A quem você jura?': 'Who do you swear to?',

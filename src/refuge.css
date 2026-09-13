@@ -41,8 +41,14 @@
 
 /* Telas curtas: o cromo encolhe para a coluna do heroi caber inteira, e so o
    conteudo da aba rola. As abas ficam fixas no topo da coluna direita -- menu
-   que exige rolagem para ser alcancado e pior do que barra de rolagem. */
-.refuge-hero{overflow:hidden}
+   que exige rolagem para ser alcancado e pior do que barra de rolagem.
+
+   O overflow:hidden abaixo estava FORA da media query, apesar deste comentario.
+   Valia em toda tela, e em 1500x1000 -- onde o cromo nao encolhe -- a coluna
+   tinha 707px de conteudo em 647px: os ultimos 60px sumiam sem aviso, levando a
+   fineprint junto, que e o texto explicando o que reinicia entre as fases.
+   Medido com bombRiftDev; em 1280x720 nao acontecia, por isso passou. */
+@media(max-height:900px){.refuge-hero{overflow:hidden}}
 .refuge-workshop{display:flex;flex-direction:column;min-height:0}
 .refuge-tabs{flex:0 0 auto}
 .refuge-content{flex:1;min-height:0}
