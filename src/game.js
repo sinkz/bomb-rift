@@ -921,7 +921,13 @@ export class Game {
     const p = this.player;
     switch (id) {
       case 'power': p.damage++; break;
-      case 'range': p.range++; break;
+      // Medido na arena real, o ganho de caixas por degrau era +25%, +13%, +8%,
+      // +5% e +2%: os dois ultimos niveis valiam SETE POR CENTO somados. A
+      // causa e estrutural -- parede para a explosao, entao alcance extra nao
+      // chega a lugar nenhum. Da quarta escolha em diante o degrau tambem paga
+      // em dano, que atravessa qualquer geometria. Mesma alternancia que a
+      // 'shrapnel' ja usava.
+      case 'range': p.range++; if (this.skillLevels.range >= 4) p.damage++; break;
       case 'capacity': p.capacity++; break;
       case 'speed': p.step *= .9; break;
       case 'health': p.maxHp += 25; this.restoreHealth(35); break;

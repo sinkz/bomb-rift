@@ -145,9 +145,10 @@ Outros atalhos do harness: `actions.start()`, `skipToBoss()`, `killBoss()`, `pum
 | ~~**Retrato mobile** (390×844)~~ | **Resolvido em 2026-09-13.** A causa era o `follow` de 0,88 do retrato somado ao jogador começar em (1,1): a câmera centrava no canto do tabuleiro. `limitarFoco()` prende o alvo dentro do tabuleiro. Desktop e paisagem não mudaram — lá o follow já era zero. |
 | **Rolagem na Evolução** | 300–670px conforme a aba. Deliberado: são sete abas de itens. Cabeçalho, abas e coluna do herói ficam fixos; só a lista rola. Resolver de vez pede menos categorias ou paginação — muda a navegação. |
 | **Rodada de HUD incompleta** | O agente que reescreveu `hud.js`/`game-hud.css`/`pixel-interface.css` parou por limite de sessão antes de verificar. O trabalho está aplicado e foi validado por mim no desktop; não se sabe o que ele ainda pretendia mudar. |
-| **Código morto em `main.js`** | `scoreCard()` não é chamado e `saveWarning` só é escrito. Anterior a esta rodada. |
-| **Eventos sem VFX** | `arenaRite` não ganhou tratamento próprio em `scene.js`. |
+| **Código morto em `main.js`** | `scoreCard()` **removido em 2026-09-13**, junto da `.score-result` que só ele usava. `saveWarning` continua só sendo escrito. |
+| ~~**Eventos sem VFX**~~ | **Resolvido em 2026-09-13.** O `arenaRite` ganhou batida própria: as casas pulsam em sequência na cor do rito. |
 | **Atlas em 1280×720** | ~35px de rolagem residual. |
+| **Variedade da remodelagem** | `pillars` tem seis estados e produz ~6 arenas distintas em 20 expedições. Tentei alargar em 2026-09-13 e **reverti**: as arenas novas inverteram um invariante de justiça na fase 12 — o piloto que evita a brasa se queimava mais que o que a ignora. Alargar exige resolver a interação com `planHazards` antes. Medido e registrado em `tests/arena-variacao.test.js`. |
 
 ---
 

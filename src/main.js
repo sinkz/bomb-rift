@@ -115,7 +115,6 @@ function announce(text, kind = '') { hud.notice(text, '', kind === 'danger' ? '#
 function claimRun() { if (game.claimResult()) { lastRunScore = ranking.record(game); if (lastRunScore) globalRanking.finish(lastRunScore); saveMeta(); } }
 // A scored row only exists once the whole expedition is closed: a death, or stage 18 cleared.
 function runEnded() { return !!lastRunScore?.report; }
-function scoreCard() { return lastRunScore ? `<div class="score-result"><div>${lastRunScore.place ? `${String(lastRunScore.place).padStart(2, '0')}º NO SEU RANKING` : 'RESULTADO DA EXPEDIÇÃO'}<small>${ranking.saved ? 'Salvo neste navegador' : 'Válido nesta sessão'} · abates, coleta e conquista</small></div><strong>${lastRunScore.score.toLocaleString(localeTag())} <small>PTS</small></strong></div>` : ''; }
 function legacyResultCard() {
   const result = game.result?.legacy; if (!result) return '';
   return `<div class="legacy-result"><div class="recipe-cost">${resourceCost(result.materials, '+')}</div><span>+${result.xp} EXP DE EXPLORADOR <b>${result.rankedUp ? 'NOVO RANQUE ' : 'RANQUE '}${result.rank}</b></span><small>Materiais e experiência ficam com você.</small></div>`;

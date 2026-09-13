@@ -139,3 +139,22 @@ test('original refuge score covers eight bars with finite, bounded notes and no 
   for(let i=0;i<128;i++)Music.prototype.schedule.call(receiver,i,i*30/76,30/76);
   assert.equal(THEMES.refuge.melody.length,64);assert(notes.length>100);assert(notes.every(([midi,at,duration,volume])=>Number.isFinite(midi)&&Number.isFinite(at)&&duration>0&&volume<=.22));
 });
+
+test('nenhum degrau do Rastro de fogo e morto',()=>{
+  // Medido na arena real: o ganho de caixas por degrau era +25%, +13%, +8%, +5%
+  // e +2%. Os dois ultimos niveis valiam SETE POR CENTO somados -- duas
+  // escolhas do jogador que quase nao compravam nada. A causa e estrutural:
+  // parede para a explosao, entao alcance extra nao chega a lugar nenhum.
+  const g=blank();
+  let alcance=g.player.range, dano=g.player.damage;
+  for(let nivel=1;nivel<=5;nivel++){
+    if(nivel===2)semJurar(g);              // o caminho nao-jurado, cinco degraus
+    pick(g,'range');
+    const ganhouAlcance=g.player.range>alcance, ganhouDano=g.player.damage>dano;
+    assert(ganhouAlcance||ganhouDano,`o nivel ${nivel} do Rastro de fogo nao deu nada`);
+    if(nivel>=4)assert(ganhouDano,`o nivel ${nivel} precisa pagar em dano: alcance sozinho esbarra em parede`);
+    alcance=g.player.range; dano=g.player.damage;
+  }
+  assert.equal(g.player.range,7);
+  assert.equal(g.player.damage,4,'os dois ultimos degraus deviam somar +2 de dano');
+});

@@ -734,6 +734,19 @@ export class ArenaScene {
       this.burst(event.x,event.z,event.color,55,4,{geo:'crystal',size:1.2,spread:.6}); this.heroAction={kind:'skill',age:0,duration:1};
       this.impactLight(event.x,event.z,event.color,40,8,1.6); this.hit(.07); this.heroSpark=1;
     }
+    if (event.type === 'arenaRite') {
+      const cor = event.color || 0xc5a1ff;
+      // Escalonado pelas casas: o rito derruba pilares em sequencia, e um
+      // estouro unico leria como uma explosao so, nao como um desabamento.
+      for (const [i, c] of (event.cells || []).entries()) {
+        const atraso = Math.min(.6, i * .05);
+        this.pulse(c.x, c.z, cor, 1.8, .7, atraso);
+        this.later(atraso, () => this.burst(c.x, c.z, cor, 6, 1.6, { geo: 'crystal', size: 1, gravity: -1.4, lift: .5, y: .4, spread: .4 }));
+      }
+      const centro = (event.cells || [])[Math.floor((event.cells || []).length / 2)];
+      if (centro) this.impactLight(centro.x, centro.z, cor, 26, 10, 1.4);
+      this.hit(.04);
+    }
     if (event.type === 'chainArc') {
       const steps=12;
       for(let i=0;i<=steps;i++) { const k=i/steps; this.burst(event.from.x+(event.x-event.from.x)*k,event.from.z+(event.z-event.from.z)*k,0xffe698,1,.4); }
