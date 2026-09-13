@@ -142,7 +142,7 @@ Outros atalhos do harness: `actions.start()`, `skipToBoss()`, `killBoss()`, `pum
 
 | Item | Situação |
 |---|---|
-| **Retrato mobile** (390×844) | Tabuleiro sai da tela, área morta no topo. **Anterior a esta rodada** — `shots/hud-390x844-antes.png` mostra o mesmo comportamento, e o README já registrava que a adaptação mobile de câmera e zoom não foi feita. |
+| ~~**Retrato mobile** (390×844)~~ | **Resolvido em 2026-09-13.** A causa era o `follow` de 0,88 do retrato somado ao jogador começar em (1,1): a câmera centrava no canto do tabuleiro. `limitarFoco()` prende o alvo dentro do tabuleiro. Desktop e paisagem não mudaram — lá o follow já era zero. |
 | **Rolagem na Evolução** | 300–670px conforme a aba. Deliberado: são sete abas de itens. Cabeçalho, abas e coluna do herói ficam fixos; só a lista rola. Resolver de vez pede menos categorias ou paginação — muda a navegação. |
 | **Rodada de HUD incompleta** | O agente que reescreveu `hud.js`/`game-hud.css`/`pixel-interface.css` parou por limite de sessão antes de verificar. O trabalho está aplicado e foi validado por mim no desktop; não se sabe o que ele ainda pretendia mudar. |
 | **Código morto em `main.js`** | `scoreCard()` não é chamado e `saveWarning` só é escrito. Anterior a esta rodada. |
