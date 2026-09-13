@@ -24,6 +24,9 @@ import { criarRiftFX } from './rift-fx.js';
 import { criarPlayerMark } from './player-mark.js';
 import { criarHitDirection } from './hit-direction.js';
 import { criarThrowFX } from './throw-fx.js';
+import { criarMasteryFX } from './mastery-fx.js';
+import { momentoDeJurar } from './oath.js';
+import { criarSigilFX } from './sigil-fx.js';
 import { Sound } from './audio.js';
 import { REFUGE_TRACKS } from './refuge-tracks.js';
 import '@fontsource/silkscreen/latin-400.css';
@@ -80,7 +83,7 @@ setHTML($('#app'), `
         <div class="floating-message" id="floating-message" role="status"></div>
         <div class="start-banner" id="start-banner"><div><span class="eyebrow orange">O DESCONHECIDO ESPERA</span><h3>Acenda o pavio. <span>Desafie o infinito.</span></h3><p>Destrua. Colete. Evolua. E tente voltar inteiro.</p></div><button class="primary-button" data-action="start">Iniciar expedição ${icon('ArrowUpRight')}<small>ENTER</small></button></div>
         <div class="in-game-bottom hidden" id="in-game-bottom"><span>${icon('Gem')} Cristais alimentam sua evolução</span><div class="bomb-indicator"><span id="bomb-slots"></span><span>BOMBAS</span></div><span class="dash-indicator" id="dash-status">${icon('Zap')} ESQUIVA PRONTA</span></div>
-        <div class="mobile-controls" id="mobile-controls"><div class="dpad"><button data-move="0,-1" aria-label="Mover para cima">${icon('MoveUp')}</button><button data-move="-1,0" aria-label="Mover para esquerda">${icon('MoveLeft')}</button><button data-move="0,1" aria-label="Mover para baixo">${icon('MoveDown')}</button><button data-move="1,0" aria-label="Mover para direita">${icon('MoveRight')}</button></div><div class="touch-actions"><button data-action="dash" aria-label="Esquivar">${icon('Zap')}</button><button data-action="bomb" aria-label="Colocar bomba">${icon('Bomb')}</button></div></div>
+        <div class="mobile-controls" id="mobile-controls"><div class="dpad"><button data-move="0,-1" aria-label="Mover para cima">${icon('MoveUp')}</button><button data-move="-1,0" aria-label="Mover para esquerda">${icon('MoveLeft')}</button><button data-move="0,1" aria-label="Mover para baixo">${icon('MoveDown')}</button><button data-move="1,0" aria-label="Mover para direita">${icon('MoveRight')}</button></div><div class="touch-actions"><button data-action="sigil" id="touch-sigil" class="hidden" aria-label="Usar selo">${icon('Sparkles')}</button><button data-action="dash" aria-label="Esquivar">${icon('Zap')}</button><button data-action="bomb" aria-label="Colocar bomba">${icon('Bomb')}</button></div></div>
       </section>
       <aside class="character-panel">
         <section class="character-section"><div class="panel-label">SEU EXPLORADOR <span class="level-pill" id="level-pill">NV. 01</span></div><div class="character-profile"><div class="avatar-wrap">${avatar}<span class="avatar-spark s1">+</span><span class="avatar-spark s2">+</span></div><div><span class="micro orange">O PEQUENO CAOS</span><h2>Faísca</h2><span class="class-badge">${icon('Bomb')} Especialista em demolição</span></div></div><div class="health-heading"><span>${icon('Heart')} Vitalidade</span><strong id="hp-label">100 <span>/ 100</span></strong></div><div class="health-track"><span id="hp-fill"></span></div><div class="xp-heading"><span id="xp-label">0 / 36 XP</span><span>PRÓXIMO NÍVEL ${icon('ChevronRight')}</span></div><div class="xp-track"><span id="xp-fill"></span></div></section>
@@ -162,7 +165,8 @@ function showGuide() {
   modal('guide', `<span class="eyebrow orange">MANUAL DO PEQUENO CAOS</span><h2 id="modal-title">Um pavio. Muitas possibilidades.</h2><p>Sobreviva por <b>2 minutos</b>, derrote o chefe e atravesse a próxima fenda. A masmorra muda, a dificuldade aumenta e cada fase começa com uma build nova. Suas melhorias permanentes ficam.</p><div class="guide-grid"><div><span>${icon('Bomb')}</span><h3>Abra o caminho</h3><p>Bombas explodem em cruz. Caixas são destruídas, pedras bloqueiam o fogo e outras bombas explodem em cadeia. <b>Suas explosões também machucam você.</b></p></div><div><span>${icon('Gem')}</span><h3>Transforme o caos</h3><p>Recolha cristais para ganhar XP. Cada nível dá uma habilidade grátis. Use cristais para forjar outras escolhas com <b>E</b>.</p></div><div><span>${icon('Zap')}</span><h3>Tenha uma saída</h3><p>Use <b>Shift</b> para avançar até 3 casas na direção em que está olhando, com invulnerabilidade breve. Paredes bloqueiam a esquiva.</p></div><div><span>${icon('Skull')}</span><h3>Encare o guardião</h3><p>Quando o tempo terminar, o chefe aparece. Fuja das casas vermelhas e use bombas. A vitória desbloqueia a próxima fase e salva essências. Volte ao atlas para investir no seu legado.</p></div></div><div class="guide-controls"><span><kbd>W A S D</kbd> ou <kbd>↑ ← ↓ →</kbd> mover pela grade</span><span><kbd>ESPAÇO</kbd> colocar bomba</span><span><kbd>ESC / P</kbd> pausar</span></div><p class="small-note">Cada 5 abates rendem 1 essência. Minichefes rendem 3, uma relíquia e um núcleo para coletar. Cada fase mostra a recompensa do seu guardião no atlas. A cada duas caixas ou três abates, colete sucata. Use essências, sucata e núcleos no Refúgio: talentos, equipamentos e tinturas ficam para as próximas fases. Complete contratos para ganhar recursos extras. O progresso é salvo neste navegador.</p><button class="primary-button full-width" data-action="close-modal">Entendi. Vamos nessa. ${icon('ArrowRight')}</button>`, { wide: true });
 }
 function showUpgrade() {
-  modal('upgrade', `<div class="upgrade-sigil">${icon('Sparkles')}</div><span class="eyebrow orange">${game.upgradeCost ? 'A FORJA RESPONDEU AO SEU CHAMADO' : `NÍVEL ${game.level} · PODER DESPERTADO`}</span><h2 id="modal-title">Escolha sua evolução.</h2><p>Três caminhos. Uma escolha. Faça a fenda lembrar de você.</p><div class="skill-options">${game.offers.map((skill, i) => `<button class="skill-option" data-skill="${skill.id}" style="--skill-color:${skill.color}"><span class="skill-option-top"><span>${icon(skill.icon)} ${skill.branch}</span><kbd>${i + 1}</kbd></span><span class="skill-option-icon">${skillArt(skill.id)}</span><h3>${skill.name}</h3><p>${skill.desc}</p>${skillPreview(game, skill.id)}${masteryProgress(game, skill.id)}<span class="skill-option-bottom"><span>◆ NÍVEL ${(game.skillLevels[skill.id] || 0) + 1}</span> ${icon('ArrowUpRight')}</span></button>`).join('')}</div><div class="upgrade-footer"><span>${icon('Gem')} ${game.crystals} cristais</span><button class="secondary-button" data-action="reroll" ${game.crystals < 6 ? 'disabled' : ''}>${icon('RotateCcw')} Sortear novamente <b>6 ${icon('Gem')}</b></button></div><span class="upgrade-pause-note">TEMPO SUSPENSO · ESCOLHA COM CALMA</span>`, { wide: true, closable: false });
+  const jurando = momentoDeJurar(game);
+  modal('upgrade', `<div class="upgrade-sigil">${icon('Sparkles')}</div><span class="eyebrow orange">${jurando ? 'O JURAMENTO · ESCOLHA COM QUEM VOCÊ FICA' : game.upgradeCost ? 'A FORJA RESPONDEU AO SEU CHAMADO' : `NÍVEL ${game.level} · PODER DESPERTADO`}</span><h2 id="modal-title">${jurando ? 'A quem você jura?' : 'Escolha sua evolução.'}</h2><p>${jurando ? 'Esta escolha vira seu juramento. A jurada ocupa sempre uma das três vagas e desperta uma escolha mais cedo — enquanto você não a trair.' : 'Três caminhos. Uma escolha. Faça a fenda lembrar de você.'}</p><div class="skill-options">${game.offers.map((skill, i) => `<button class="skill-option" data-skill="${skill.id}" style="--skill-color:${skill.color}"><span class="skill-option-top"><span>${icon(skill.icon)} ${skill.branch}</span><kbd>${i + 1}</kbd></span><span class="skill-option-icon">${skillArt(skill.id)}</span><h3>${skill.name}</h3><p>${skill.desc}</p>${skillPreview(game, skill.id)}${masteryProgress(game, skill.id)}<span class="skill-option-bottom"><span>◆ NÍVEL ${(game.skillLevels[skill.id] || 0) + 1}</span> ${icon('ArrowUpRight')}</span></button>`).join('')}</div><div class="upgrade-footer"><span>${icon('Gem')} ${game.crystals} cristais</span><button class="secondary-button" data-action="reroll" ${game.crystals < 6 ? 'disabled' : ''}>${icon('RotateCcw')} Sortear novamente <b>6 ${icon('Gem')}</b></button></div><span class="upgrade-pause-note">TEMPO SUSPENSO · ESCOLHA COM CALMA</span>`, { wide: true, closable: false });
 }
 function showBuild() {
   pauseForModal();
@@ -218,7 +222,7 @@ let lastHud = '';
 function updateHud() {
   hud.update();
   const p = game.player, remaining = Math.max(0, Math.ceil(ROUND_SECONDS - game.elapsed));
-  const stamp = [remaining, game.phase, p.hp, p.maxHp, game.xp, game.crystals, game.kills, game.bombs.length, Math.ceil(p.dashCooldown * 10), game.boss?.hp, game.round, game.level, game.forgeCost].join('/');
+  const stamp = [remaining, game.phase, p.hp, p.maxHp, game.xp, game.crystals, game.kills, game.bombs.length, Math.ceil(p.dashCooldown * 10), Math.ceil((game.sigilCooldown || 0) * 10), game.boss?.hp, game.round, game.level, game.forgeCost].join('/');
   if (stamp === lastHud) return; lastHud = stamp;
   setHTML($('#timer'), `${String(Math.floor(remaining / 60)).padStart(2, '0')}<span>:</span>${String(remaining % 60).padStart(2, '0')}`);
   $('#timer').classList.toggle('urgent', remaining <= 20 && remaining > 0);
@@ -239,6 +243,7 @@ function updateHud() {
   if (game.boss) { setText($('#boss-name'), game.boss.name); setText($('#boss-hp'), `${game.boss.hp} / ${game.boss.maxHp}`); $('#boss-fill').style.width = `${game.boss.hp / game.boss.maxHp * 100}%`; }
   setHTML($('#bomb-slots'), Array.from({ length: p.capacity }, (_, i) => `<span class="bomb-pip ${i < p.capacity - game.bombs.length ? 'ready' : ''}"></span>`).join(''));
   setHTML($('#dash-status'), `${icon('Zap')} ${p.dashCooldown > 0 ? `ESQUIVA ${formatNumber(p.dashCooldown, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}s` : 'ESQUIVA PRONTA'}`);
+
   $('#pause-button').disabled = !game.active && game.phase !== 'paused'; icons();
 }
 
@@ -316,7 +321,7 @@ const actions = {
   pause() { if (game.active) { game.pause(); showPause(); } else if (game.phase === 'paused') resume(); },
   resume,
   'close-modal'() { const phase = game.phase; closeModal(); if (phase === 'dead') showDead(); else if (phase === 'intermission') showIntermission(); else if (phase === 'paused') game.pause(); else if (phase === 'menu') { if (!launch.root.hidden) launch.render(); else atlas.render(); } },
-  bomb() { sound.init(); game.plantBomb(); }, dash() { game.dash(); },
+  bomb() { sound.init(); game.plantBomb(); }, dash() { game.dash(); }, sigil() { sound.init(); game.useSigil(); },
   forge() { if (!game.openUpgrade(true) && game.active) toast(`Colete ${game.forgeCost} cristais para forjar uma habilidade.`); },
   reroll() { game.reroll(); },
   'next-round': returnToMap,
@@ -378,6 +383,7 @@ document.addEventListener('keydown', event => {
   if (movement[event.code]) keys.add(event.code);
   if (event.code === 'Space' && game.active) { event.preventDefault(); game.plantBomb(); }
   if (event.code.startsWith('Shift') && game.active) game.dash();
+  if (event.code === 'KeyQ' && game.active) game.useSigil();
   if (event.code === 'KeyE' && game.active) actions.forge();
   if (event.code === 'KeyB' && game.active) showBuild();
 });
@@ -415,7 +421,7 @@ if (document.readyState === 'complete') (window.requestIdleCallback || (fn => se
 else addEventListener('load', () => (window.requestIdleCallback || (fn => setTimeout(fn, 400)))(warmAudio), { once: true });
 
 try { scene = new ArenaScene($('#scene'), game, { reducedMotion, bossSources, particleSources });
-  scene.use(criarFinaleFX()).use(criarHazardFX(particleSources)).use(criarRiftFX(particleSources)).use(criarPlayerMark(particleSources)).use(criarHitDirection()).use(criarThrowFX(particleSources)); game.drainEvents(); updateHud(); }
+  scene.use(criarFinaleFX()).use(criarHazardFX(particleSources)).use(criarRiftFX(particleSources)).use(criarPlayerMark(particleSources)).use(criarHitDirection()).use(criarThrowFX(particleSources)).use(criarMasteryFX()).use(criarSigilFX()); game.drainEvents(); updateHud(); }
 catch (error) { fatal = true; console.error(error); modal('error', `<div class="modal-emblem">${icon('CircleHelp')}</div><h2 id="modal-title">A fenda não conseguiu abrir.</h2><p>Este jogo precisa de WebGL 2. Ative a aceleração de hardware e tente um navegador atualizado, como Chrome ou Edge.</p><p class="small-note">Detalhe: ${String(error.message).replace(/[<>&]/g, '')}</p>`, { closable: false }); }
 
 let lastTime = performance.now(); let accumulator = 0;

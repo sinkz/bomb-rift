@@ -899,19 +899,21 @@ export class ArenaScene {
   // Ancoras, inimigos, chefe, bombas, itens, chamas.
   stepEntidades(dt, q) {
     const { t, game, p, px, pz, live } = q;
-    if (game.masteries?.length || p.ward) {
+    // O anel dourado de maestria saiu daqui. Ele era FIXO para as quinze, entao
+    // despertar o Zero absoluto (gelo) e a Supernova (fogo) deixava voce
+    // visualmente identico -- a queixa exata de quem jogou. Quem desenha a
+    // maestria agora e src/mastery-fx.js, com uma cor por despertar, injetado
+    // por scene.use(). Sobra aqui o escudo, que e outro assunto: ele conta
+    // cargas, nao build.
+    if (p.ward) {
       const id='player-mastery'; live.add(id);
       const aura=this.ensureObject(id,()=>{
         const group=new THREE.Group();
-        mesh(group,'ring',mat(0xf5dba1,0xe1a953,.7),0,.045,0,.48,.48,.48,false).rotation.x=Math.PI/2;
-        for(let i=0;i<5;i++){const a=i*Math.PI*2/5;mesh(group,'crystal',mat(0xffe4a2,0xffcc6d,.8),Math.sin(a)*.5,.09,Math.cos(a)*.5,.045,.06,.045,false);}
         const shield=mesh(group,'ring',mat(0xa7ffe2,0x62e8cb,.8),0,.65,0,.52,.52,.52,false);shield.name='ward';
         return group;
       },p);
       aura.position.set(this.playerMesh.position.x,0,this.playerMesh.position.z);
       aura.rotation.y=this.reducedMotion?0:t*.65;
-      aura.getObjectByName('ward').visible=!!p.ward;
-      aura.children.slice(0,6).forEach(child=>child.visible=!!game.masteries?.length);
     }
     for(const anchor of game.anchors || []) {
       live.add(anchor.id);
@@ -1149,10 +1151,37 @@ export class ArenaScene {
     this.cameraSpan = this.reducedMotion ? this.targetSpan : THREE.MathUtils.damp(this.cameraSpan, this.targetSpan, 3.5, dt);
     this.frameCamera();
     const follow = inRun ? portrait ? .88 : Math.min(.65, Math.max(0, this.zoom - 1) * 1.8) : 0;
-    this.cameraFocus.x = THREE.MathUtils.damp(this.cameraFocus.x, px * follow, 4, dt); this.cameraFocus.z = THREE.MathUtils.damp(this.cameraFocus.z, pz * follow, 4, dt);
+    const [alvoX, alvoZ] = this.limitarFoco(px * follow, pz * follow);
+    this.cameraFocus.x = THREE.MathUtils.damp(this.cameraFocus.x, alvoX, 4, dt); this.cameraFocus.z = THREE.MathUtils.damp(this.cameraFocus.z, alvoZ, 4, dt);
     this.camera.position.set(this.cameraFocus.x + 10 + (Math.random() - .5) * this.shake, 19, this.cameraFocus.z + 15 + (Math.random() - .5) * this.shake);
     this.camera.lookAt(this.cameraFocus.x, -.1, this.cameraFocus.z); this.camera.updateMatrixWorld();
     this.renderer.info.reset(); this.composer.render();
+  }
+  /**
+   * Prende o foco da camera dentro do tabuleiro.
+   *
+   * No retrato a camera segue o jogador a 88% -- sem isso o tabuleiro nao cabe
+   * na tela estreita. Mas o jogador COMECA no canto (1,1), entao a camera
+   * centrava no canto e mais de um terco da tela virava vazio preto, com o
+   * tabuleiro cortado do outro lado. No desktop o defeito nao aparecia porque
+   * la o follow e zero com zoom 1: o enquadramento e sempre o tabuleiro inteiro.
+   *
+   * at() centra o tabuleiro na origem, entao os limites do mundo sao
+   * +/-(largura-1)/2 e +/-(altura-1)/2. O foco pode chegar ate a borda MENOS
+   * metade do que a camera ve; quando a vista e maior que o tabuleiro, o limite
+   * vira zero e a camera fica centrada, que e o comportamento certo.
+   *
+   * O fator 0.62 e empirico: a camera e isometrica (posicao +10x, +15z, altura
+   * 19), entao nem x nem z do mundo mapeiam limpo num eixo da tela. Medi o vazio
+   * na tela com o jogador nos quatro cantos e desci o fator ate ele sumir.
+   */
+  limitarFoco(x, z) {
+    const g = this.game;
+    if (!g) return [x, z];
+    const vista = this.cameraSpan * .62;
+    const limite = (metade) => Math.max(0, metade - vista);
+    const lx = limite((g.width - 1) / 2), lz = limite((g.height - 1) / 2);
+    return [THREE.MathUtils.clamp(x, -lx, lx), THREE.MathUtils.clamp(z, -lz, lz)];
   }
   setQuality(high) {
     this.quality = high; this.renderer.setPixelRatio(high ? Math.min(window.devicePixelRatio, 1.6) : 1); this.renderer.shadowMap.enabled = high; this.bloom.enabled = high;

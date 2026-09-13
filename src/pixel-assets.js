@@ -157,4 +157,12 @@ export const PIXEL_URLS = Object.freeze({
   "branch-demolition": new URL('./assets/pixel/skill-power.webp', import.meta.url).href,
   "branch-survival": new URL('./assets/pixel/skill-health.webp', import.meta.url).href,
   "branch-mobility": new URL('./assets/pixel/approved-speed.webp', import.meta.url).href,
+  "sigil-estouro": new URL('./assets/pixel/sigil-estouro.webp', import.meta.url).href,
+  "sigil-ferrao": new URL('./assets/pixel/sigil-ferrao.webp', import.meta.url).href,
+  "sigil-ancora": new URL('./assets/pixel/sigil-ancora.webp', import.meta.url).href,
+  "sigil-sangria": new URL('./assets/pixel/sigil-sangria.webp', import.meta.url).href,
+  "sigil-fenda": new URL('./assets/pixel/sigil-fenda.webp', import.meta.url).href,
+  "sigil-brasa-fria": new URL('./assets/pixel/sigil-brasa-fria.webp', import.meta.url).href,
+  "mark-oath": new URL('./assets/pixel/mark-oath.webp', import.meta.url).href,
+  "sigil-empty": new URL('./assets/pixel/sigil-empty.webp', import.meta.url).href,
 });

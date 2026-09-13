@@ -127,6 +127,7 @@ body.in-atlas #app>main,body.in-atlas #app>.site-header{display:none}
 .ability-dock .action-slot strong{font:clamp(6px,.7vw,8px) var(--pixel)}
 .ability-dock .bomb-action{border-color:#d6a772}
 .ability-dock .dash-action{border-color:#81b8a9}
+.ability-dock .sigil-action{border-color:var(--skill-color,#ffab6b)}
 .ability-dock .forge-ready{border-color:#ffd68c;box-shadow:0 0 20px #ffd68c33}
 .combat-hud .build-rune,.combat-hud .rune-empty,.combat-tools button,.in-run .arena-top button{border-radius:0;border-width:2px;background:#292435;box-shadow:inset 1px 1px #cbbba122,0 3px #090c16}
 .combat-hud .rune-empty{background:#231b2e;border-style:dashed;border-color:#c9a9ff40}

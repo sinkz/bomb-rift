@@ -1729,6 +1729,94 @@
       "source": "src/legacy.js · BRANCHES",
       "alias": "approved-speed",
       "new": "pixel-library/icons/approved-speed.png"
+    },
+    {
+      "id": "sigil-estouro",
+      "name": "Estouro",
+      "group": "Selos",
+      "old": "",
+      "subject": "one amber shockwave ring with three violet bombs packed inside",
+      "color": "#f68b3d",
+      "source": "src/sigils.js · SELOS",
+      "alias": null,
+      "new": "pixel-library/icons/sigil-estouro.png"
+    },
+    {
+      "id": "sigil-ferrao",
+      "name": "Ferrão",
+      "group": "Selos",
+      "old": "",
+      "subject": "a violet bomb with a glowing amber stinger spike aimed down",
+      "color": "#ffb066",
+      "source": "src/sigils.js · SELOS",
+      "alias": null,
+      "new": "pixel-library/icons/sigil-ferrao.png"
+    },
+    {
+      "id": "sigil-ancora",
+      "name": "Âncora",
+      "group": "Selos",
+      "old": "",
+      "subject": "a jade dome shield driven into stone by a bronze anchor spike",
+      "color": "#7ecf9e",
+      "source": "src/sigils.js · SELOS",
+      "alias": null,
+      "new": "pixel-library/icons/sigil-ancora.png"
+    },
+    {
+      "id": "sigil-sangria",
+      "name": "Sangria",
+      "group": "Selos",
+      "old": "",
+      "subject": "a crimson blood drop splitting into a four-way cross of blades",
+      "color": "#e05c6e",
+      "source": "src/sigils.js · SELOS",
+      "alias": null,
+      "new": "pixel-library/icons/sigil-sangria.png"
+    },
+    {
+      "id": "sigil-fenda",
+      "name": "Fenda",
+      "group": "Selos",
+      "old": "",
+      "subject": "a violet keyhole portal with a dark bomb emerging through it",
+      "color": "#a97ce0",
+      "source": "src/sigils.js · SELOS",
+      "alias": null,
+      "new": "pixel-library/icons/sigil-fenda.png"
+    },
+    {
+      "id": "sigil-brasa-fria",
+      "name": "Brasa fria",
+      "group": "Selos",
+      "old": "",
+      "subject": "an ice-blue snowflake smothering a dying orange ember",
+      "color": "#5baccf",
+      "source": "src/sigils.js · SELOS",
+      "alias": null,
+      "new": "pixel-library/icons/sigil-brasa-fria.png"
+    },
+    {
+      "id": "mark-oath",
+      "name": "Juramento",
+      "group": "Selos",
+      "old": "",
+      "subject": "a bronze oath seal stamped with an ivory chevron, bound by a violet ribbon",
+      "color": "#d4a76a",
+      "source": "src/sigils.js · SELOS",
+      "alias": null,
+      "new": "pixel-library/icons/mark-oath.png"
+    },
+    {
+      "id": "sigil-empty",
+      "name": "Vaga de selo",
+      "group": "Selos",
+      "old": "",
+      "subject": "an empty hexagonal bronze socket with a hollow violet center",
+      "color": "#7d6a55",
+      "source": "src/sigils.js · SELOS",
+      "alias": null,
+      "new": "pixel-library/icons/sigil-empty.png"
     }
   ],
   "batches": [

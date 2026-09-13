@@ -1,3 +1,5 @@
+import { SELOS, seloPorId } from './sigils.js';
+
 export const RESOURCES = {
   shards: { name: 'Essências', color: '#b4dfb0', tip: 'Abates, minichefes e vitórias. Usadas nos talentos.' },
   scrap: { name: 'Sucata', color: '#e6b17f', tip: 'Cada duas caixas ou três abates deixam sucata. Usada na oficina.' },
@@ -63,6 +65,12 @@ export function normalizeMeta(value = {}) {
   meta.loadout = Object.fromEntries(Object.keys(SLOTS).map(slot => [slot, GEAR.find(g => g.id === v.loadout?.[slot] && g.slot === slot && meta.gear.includes(g.id))?.id || GEAR.find(g => g.slot === slot).id]));
   meta.outfits = [...new Set(['ember', ...(Array.isArray(v.outfits) ? v.outfits.filter(id => OUTFITS.some(o => o.id === id)) : [])])];
   meta.outfit = meta.outfits.includes(v.outfit) ? v.outfit : 'ember';
+  // Os selos sao a unica coisa da arvore que muda o seu VERBO, entao seguem a
+  // mesma disciplina do equipamento: so vale o que foi comprado, e so um entra
+  // na expedicao. Comecar sem nenhum e legitimo -- ate o primeiro, o jogo e o
+  // de sempre, com duas ativas.
+  meta.sigils = Array.isArray(v.sigils) ? [...new Set(v.sigils.filter(id => SELOS.some(s => s.id === id)))] : [];
+  meta.sigil = meta.sigils.includes(v.sigil) ? v.sigil : null;
   meta.contracts = Array.isArray(v.contracts) ? [...new Set(v.contracts.filter(id => CONTRACTS.some(c => c.id === id)))] : [];
   meta.totals = { kills: safe(v.totals?.kills), crates: safe(v.totals?.crates), guardians: v.totals ? safe(v.totals.guardians) : meta.unlockedStage - 1 };
   return meta;
@@ -98,6 +106,46 @@ export function useGear(meta, id) {
   }
   meta.loadout[g.slot] = id; return true;
 }
+/**
+ * O estado de um selo para este jogador -- espelha talentStatus/useGear de
+ * proposito, porque a regra e a mesma: ranque, pre-requisito no proprio ramo,
+ * e recursos.
+ *
+ * O pre-requisito de um selo aponta para um TALENTO do ramo dele. E isso que faz
+ * a arvore decidir a build em vez de ser uma lista de compras: para levar o
+ * Ferrao voce precisa ter descido a Demolicao ate a Chama ancestral 2.
+ */
+export function seloStatus(meta, selo) {
+  const comprado = meta.sigils.includes(selo.id);
+  const equipado = meta.sigil === selo.id;
+  const exigido = selo.requer && TALENTS.find(t => t.id === selo.requer[0]);
+  const reason = comprado ? ''
+    : rankInfo(meta.legacyXp).level < selo.rank ? `REQUER RANQUE ${selo.rank}`
+    : exigido && talentLevel(meta, exigido.id) < selo.requer[1] ? `REQUER ${exigido.name.toUpperCase()} ${selo.requer[1]}`
+    : !canAfford(meta, selo.custo) ? 'FALTAM RECURSOS' : '';
+  return { comprado, equipado, reason, available: !reason };
+}
+
+/**
+ * Compra (se preciso) e equipa. Trocar entre selos ja comprados e gratuito, como
+ * trocar equipamento -- o custo esta em conquistar o selo, nao em usa-lo.
+ *
+ * Equipar o que ja esta equipado DESEQUIPA: voltar a jogar com duas ativas tem
+ * de ser possivel sem apagar a compra.
+ */
+export function useSigil(meta, id) {
+  const selo = seloPorId(id); if (!selo) return false;
+  if (!meta.sigils.includes(id)) {
+    const status = seloStatus(meta, selo);
+    if (!status.available || !pay(meta, selo.custo)) return false;
+    meta.sigils.push(id);
+    meta.sigil = id;
+    return true;
+  }
+  meta.sigil = meta.sigil === id ? null : id;
+  return true;
+}
+
 export function useOutfit(meta, id) {
   const o = OUTFITS.find(o => o.id === id); if (!o) return false;
   if (!meta.outfits.includes(id)) { if (!pay(meta, o.cost)) return false; meta.outfits.push(id); }

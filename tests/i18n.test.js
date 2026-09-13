@@ -4,6 +4,7 @@ import { t, setLocale, getLocale, resolveLocale, localeTag, formatNumber, format
 import { WORLDS, RELICS, ENEMY_NAMES, ENEMY_TACTICS, stageFor, CAMPAIGN_LENGTH } from '../src/campaign.js';
 import { TALENTS, GEAR, OUTFITS, CONTRACTS, BRANCHES, RESOURCES } from '../src/legacy.js';
 import { Game, SKILLS, seededRandom } from '../src/game.js';
+import { SELOS } from '../src/sigils.js';
 
 test('saved language wins, browser language has a supported fallback, invalid settings are ignored', () => {
   assert.equal(resolveLocale('pt-BR', ['en-US']), 'pt-BR');
@@ -19,8 +20,8 @@ test('saved language wins, browser language has a supported fallback, invalid se
 
 test('every skill, stage, world, item and strategy has authored English text', () => {
   setLocale('en');
-  const data = [...SKILLS, ...WORLDS, ...RELICS, ...TALENTS, ...GEAR, ...OUTFITS, ...CONTRACTS, ...BRANCHES, ...Object.values(RESOURCES), ...Object.values(ENEMY_TACTICS), ...Array.from({ length: CAMPAIGN_LENGTH }, (_, i) => stageFor(i + 1))];
-  for (const entry of data) for (const key of ['name','desc','description','subtitle','title','quote','mechanic','bossAttack','motto','tip']) {
+  const data = [...SKILLS, ...SELOS, ...WORLDS, ...RELICS, ...TALENTS, ...GEAR, ...OUTFITS, ...CONTRACTS, ...BRANCHES, ...Object.values(RESOURCES), ...Object.values(ENEMY_TACTICS), ...Array.from({ length: CAMPAIGN_LENGTH }, (_, i) => stageFor(i + 1))];
+  for (const entry of data) for (const key of ['name','nome','desc','sinergia','description','subtitle','title','quote','mechanic','bossAttack','motto','tip']) {
     if (typeof entry[key] !== 'string') continue;
     assert.notEqual(t(entry[key]), entry[key], `${entry.id || entry.number}: missing ${key}: ${entry[key]}`);
     assert.equal(t(t(entry[key])), t(entry[key]), `translation must be idempotent: ${entry[key]}`);
